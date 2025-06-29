@@ -280,7 +280,7 @@ body:not(.smart-nav-enabled) .content-area {
 .content-area p {
     font-family: var(--font-base);
     font-weight: 400;
-    font-size: 1.3rem;
+    font-size: 1.5rem;
     line-height: 1.8;
     margin: 0 0 calc(var(--space) * 1.2) 0;
     cursor: pointer;
