@@ -1,4 +1,4 @@
-// js/navigation.js - 超级优化版本，性能提升40%
+// js/navigation.js - 侧边导航系统 v1.0 (Coolors风格)
 window.EnglishSite = window.EnglishSite || {};
 
 class Navigation {
@@ -33,37 +33,36 @@ class Navigation {
         this.contentArea = contentArea;
         this.navData = navData;
         
-        // 🚀 优化：DOM缓存系统
+        // 🚀 新增：侧边栏状态管理
+        this.sidebarState = {
+            isOpen: false,
+            expandedSubmenu: null,
+            mainPanel: null,
+            submenuPanel: null,
+            sidebarContainer: null,
+            overlay: null
+        };
+        
+        // 🚀 新增：配置加载
+        this.sidebarConfig = this.#loadSidebarConfig(options);
+        
+        // DOM缓存系统
         this.domCache = new Map();
         this.elements = new Map();
         
-        // 🚀 优化：统一状态管理
+        // 统一状态管理
         this.state = {
-            // 导航状态
             linksMap: new Map(),
             activeLink: null,
             chaptersMap: new Map(),
-            
-            // 下拉菜单状态（简化）
-            dropdown: {
-                isOpen: false,
-                currentId: null,
-                overlay: null,
-                isProcessing: false,
-                pooledOverlays: [] // 🚀 新增：下拉菜单池化
-            },
-            
-            // 性能状态
             lastResize: 0,
             debounceTimers: new Map(),
             isMobile: window.innerWidth <= 768,
-            
-            // 🚀 新增：预加载状态
             preloadQueue: new Set(),
             preloadInProgress: false
         };
         
-        // 🚀 优化：事件处理器（统一管理）
+        // 事件处理器
         this.eventHandlers = {
             globalClick: this.#handleGlobalClick.bind(this),
             windowResize: this.#createDebouncer('resize', this.#handleResize.bind(this), 100),
@@ -74,7 +73,25 @@ class Navigation {
         this.initPromise = this.#initialize(options);
     }
 
-    // 🚀 新增：DOM缓存获取
+    // 🚀 新增：配置加载
+    #loadSidebarConfig(options) {
+        const defaultConfig = {
+            sidebarWidth: 70,        // 默认70%宽度
+            mainPanelRatio: 0.6,     // 主导航60%
+            submenuPanelRatio: 0.4,  // 子菜单40%
+            minWidth: 320,           // 最小320px
+            maxWidth: '90vw',        // 最大90%
+            responsiveWidths: {
+                desktop: 70,         // 桌面端70%
+                tablet: 80,          // 平板端80%
+                mobile: 90           // 移动端90%
+            }
+        };
+        
+        return { ...defaultConfig, ...(options.sidebar || {}) };
+    }
+
+    // DOM缓存获取
     #getElement(selector) {
         if (!this.domCache.has(selector)) {
             this.domCache.set(selector, document.querySelector(selector));
@@ -82,7 +99,7 @@ class Navigation {
         return this.domCache.get(selector);
     }
 
-    // 🚀 新增：防抖器创建
+    // 防抖器创建
     #createDebouncer(key, func, delay) {
         return (...args) => {
             const timers = this.state.debounceTimers;
@@ -123,13 +140,14 @@ class Navigation {
                 throw new Error('Navigation: Missing required arguments');
             }
 
-            // 🚀 优化：并行初始化
+            // 并行初始化
             await Promise.all([
                 this.#loadAndMergeToolsData(),
                 this.#preprocessData()
             ]);
             
-            this.#render();
+            // 🚀 新增：创建侧边导航系统
+            this.#createSidebarSystem();
             this.#setupEventListeners();
             this.#handleInitialLoad();
             
@@ -170,7 +188,6 @@ class Navigation {
                 }
             }
         } catch (error) {
-            // 工具加载失败不影响主应用运行
             if (this.config.debug) {
                 console.warn('[Navigation] Tools loading failed:', error);
             }
@@ -204,385 +221,521 @@ class Navigation {
         }
     }
 
-    // 🚀 优化：渲染过程（减少DOM操作）
-    #render() {
+    // 🚀 新增：创建侧边导航系统
+    #createSidebarSystem() {
+        // 清空原导航容器
         this.navContainer.innerHTML = '';
-        this.state.linksMap.clear();
-
-        const navList = document.createElement('ul');
-        navList.className = Navigation.CONFIG.CSS.NAV_LIST;
-
-        // 🚀 优化：使用DocumentFragment批量插入
-        const fragment = document.createDocumentFragment();
-
-        // 1. All Articles 链接
-        fragment.appendChild(this.#createNavItem(
-            'All Articles', 
-            `#${Navigation.CONFIG.HASH_PREFIX.ALL_ARTICLES}`, 
-            Navigation.CONFIG.ROUTES.ALL,
-            Navigation.CONFIG.ROUTES.ALL,
-            'nav-link-all'
-        ));
-
-        // 2. Series 下拉菜单
-        const learningSeries = this.navData.filter(series => {
-            return series.seriesId && series.seriesId !== 'tools' && 
-                   Array.isArray(series.chapters) && series.chapters.length > 0;
-        });
         
-        if (learningSeries.length > 0) {
-            fragment.appendChild(this.#createDropdownItem('Series', learningSeries));
-        }
-
-        // 3. Tools 链接
-        fragment.appendChild(this.#createNavItem(
-            'Tools', 
-            `#${Navigation.CONFIG.HASH_PREFIX.TOOLS}`, 
-            Navigation.CONFIG.ROUTES.TOOLS,
-            Navigation.CONFIG.ROUTES.TOOLS
-        ));
-
-        navList.appendChild(fragment);
-        this.navContainer.appendChild(navList);
+        // 创建汉堡菜单按钮
+        this.#createHamburgerButton();
+        
+        // 创建侧边栏容器
+        this.#createSidebarContainer();
+        
+        // 创建背景遮罩
+        this.#createOverlay();
+        
+        // 应用配置
+        this.#applySidebarConfig();
     }
 
-    #createNavItem(text, href, routeType, id = null, extraClass = '') {
-        const item = document.createElement('li');
-        item.className = 'nav-item';
-        
-        const link = document.createElement('a');
-        link.href = href;
-        link.textContent = text;
-        link.dataset.routeType = routeType;
-        if (id) link.dataset.id = id;
-        if (extraClass) link.className = extraClass;
-
-        this.state.linksMap.set(id || routeType, link);
-        item.appendChild(link);
-        return item;
-    }
-
-    #createDropdownItem(title, seriesData) {
-        const item = document.createElement('li');
-        item.className = 'nav-item dropdown';
-        
-        const trigger = document.createElement('button');
-        trigger.className = 'dropdown-trigger';
-        trigger.type = 'button';
-        trigger.dataset.dropdownId = 'series';
-        
-        const textSpan = document.createElement('span');
-        textSpan.className = 'dropdown-text';
-        textSpan.textContent = title;
-        
-        const arrowSpan = document.createElement('span');
-        arrowSpan.className = 'dropdown-arrow';
-        arrowSpan.textContent = '▼';
-        
-        trigger.appendChild(textSpan);
-        trigger.appendChild(arrowSpan);
-        
-        // 🚀 优化：数据存储在元素上，避免全局查找
-        trigger.seriesData = seriesData;
-        
-        item.appendChild(trigger);
-        return item;
-    }
-
-    // 🚀 优化：下拉菜单系统（池化技术）
-    #getOrCreateDropdownOverlay() {
-        // 尝试从池中获取
-        if (this.state.dropdown.pooledOverlays.length > 0) {
-            const overlay = this.state.dropdown.pooledOverlays.pop();
-            this.state.dropdown.overlay = overlay;
-            return overlay;
-        }
-        
-        // 创建新的下拉菜单
-        const overlay = this.#createDropdownOverlay();
-        this.state.dropdown.overlay = overlay;
-        return overlay;
-    }
-
-    #createDropdownOverlay() {
-        const overlay = document.createElement('div');
-        overlay.className = 'navigation-dropdown-overlay';
-        overlay.dataset.pooled = 'true'; // 标记为池化元素
-        
-        // 🚀 优化：预设基础样式，减少动态计算
-        overlay.style.cssText = `
-            position: fixed; left: 0; right: 0; width: 100vw; z-index: 10000;
-            background: #ffffff; border: none; border-top: 1px solid #e0e0e0;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); max-height: 50vh;
-            overflow-y: auto; overflow-x: hidden; opacity: 0; visibility: hidden;
-            transform: translateY(-10px); pointer-events: none; margin: 0; padding: 0;
-            border-radius: 0; transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
-            contain: layout style; will-change: opacity, transform;
-            backface-visibility: hidden; -webkit-overflow-scrolling: touch;
+    // 🚀 新增：创建汉堡菜单按钮
+    #createHamburgerButton() {
+        const button = document.createElement('button');
+        button.className = 'nav-toggle';
+        button.setAttribute('aria-label', '打开导航菜单');
+        button.innerHTML = `
+            <span class="hamburger-icon">
+                <span></span>
+                <span></span>
+                <span></span>
+            </span>
         `;
         
-        // 🚀 优化：预创建内容容器
-        const content = document.createElement('div');
-        content.className = 'dropdown-content';
-        overlay.appendChild(content);
+        // 插入到页面顶部
+        const siteHeader = this.#getElement('.site-header') || this.#createSiteHeader();
+        siteHeader.insertBefore(button, siteHeader.firstChild);
         
+        // 绑定点击事件
+        button.addEventListener('click', () => this.#toggleSidebar());
+    }
+
+    // 🚀 新增：创建顶部栏（如果不存在）
+    #createSiteHeader() {
+        const header = document.createElement('header');
+        header.className = 'site-header';
+        
+        // 创建Logo
+        const logo = document.createElement('div');
+        logo.className = 'brand-logo';
+        logo.textContent = this.config.siteTitle;
+        
+        header.appendChild(logo);
+        document.body.insertBefore(header, document.body.firstChild);
+        
+        return header;
+    }
+
+    // 🚀 新增：创建侧边栏容器
+    #createSidebarContainer() {
+        const container = document.createElement('div');
+        container.className = 'sidebar-container';
+        container.dataset.state = 'closed';
+        
+        // 主导航面板
+        const mainPanel = document.createElement('nav');
+        mainPanel.className = 'sidebar-main';
+        
+        // 子菜单面板
+        const submenuPanel = document.createElement('div');
+        submenuPanel.className = 'sidebar-submenu';
+        
+        container.appendChild(mainPanel);
+        container.appendChild(submenuPanel);
+        document.body.appendChild(container);
+        
+        // 保存引用
+        this.sidebarState.sidebarContainer = container;
+        this.sidebarState.mainPanel = mainPanel;
+        this.sidebarState.submenuPanel = submenuPanel;
+        
+        // 渲染主导航内容
+        this.#renderMainNavigation();
+    }
+
+    // 🚀 新增：创建背景遮罩
+    #createOverlay() {
+        const overlay = document.createElement('div');
+        overlay.className = 'sidebar-overlay';
         document.body.appendChild(overlay);
-        return overlay;
+        
+        this.sidebarState.overlay = overlay;
+        
+        // 点击遮罩关闭侧边栏
+        overlay.addEventListener('click', () => this.#closeSidebar());
     }
 
-    // 🚀 优化：显示下拉菜单（复用而非重建）
-    #showDropdown(triggerElement, seriesData) {
-        const overlay = this.#getOrCreateDropdownOverlay();
-        const content = overlay.querySelector('.dropdown-content');
+    // 🚀 新增：应用侧边栏配置
+    #applySidebarConfig() {
+        const container = this.sidebarState.sidebarContainer;
+        if (!container) return;
         
-        // 🚀 优化：位置计算（缓存）
-        const triggerRect = triggerElement.getBoundingClientRect();
-        const navRect = this.navContainer.getBoundingClientRect();
-        const siteHeader = this.navContainer.closest('.site-header');
+        const config = this.sidebarConfig;
         
-        let top = navRect.bottom;
-        if (siteHeader) {
-            const headerRect = siteHeader.getBoundingClientRect();
-            top = headerRect.bottom;
+        // 设置CSS变量
+        container.style.setProperty('--sidebar-width', `${config.sidebarWidth}%`);
+        container.style.setProperty('--sidebar-min-width', `${config.minWidth}px`);
+        container.style.setProperty('--sidebar-max-width', config.maxWidth);
+        container.style.setProperty('--main-panel-ratio', `${config.mainPanelRatio * 100}%`);
+        container.style.setProperty('--submenu-panel-ratio', `${config.submenuPanelRatio * 100}%`);
+        
+        // 响应式处理
+        this.#handleResponsiveWidth();
+    }
+
+    // 🚀 新增：响应式宽度处理
+    #handleResponsiveWidth() {
+        const config = this.sidebarConfig;
+        const width = window.innerWidth;
+        
+        let targetWidth;
+        if (width <= 768) {
+            targetWidth = config.responsiveWidths.mobile;
+        } else if (width <= 1024) {
+            targetWidth = config.responsiveWidths.tablet;
+        } else {
+            targetWidth = config.responsiveWidths.desktop;
         }
         
-        overlay.style.top = `${Math.round(top)}px`;
-        
-        // 🚀 优化：响应式配置（缓存）
-        const isMobile = this.state.isMobile;
-        content.style.cssText = isMobile ? 
-            `max-width: 100%; margin: 0; padding: 5px 15px; display: grid; grid-template-columns: 1fr; gap: 5px;` :
-            `max-width: 1200px; margin: 0 auto; padding: 10px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;`;
-        
-        // 🚀 优化：内容更新（复用DOM元素）
-        this.#updateDropdownContent(content, seriesData, isMobile);
-        
-        // 显示下拉菜单
-        overlay.style.opacity = '1';
-        overlay.style.visibility = 'visible';
-        overlay.style.transform = 'translateY(0)';
-        overlay.style.pointerEvents = 'auto';
-        
-        this.state.dropdown.isOpen = true;
-        this.state.dropdown.currentId = 'series';
-        
-        if (this.config.debug) {
-            console.log('[Navigation] Dropdown shown (reused overlay)');
+        const container = this.sidebarState.sidebarContainer;
+        if (container) {
+            container.style.setProperty('--sidebar-width', `${targetWidth}%`);
         }
     }
 
-    // 🚀 新增：下拉菜单内容更新（复用DOM）
-    #updateDropdownContent(container, seriesData, isMobile) {
-        // 清理现有内容但保留容器
-        container.innerHTML = '';
+    // 🚀 新增：渲染主导航
+    #renderMainNavigation() {
+        const mainPanel = this.sidebarState.mainPanel;
+        if (!mainPanel) return;
         
-        // 🚀 优化：批量创建菜单项
-        const fragment = document.createDocumentFragment();
+        // 创建导航内容
+        const navContent = document.createElement('div');
+        navContent.className = 'sidebar-nav-content';
         
-        seriesData.forEach(series => {
-            if (!series.seriesId) return;
-            
-            const item = document.createElement('a');
-            item.href = `#${Navigation.CONFIG.HASH_PREFIX.SERIES}${series.seriesId}`;
-            item.textContent = series.series || series.seriesId;
-            item.dataset.routeType = Navigation.CONFIG.ROUTES.SERIES;
-            item.dataset.id = series.seriesId;
-            item.dataset.dropdownItem = 'true';
-            
-            // 🚀 优化：样式配置（预设）
-            const baseStyle = `
-                display: flex; align-items: center; padding: 12px 18px; color: #333;
-                text-decoration: none; border: none; border-radius: 8px; transition: all 0.2s ease;
-                line-height: 1.3; cursor: pointer; font-weight: 500; background: transparent;
-                margin-bottom: 3px; -webkit-tap-highlight-color: transparent; user-select: none;
-            `;
-            
-            item.style.cssText = isMobile ? 
-                `${baseStyle} padding: 12px 20px; font-size: 15px; min-height: 44px;` :
-                `${baseStyle} font-size: 16px;`;
-            
-            // 🚀 优化：悬停效果（事件委托处理）
-            this.state.linksMap.set(series.seriesId, item);
-            fragment.appendChild(item);
+        // 添加Tools项
+        navContent.appendChild(this.#createToolsItem());
+        
+        // 添加分类内容
+        this.#renderNavigationCategories(navContent);
+        
+        mainPanel.appendChild(navContent);
+    }
+
+    // 🚀 新增：创建Tools项
+    #createToolsItem() {
+        const item = document.createElement('div');
+        item.className = 'nav-item tools-item level-1 clickable';
+        item.dataset.action = 'openTools';
+        
+        const title = document.createElement('span');
+        title.className = 'nav-title';
+        title.textContent = 'Tools';
+        
+        const arrow = document.createElement('span');
+        arrow.className = 'nav-arrow';
+        arrow.textContent = '>';
+        
+        item.appendChild(title);
+        item.appendChild(arrow);
+        
+        // 添加分割线
+        const separator = document.createElement('div');
+        separator.className = 'nav-separator';
+        
+        const wrapper = document.createElement('div');
+        wrapper.appendChild(item);
+        wrapper.appendChild(separator);
+        
+        return wrapper;
+    }
+
+    // 🚀 新增：渲染导航分类
+    #renderNavigationCategories(container) {
+        // 创建文章内容分类
+        const articlesCategory = this.#createNavigationCategory('📚 文章内容', 'articles', [
+            { title: 'All Articles', type: 'direct', action: 'showAllArticles' },
+            ...this.#getSeriesItems(),
+            { title: 'News & Updates', type: 'direct', action: 'showNews' }
+        ]);
+        
+        container.appendChild(articlesCategory);
+        
+        // 创建学习资源分类（如果有的话）
+        const resourcesItems = this.#getResourceItems();
+        if (resourcesItems.length > 0) {
+            const resourcesCategory = this.#createNavigationCategory('🎓 学习资源', 'resources', resourcesItems);
+            container.appendChild(resourcesCategory);
+        }
+    }
+
+    // 🚀 新增：创建导航分类
+    #createNavigationCategory(categoryTitle, categoryId, items) {
+        const category = document.createElement('div');
+        category.className = 'nav-category';
+        category.dataset.categoryId = categoryId;
+        
+        // 分类标题
+        const header = document.createElement('div');
+        header.className = 'nav-category-header';
+        header.textContent = categoryTitle;
+        
+        category.appendChild(header);
+        
+        // 分类项目
+        items.forEach(item => {
+            const navItem = this.#createNavigationItem(item);
+            category.appendChild(navItem);
         });
         
-        container.appendChild(fragment);
+        return category;
     }
 
-    // 🚀 优化：隐藏下拉菜单（回收到池中）
-    #hideDropdown() {
-        const overlay = this.state.dropdown.overlay;
-        if (!overlay) return;
+    // 🚀 新增：创建导航项
+    #createNavigationItem(itemData) {
+        const item = document.createElement('div');
         
-        overlay.style.opacity = '0';
-        overlay.style.visibility = 'hidden';
-        overlay.style.transform = 'translateY(-10px)';
-        overlay.style.pointerEvents = 'none';
+        if (itemData.type === 'direct') {
+            // 直接跳转项
+            item.className = 'nav-item level-1 clickable';
+            item.dataset.action = itemData.action;
+            item.textContent = itemData.title;
+            
+            this.state.linksMap.set(itemData.action, item);
+        } else if (itemData.type === 'expandable') {
+            // 可展开项
+            item.className = 'nav-item level-1 expandable';
+            item.dataset.seriesId = itemData.seriesId;
+            
+            const title = document.createElement('span');
+            title.className = 'nav-title';
+            title.textContent = itemData.title;
+            
+            const arrow = document.createElement('span');
+            arrow.className = 'expand-arrow';
+            arrow.textContent = '>';
+            
+            item.appendChild(title);
+            item.appendChild(arrow);
+            
+            this.state.linksMap.set(itemData.seriesId, item);
+        }
         
-        this.state.dropdown.isOpen = false;
-        this.state.dropdown.currentId = null;
-        
-        // 🚀 优化：延迟回收到池中
-        setTimeout(() => {
-            if (this.state.dropdown.pooledOverlays.length < 2) { // 最多保留2个
-                this.state.dropdown.pooledOverlays.push(overlay);
-            } else {
-                overlay.remove(); // 超出限制则直接移除
-            }
-            this.state.dropdown.overlay = null;
-        }, 200);
-        
-        if (this.config.debug) {
-            console.log('[Navigation] Dropdown hidden (recycled to pool)');
+        return item;
+    }
+
+    // 🚀 新增：获取系列项目
+    #getSeriesItems() {
+        return this.navData
+            .filter(series => series.seriesId && series.seriesId !== 'tools' && 
+                    Array.isArray(series.chapters) && series.chapters.length > 0)
+            .map(series => ({
+                title: series.series,
+                type: 'expandable',
+                seriesId: series.seriesId,
+                chapters: series.chapters
+            }));
+    }
+
+    // 🚀 新增：获取资源项目
+    #getResourceItems() {
+        // 这里可以根据实际需求添加学习资源项目
+        return [];
+    }
+
+    // 🚀 新增：侧边栏开关
+    #toggleSidebar() {
+        if (this.sidebarState.isOpen) {
+            this.#closeSidebar();
+        } else {
+            this.#openSidebar();
         }
     }
 
-    // 🚀 优化：统一事件监听器（减少监听器数量）
+    // 🚀 新增：打开侧边栏
+    #openSidebar() {
+        const container = this.sidebarState.sidebarContainer;
+        const overlay = this.sidebarState.overlay;
+        
+        if (!container || !overlay) return;
+        
+        container.dataset.state = 'open';
+        container.classList.add('open');
+        overlay.classList.add('visible');
+        
+        this.sidebarState.isOpen = true;
+        
+        // 添加body锁定（防止背景滚动）
+        document.body.style.overflow = 'hidden';
+        
+        if (this.config.debug) {
+            console.log('[Navigation] Sidebar opened');
+        }
+    }
+
+    // 🚀 新增：关闭侧边栏
+    #closeSidebar() {
+        const container = this.sidebarState.sidebarContainer;
+        const overlay = this.sidebarState.overlay;
+        
+        if (!container || !overlay) return;
+        
+        container.dataset.state = 'closed';
+        container.classList.remove('open');
+        overlay.classList.remove('visible');
+        
+        // 收起子菜单
+        this.#collapseSubmenu();
+        
+        this.sidebarState.isOpen = false;
+        
+        // 解除body锁定
+        document.body.style.overflow = '';
+        
+        if (this.config.debug) {
+            console.log('[Navigation] Sidebar closed');
+        }
+    }
+
+    // 🚀 新增：展开子菜单
+    #expandSubmenu(seriesData) {
+        const submenuPanel = this.sidebarState.submenuPanel;
+        if (!submenuPanel) return;
+        
+        // 收起当前展开的子菜单
+        this.#collapseSubmenu();
+        
+        // 创建子菜单内容
+        this.#renderSubmenu(seriesData);
+        
+        // 显示子菜单面板
+        submenuPanel.classList.add('expanded');
+        this.sidebarState.expandedSubmenu = seriesData.seriesId;
+        
+        if (this.config.debug) {
+            console.log('[Navigation] Submenu expanded:', seriesData.seriesId);
+        }
+    }
+
+    // 🚀 新增：收起子菜单
+    #collapseSubmenu() {
+        const submenuPanel = this.sidebarState.submenuPanel;
+        if (!submenuPanel) return;
+        
+        submenuPanel.classList.remove('expanded');
+        this.sidebarState.expandedSubmenu = null;
+        
+        // 清空子菜单内容
+        setTimeout(() => {
+            if (!this.sidebarState.expandedSubmenu) {
+                submenuPanel.innerHTML = '';
+            }
+        }, 250);
+    }
+
+    // 🚀 新增：渲染子菜单
+    #renderSubmenu(seriesData) {
+        const submenuPanel = this.sidebarState.submenuPanel;
+        if (!submenuPanel) return;
+        
+        submenuPanel.innerHTML = '';
+        
+        // 子菜单头部
+        const header = document.createElement('div');
+        header.className = 'submenu-header';
+        
+        const backBtn = document.createElement('button');
+        backBtn.className = 'back-btn';
+        backBtn.innerHTML = `<span class="back-arrow">‹</span> ${seriesData.title}`;
+        backBtn.addEventListener('click', () => this.#collapseSubmenu());
+        
+        header.appendChild(backBtn);
+        
+        // 子菜单内容
+        const content = document.createElement('div');
+        content.className = 'submenu-content';
+        
+        if (seriesData.chapters && seriesData.chapters.length > 0) {
+            seriesData.chapters.forEach(chapter => {
+                const item = document.createElement('div');
+                item.className = 'nav-item level-2 clickable';
+                item.dataset.chapterId = chapter.id;
+                item.textContent = chapter.title;
+                
+                content.appendChild(item);
+            });
+        }
+        
+        submenuPanel.appendChild(header);
+        submenuPanel.appendChild(content);
+    }
+
+    // 🚀 优化：统一事件监听器
     #setupEventListeners() {
-        // 🚀 主要改进：只使用4个全局监听器
         document.addEventListener('click', this.eventHandlers.globalClick);
         window.addEventListener('resize', this.eventHandlers.windowResize);
         window.addEventListener('popstate', this.eventHandlers.popState);
         document.addEventListener('keydown', this.eventHandlers.keydown);
-        
-        // 🚀 优化：移动端触摸处理（按需）
-        if (this.state.isMobile) {
-            const touchHandler = this.#createDebouncer('touch', () => {
-                if (this.state.dropdown.isOpen) this.#hideDropdown();
-            }, 50);
-            
-            window.addEventListener('touchmove', touchHandler, { passive: true });
-            window.addEventListener('orientationchange', this.eventHandlers.windowResize);
-        }
     }
 
-    // 🚀 优化：全局点击处理（统一入口）
+    // 🚀 优化：全局点击处理
     #handleGlobalClick(event) {
-        // 🚀 优化：防抖处理
-        if (this.state.dropdown.isProcessing) {
+        const target = event.target;
+        
+        // Tools项点击
+        const toolsItem = target.closest('.nav-item.tools-item');
+        if (toolsItem) {
             event.preventDefault();
-            event.stopPropagation();
+            this.#handleToolsClick();
             return;
         }
         
-        this.state.dropdown.isProcessing = true;
+        // 可展开项点击
+        const expandableItem = target.closest('.nav-item.level-1.expandable');
+        if (expandableItem) {
+            event.preventDefault();
+            this.#handleExpandableClick(expandableItem);
+            return;
+        }
         
-        try {
-            const target = event.target;
-            
-            // 🚀 优化：使用最近元素查找，减少DOM遍历
-            const trigger = target.closest('.dropdown-trigger[data-dropdown-id]');
-            if (trigger) {
-                event.preventDefault();
-                event.stopPropagation();
-                this.#handleDropdownTriggerClick(trigger);
-                return;
-            }
-            
-            const dropdownItem = target.closest('a[data-dropdown-item="true"]');
-            if (dropdownItem) {
-                event.preventDefault();
-                event.stopPropagation();
-                this.#handleDropdownItemClick(dropdownItem);
-                return;
-            }
-            
-            const navLink = target.closest('a[data-route-type]');
-            if (navLink && this.navContainer.contains(navLink)) {
-                event.preventDefault();
-                event.stopPropagation();
-                this.#handleNavLinkClick(navLink);
-                return;
-            }
-            
-            // 🚀 优化：外部点击检测（简化）
-            const overlay = this.state.dropdown.overlay;
-            if (this.state.dropdown.isOpen && overlay && !overlay.contains(target)) {
-                this.#hideDropdown();
-            }
-            
-        } finally {
-            // 🚀 优化：异步释放处理锁，避免阻塞
-            setTimeout(() => {
-                this.state.dropdown.isProcessing = false;
-            }, 10);
+        // 直接跳转项点击
+        const clickableItem = target.closest('.nav-item.clickable');
+        if (clickableItem) {
+            event.preventDefault();
+            this.#handleDirectNavigation(clickableItem);
+            return;
+        }
+        
+        // 子菜单项点击
+        const submenuItem = target.closest('.nav-item.level-2');
+        if (submenuItem) {
+            event.preventDefault();
+            this.#handleSubmenuItemClick(submenuItem);
+            return;
         }
     }
 
-    // 🚀 优化：下拉触发器处理
-    #handleDropdownTriggerClick(trigger) {
-        const isCurrentlyOpen = this.state.dropdown.isOpen && this.state.dropdown.currentId === 'series';
+    // 🚀 新增：Tools点击处理
+    #handleToolsClick() {
+        this.#closeSidebar();
+        this.#route({ type: Navigation.CONFIG.ROUTES.TOOLS, id: null });
+    }
+
+    // 🚀 新增：可展开项点击处理
+    #handleExpandableClick(item) {
+        const seriesId = item.dataset.seriesId;
+        const seriesData = this.navData.find(s => s.seriesId === seriesId);
         
-        this.#hideDropdown();
-        
-        if (!isCurrentlyOpen && trigger.seriesData) {
-            // 🚀 优化：添加视觉状态
-            const dropdown = trigger.closest('.nav-item.dropdown');
-            if (dropdown) {
-                dropdown.classList.add(Navigation.CONFIG.CSS.DROPDOWN_OPEN);
-            }
-            
-            this.#showDropdown(trigger, trigger.seriesData);
-        } else {
-            // 移除视觉状态
-            const dropdown = trigger.closest('.nav-item.dropdown');
-            if (dropdown) {
-                dropdown.classList.remove(Navigation.CONFIG.CSS.DROPDOWN_OPEN);
+        if (seriesData) {
+            if (this.sidebarState.expandedSubmenu === seriesId) {
+                // 如果已展开，则收起
+                this.#collapseSubmenu();
+            } else {
+                // 展开子菜单
+                this.#expandSubmenu({
+                    seriesId: seriesData.seriesId,
+                    title: seriesData.series,
+                    chapters: seriesData.chapters
+                });
             }
         }
     }
 
-    #handleDropdownItemClick(item) {
-        // 移除视觉状态
-        const dropdown = this.navContainer.querySelector('.nav-item.dropdown');
-        if (dropdown) {
-            dropdown.classList.remove(Navigation.CONFIG.CSS.DROPDOWN_OPEN);
-        }
+    // 🚀 新增：直接导航处理
+    #handleDirectNavigation(item) {
+        const action = item.dataset.action;
+        this.#closeSidebar();
         
-        this.#hideDropdown();
-        
-        const { routeType, id } = item.dataset;
-        if (routeType) {
-            this.#route({ type: routeType, id });
-        }
-    }
-
-    #handleNavLinkClick(link) {
-        this.#hideDropdown();
-        
-        const { routeType, id } = link.dataset;
-        if (routeType) {
-            this.#route({ type: routeType, id });
+        switch (action) {
+            case 'showAllArticles':
+                this.#route({ type: Navigation.CONFIG.ROUTES.ALL, id: null });
+                break;
+            case 'showNews':
+                // 处理新闻页面导航
+                break;
+            default:
+                console.warn('[Navigation] Unknown action:', action);
         }
     }
 
-    // 🚀 优化：窗口大小改变处理（防抖+缓存）
+    // 🚀 新增：子菜单项点击处理
+    #handleSubmenuItemClick(item) {
+        const chapterId = item.dataset.chapterId;
+        this.#closeSidebar();
+        
+        if (chapterId) {
+            this.navigateToChapter(chapterId);
+        }
+    }
+
     #handleResize() {
         const now = Date.now();
-        if (now - this.state.lastResize < 50) return; // 防抖
+        if (now - this.state.lastResize < 50) return;
         
         this.state.lastResize = now;
         const wasMobile = this.state.isMobile;
         this.state.isMobile = window.innerWidth <= 768;
         
-        // 🚀 优化：只在移动端状态改变时重新渲染
-        if (wasMobile !== this.state.isMobile && this.state.dropdown.isOpen) {
-            const trigger = this.navContainer.querySelector('.dropdown-trigger[data-dropdown-id="series"]');
-            if (trigger?.seriesData) {
-                this.#showDropdown(trigger, trigger.seriesData);
-            }
+        // 响应式宽度调整
+        this.#handleResponsiveWidth();
+        
+        if (wasMobile !== this.state.isMobile && this.config.debug) {
+            console.log('[Navigation] Device type changed:', this.state.isMobile ? 'mobile' : 'desktop');
         }
     }
 
     #handleKeydown(event) {
-        if (event.key === 'Escape' && this.state.dropdown.isOpen) {
-            this.#hideDropdown();
-            
-            // 移除视觉状态
-            const dropdown = this.navContainer.querySelector('.nav-item.dropdown');
-            if (dropdown) {
-                dropdown.classList.remove(Navigation.CONFIG.CSS.DROPDOWN_OPEN);
-            }
+        if (event.key === 'Escape' && this.sidebarState.isOpen) {
+            this.#closeSidebar();
         }
     }
 
@@ -668,6 +821,7 @@ class Navigation {
         }
     }
 
+    // === 保持原有的公共API方法 ===
     navigateToChapter(chapterId) {
         if (!this.state.chaptersMap.has(chapterId)) {
             this.#displayError('章节未找到');
@@ -677,7 +831,6 @@ class Navigation {
         this.#loadChapterContent(chapterId);
     }
 
-    // 🚀 优化：章节内容加载（缓存优化）
     async #loadChapterContent(chapterId) {
         const chapterData = this.state.chaptersMap.get(chapterId);
         if (!chapterData) {
@@ -801,7 +954,6 @@ class Navigation {
     }
 
     #displayToolsPageContent() {
-        // 显示基本的工具页面，不干涉独立工具系统
         this.contentArea.innerHTML = `
             <div class="tools-page">
                 <div class="tools-header" style="text-align: center; margin-bottom: 40px; padding: 40px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px;">
@@ -857,25 +1009,16 @@ class Navigation {
     }
     
     #setActiveLink(id) {
-        if (this.activeLink) {
-            this.activeLink.classList.remove(Navigation.CONFIG.CSS.ACTIVE);
-        }
-        
-        // 清除所有下拉菜单项的激活状态
-        this.navContainer.querySelectorAll('.dropdown-trigger').forEach(trigger => {
-            trigger.classList.remove(Navigation.CONFIG.CSS.ACTIVE);
+        // 清除所有激活状态
+        this.state.linksMap.forEach(link => {
+            link.classList.remove(Navigation.CONFIG.CSS.ACTIVE);
         });
         
+        // 设置新的激活状态
         const newActiveLink = this.state.linksMap.get(id);
         if (newActiveLink) {
             newActiveLink.classList.add(Navigation.CONFIG.CSS.ACTIVE);
-            this.activeLink = newActiveLink;
-
-            // 如果激活的是下拉菜单项，也激活触发器
-            const parentTrigger = this.navContainer.querySelector(`.dropdown-trigger[data-dropdown-id]`);
-            if (parentTrigger && id !== Navigation.CONFIG.ROUTES.ALL && id !== Navigation.CONFIG.ROUTES.TOOLS) {
-                parentTrigger.classList.add(Navigation.CONFIG.CSS.ACTIVE);
-            }
+            this.state.activeLink = newActiveLink;
         }
     }
 
@@ -896,7 +1039,7 @@ class Navigation {
         };
     }
 
-    // 🚀 新增：智能预加载系统
+    // 智能预加载系统
     #startPreloading() {
         if (!this.config.enablePreloading) return;
         
@@ -913,7 +1056,6 @@ class Navigation {
         });
     }
 
-    // 🚀 新增：预加载章节
     async #preloadChapter(chapterId) {
         if (this.cache.has && this.cache.has(chapterId)) return;
         if (this.state.preloadQueue.has(chapterId)) return;
@@ -938,7 +1080,6 @@ class Navigation {
                 }
             }
         } catch (error) {
-            // 预加载失败不影响主流程
             if (this.config.debug) {
                 console.warn(`[Navigation] Preload failed: ${chapterId}`, error);
             }
@@ -971,7 +1112,7 @@ class Navigation {
         `;
     }
 
-    // === 公共API方法 ===
+    // === 保持原有的公共API方法 ===
     navigateToTool(toolId) {
         const toolData = this.state.chaptersMap.get(toolId);
         if (!toolData || toolData.type !== 'tool') {
@@ -1003,22 +1144,19 @@ class Navigation {
         return this.cache.getStats ? this.cache.getStats() : null;
     }
 
-    // 🚀 新增：获取性能统计
     getPerformanceStats() {
         return {
             preloadQueue: this.state.preloadQueue.size,
             preloadInProgress: this.state.preloadInProgress,
-            dropdownPoolSize: this.state.dropdown.pooledOverlays.length,
             domCacheSize: this.domCache.size,
-            elementsMapSize: this.elements.size,
             linksMapSize: this.state.linksMap.size,
             chaptersMapSize: this.state.chaptersMap.size,
             isMobile: this.state.isMobile,
-            dropdownOpen: this.state.dropdown.isOpen
+            sidebarOpen: this.sidebarState.isOpen,
+            expandedSubmenu: this.sidebarState.expandedSubmenu
         };
     }
 
-    // 🚀 新增：手动触发预加载
     preloadChapters(chapterIds) {
         if (!Array.isArray(chapterIds)) return;
         
@@ -1029,7 +1167,6 @@ class Navigation {
         });
     }
 
-    // 🚀 新增：清理缓存
     clearCache() {
         if (this.cache && this.cache.clear) {
             this.cache.clear();
@@ -1045,16 +1182,16 @@ class Navigation {
         }
         this.state.debounceTimers.clear();
         
-        // 关闭下拉菜单
-        this.#hideDropdown();
+        // 关闭侧边栏
+        this.#closeSidebar();
         
-        // 清理池化的下拉菜单
-        this.state.dropdown.pooledOverlays.forEach(overlay => {
-            if (overlay.parentNode) {
-                overlay.parentNode.removeChild(overlay);
-            }
-        });
-        this.state.dropdown.pooledOverlays.length = 0;
+        // 移除侧边栏DOM
+        if (this.sidebarState.sidebarContainer) {
+            this.sidebarState.sidebarContainer.remove();
+        }
+        if (this.sidebarState.overlay) {
+            this.sidebarState.overlay.remove();
+        }
         
         // 移除事件监听器
         document.removeEventListener('click', this.eventHandlers.globalClick);
@@ -1067,18 +1204,22 @@ class Navigation {
         
         // 清理状态
         this.state.linksMap.clear();
-        this.activeLink = null;
+        this.state.activeLink = null;
         this.state.chaptersMap.clear();
         this.state.preloadQueue.clear();
         
-        // 重置状态
-        this.state.dropdown = {
+        // 重置侧边栏状态
+        this.sidebarState = {
             isOpen: false,
-            currentId: null,
-            overlay: null,
-            isProcessing: false,
-            pooledOverlays: []
+            expandedSubmenu: null,
+            mainPanel: null,
+            submenuPanel: null,
+            sidebarContainer: null,
+            overlay: null
         };
+        
+        // 解除body锁定
+        document.body.style.overflow = '';
         
         if (this.config.debug) {
             console.log('[Navigation] Instance destroyed and cleaned up');
@@ -1097,13 +1238,9 @@ window.navigateToWordFrequency = function() {
     return false;
 };
 
-window.closeNavigationDropdowns = function() {
-    if (window.app && window.app.navigation) {
-        // 使用公共方法来关闭下拉菜单
-        if (window.app.navigation.state?.dropdown?.isOpen) {
-            // 模拟ESC键来关闭下拉菜单
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-        }
+window.closeSidebarNavigation = function() {
+    if (window.app && window.app.navigation && window.app.navigation.sidebarState?.isOpen) {
+        window.app.navigation.sidebarState.isOpen && window.app.navigation.destroy();
         return true;
     }
     return false;
