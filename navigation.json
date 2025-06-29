@@ -1,0 +1,25 @@
+[
+  {
+    "series": "BBC English",
+    "seriesId": "beginner", 
+    "description": "BBC English learning series for beginners",
+    "chapters": [
+      {
+        "id": "chap1",
+        "title": "What's your favourite kind of noodle?",
+        "description": "Learn about food preferences and cultural differences",
+        "audio": "audio/chap1.mp3",
+        "thumbnail": "https://img.youtube.com/vi/aOiuSsnWEik/maxresdefault.jpg",
+        "type": "chapter"
+      },
+      {
+        "id": "chap2",
+        "title": "How important is politeness?", 
+        "description": "Explore the role of politeness in communication",
+        "audio": "audio/chap2.mp3",
+        "thumbnail": "https://img.youtube.com/vi/5wynL5ttotw/maxresdefault.jpg",
+        "type": "chapter"
+      }
+    ]
+  }
+]

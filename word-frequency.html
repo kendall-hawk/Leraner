@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>词频统计分析</title>
+    <meta name="description" content="全站英文词汇频次统计分析，支持Web Worker后台处理">
+    <meta name="keywords" content="词频统计,英语学习,词汇分析,单词频次,Web Worker">
+    
+    <!-- 优化：预连接和DNS预解析 -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    
+    <!-- 基础样式 -->
+    <link rel="stylesheet" href="css/main.css">
+    
+    <!-- 优化：内联关键CSS，减少阻塞 -->
+    <style>
+        /* 优化：关键渲染路径CSS内联 */
+        .page-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        
+        .page-loading-content {
+            text-align: center;
+            max-width: 400px;
+            padding: 40px 20px;
+        }
+        
+        .page-loading h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .page-loading-spinner {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 20px;
+            border: 3px solid #e9ecef;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: pageLoadSpin 1s linear infinite;
+        }
+        
+        @keyframes pageLoadSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .page-loading-text {
+            color: #6c757d;
+            font-size: 14px;
+            margin-bottom: 10px;
+            min-height: 20px;
+        }
+        
+        .page-loading-progress {
+            font-size: 12px;
+            color: #007bff;
+            font-weight: 500;
+        }
+        
+        /* 优化：进度条样式 */
+        .loading-progress-bar {
+            width: 280px;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            margin: 15px auto;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .loading-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007bff, #28a745);
+            width: 0%;
+            transition: width 0.4s ease;
+            border-radius: 3px;
+        }
+        
+        /* 优化：基础布局样式内联 */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+        
+        .page-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 0;
+        }
+        
+        .content-wrapper {
+            background: white;
+            margin: 0 auto;
+            max-width: 1400px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            min-height: calc(100vh - 40px);
+        }
+        
+        .top-nav {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .nav-link {
+            color: #ecf0f1;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background-color 0.3s;
+            font-size: 14px;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .nav-link.active {
+            background: #3498db;
+            color: white;
+        }
+        
+        /* 优化：隐藏类 */
+        .hidden {
+            display: none !important;
+        }
+        
+        /* 优化：调试模式样式 - 默认隐藏 */
+        .debug-only {
+            display: none !important;
+        }
+        
+        body.debug-mode .debug-only {
+            display: block !important;
+        }
+        
+        body.debug-mode .debug-only.debug-flex {
+            display: flex !important;
+        }
+        
+        body.debug-mode .debug-only.debug-inline {
+            display: inline !important;
+        }
+        
+        /* 优化：移动端适配 - 使用媒体查询 */
+        @media (max-width: 768px) {
+            .page-container {
+                padding: 10px;
+            }
+            
+            .content-wrapper {
+                border-radius: 8px;
+                min-height: calc(100vh - 20px);
+            }
+            
+            .top-nav {
+                padding: 15px 20px;
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .nav-title {
+                font-size: 1.1rem;
+            }
+            
+            .nav-links {
+                justify-content: center;
+            }
+            
+            .loading-progress-bar {
+                width: 220px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 页面加载指示器 -->
+    <div class="page-loading" id="page-loading">
+        <div class="page-loading-content">
+            <h2>📊 词频统计</h2>
+            <div class="page-loading-spinner"></div>
+            <div class="page-loading-text" id="page-loading-text">正在初始化系统...</div>
+            <div class="loading-progress-bar">
+                <div class="loading-progress-fill" id="page-loading-progress-fill"></div>
+            </div>
+            <div class="page-loading-progress" id="page-loading-progress">0%</div>
+        </div>
+    </div>
+
+    <!-- 优化：调试模式切换按钮 -->
+    <button class="debug-toggle" id="debug-toggle" onclick="toggleDebugMode()" title="切换调试模式 (Alt+D)" style="position: fixed; bottom: 20px; left: 20px; background: rgba(108, 117, 125, 0.9); color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; z-index: 9997; transition: all 0.3s; font-family: monospace;">
+        DEBUG
+    </button>
+
+    <!-- 处理模式指示器 - 调试模式专用 -->
+    <div class="processing-mode-indicator debug-only" id="processing-mode-indicator" style="position: fixed; top: 20px; right: 20px; background: rgba(0, 123, 255, 0.9); color: white; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; z-index: 9999; transition: all 0.3s;">
+        🔄 主线程模式
+    </div>
+
+    <!-- 性能统计面板 - 调试模式专用 -->
+    <div class="performance-panel debug-only" id="performance-panel" style="position: fixed; bottom: 20px; right: 20px; background: rgba(52, 58, 64, 0.95); color: white; padding: 15px; border-radius: 8px; font-size: 11px; line-height: 1.4; max-width: 250px; z-index: 9998; backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); display: none;">
+        <h4 style="margin: 0 0 8px 0; font-size: 12px; color: #28a745;">📈 性能统计</h4>
+        <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+            <span>处理模式:</span>
+            <span style="font-weight: 600;" id="perf-mode">主线程</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+            <span>已处理文章:</span>
+            <span style="font-weight: 600;" id="perf-articles">0</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+            <span>缓存命中率:</span>
+            <span style="font-weight: 600;" id="perf-cache">0</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+            <span>响应时间:</span>
+            <span style="font-weight: 600;" id="perf-response">-</span>
+        </div>
+    </div>
+
+    <!-- 主要内容容器 -->
+    <div class="page-container">
+        <div class="content-wrapper">
+            <!-- 顶部导航 -->
+            <nav class="top-nav">
+                <h1 class="nav-title">📊 词频统计分析</h1>
+                <div class="nav-links">
+                    <a href="index.html" class="nav-link">🏠 首页</a>
+                    <a href="#" class="nav-link active">📊 词频统计</a>
+                    <!-- 性能监控链接 - 调试模式专用 -->
+                    <a href="javascript:void(0)" class="nav-link debug-only" onclick="togglePerformancePanel()">📈 性能监控</a>
+                    <a href="javascript:void(0)" class="nav-link" onclick="showHelp()">❓ 帮助</a>
+                </div>
+            </nav>
+
+            <!-- 词频统计主容器 -->
+            <div id="word-frequency-container"></div>
+        </div>
+    </div>
+
+    <!-- 优化：帮助模态框 -->
+    <div id="help-modal" style="display: none;">
+        <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 20000; display: flex; justify-content: center; align-items: center; padding: 20px;">
+            <div style="background: white; border-radius: 12px; padding: 30px; max-width: 600px; width: 100%; max-height: 80vh; overflow-y: auto;">
+                <h3 style="margin-top: 0; color: #2c3e50;">📖 使用帮助</h3>
+                <div style="line-height: 1.6; color: #495057;">
+                    <p><strong>🚀 智能词频分析</strong><br>
+                    本工具自动分析全站文章中的英文单词频次，帮助您发现重点词汇和学习趋势。</p>
+                    
+                    <p><strong>🎯 主要功能：</strong><br>
+                    词频统计分析工具可以帮助您了解全站文章中英文单词的出现频次，发现重点词汇。</p>
+                    
+                    <p><strong>🔍 如何使用：</strong></p>
+                    <ul style="padding-left: 20px;">
+                        <li><strong>词云视图：</strong> 单词大小表示出现频次，颜色表示重要程度</li>
+                        <li><strong>列表视图：</strong> 表格形式显示详细的词频数据</li>
+                        <li><strong>搜索功能：</strong> 输入关键词快速查找相关单词</li>
+                        <li><strong>频次筛选：</strong> 按高频、中频、低频分类查看</li>
+                        <li><strong>单词详情：</strong> 点击单词查看在哪些文章中出现</li>
+                        <li><strong>文章跳转：</strong> 点击文章标题直接跳转并高亮单词</li>
+                    </ul>
+                    
+                    <p><strong>⚡ 智能特性：</strong></p>
+                    <ul style="padding-left: 20px;">
+                        <li><strong>自动优化：</strong> 系统自动选择最佳处理模式</li>
+                        <li><strong>智能缓存：</strong> 24小时缓存提升访问速度</li>
+                        <li><strong>响应式设计：</strong> 完美支持手机和平板设备</li>
+                        <li><strong>实时分析：</strong> 动态加载，无需等待</li>
+                    </ul>
+                    
+                    <p><strong>💡 小提示：</strong></p>
+                    <ul style="padding-left: 20px;">
+                        <li>首次使用需要分析全站内容，请耐心等待</li>
+                        <li>支持触摸操作，移动端体验更佳</li>
+                        <li>数据会自动缓存，重复访问更快速</li>
+                        <li class="debug-only">开发者可按 Alt+D 开启调试模式查看详细信息</li>
+                    </ul>
+                </div>
+                <button onclick="hideHelp()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-top: 20px; width: 100%;">
+                    知道了
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 优化：核心脚本文件 - 使用defer属性优化加载 -->
+    <script src="js/core.js" defer></script>
+    <script src="js/word-frequency.js" defer></script>
+    <script src="js/word-frequency-ui.js" defer></script>
+    
+    <!-- 优化：主应用脚本 - 内联以减少请求 -->
+    <script>
+        // 优化：调试模式管理
+        const DebugMode = {
+            isEnabled: false,
+            
+            init() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const debugParam = urlParams.get('debug');
+                const debugStored = localStorage.getItem('wordFreq_debugMode');
+                const isDev = window.location.hostname === 'localhost' || 
+                             window.location.hostname === '127.0.0.1' ||
+                             window.location.port;
+                
+                if (debugParam === '1' || debugStored === 'true' || (isDev && this.checkDevMode())) {
+                    this.enable();
+                }
+                
+                document.addEventListener('keydown', (e) => {
+                    if (e.altKey && e.key.toLowerCase() === 'd') {
+                        e.preventDefault();
+                        this.toggle();
+                    }
+                });
+            },
+            
+            checkDevMode() {
+                return document.cookie.includes('dev_mode=1') || 
+                       sessionStorage.getItem('dev_mode') === '1';
+            },
+            
+            enable() {
+                this.isEnabled = true;
+                document.body.classList.add('debug-mode');
+                localStorage.setItem('wordFreq_debugMode', 'true');
+                this.updateToggleButton();
+                console.log('🔧 调试模式已启用');
+            },
+            
+            disable() {
+                this.isEnabled = false;
+                document.body.classList.remove('debug-mode');
+                localStorage.removeItem('wordFreq_debugMode');
+                this.updateToggleButton();
+                this.hidePerformancePanel();
+                console.log('✅ 调试模式已关闭');
+            },
+            
+            toggle() {
+                if (this.isEnabled) {
+                    this.disable();
+                } else {
+                    this.enable();
+                }
+            },
+            
+            updateToggleButton() {
+                const button = document.getElementById('debug-toggle');
+                if (button) {
+                    button.textContent = this.isEnabled ? 'EXIT DEBUG' : 'DEBUG';
+                    button.title = this.isEnabled ? 
+                        '关闭调试模式 (Alt+D)' : 
+                        '开启调试模式 (Alt+D)';
+                    button.style.background = this.isEnabled ? 
+                        'rgba(220, 53, 69, 0.9)' : 
+                        'rgba(108, 117, 125, 0.9)';
+                }
+            },
+            
+            hidePerformancePanel() {
+                const panel = document.getElementById('performance-panel');
+                if (panel) {
+                    panel.style.display = 'none';
+                }
+                performancePanelVisible = false;
+                stopPerformanceMonitoring();
+            }
+        };
+
+        // 优化：平滑进度管理器
+        class SmoothProgressManager {
+            constructor() {
+                this.currentProgress = 0;
+                this.targetProgress = 0;
+                this.isAnimating = false;
+                
+                // 优化：减少进度步骤数量
+                this.progressSteps = [
+                    { progress: 0, text: '正在初始化系统...', duration: 200 },
+                    { progress: 10, text: '加载核心工具...', duration: 150 },
+                    { progress: 20, text: '检查浏览器兼容性...', duration: 100 },
+                    { progress: 30, text: '核心系统加载完成', duration: 150 },
+                    { progress: 40, text: '准备词频分析器...', duration: 100 },
+                    { progress: 50, text: '正在创建词频管理器...', duration: 150 },
+                    { progress: 60, text: '配置智能处理模式...', duration: 100 },
+                    { progress: 70, text: '正在创建用户界面...', duration: 150 },
+                    { progress: 75, text: '正在分析词频数据...', duration: 0 }
+                ];
+                
+                this.currentStepIndex = 0;
+            }
+            
+            async animateToNextStep() {
+                if (this.currentStepIndex >= this.progressSteps.length) {
+                    return;
+                }
+                
+                const step = this.progressSteps[this.currentStepIndex];
+                
+                this.updateText(step.text);
+                await this.animateProgress(step.progress, step.duration);
+                
+                this.currentStepIndex++;
+                
+                if (step.duration > 0) {
+                    await this.sleep(step.duration);
+                }
+            }
+            
+            async animateProgress(targetProgress, duration = 200) {
+                return new Promise((resolve) => {
+                    const startProgress = this.currentProgress;
+                    const progressDiff = targetProgress - startProgress;
+                    const startTime = Date.now();
+                    
+                    const animate = () => {
+                        const elapsed = Date.now() - startTime;
+                        const progress = Math.min(elapsed / duration, 1);
+                        
+                        const easedProgress = this.easeOutCubic(progress);
+                        this.currentProgress = startProgress + progressDiff * easedProgress;
+                        
+                        this.updateProgressBar(this.currentProgress);
+                        
+                        if (progress < 1) {
+                            requestAnimationFrame(animate);
+                        } else {
+                            this.currentProgress = targetProgress;
+                            this.updateProgressBar(targetProgress);
+                            resolve();
+                        }
+                    };
+                    
+                    requestAnimationFrame(animate);
+                });
+            }
+            
+            easeOutCubic(t) {
+                return 1 - Math.pow(1 - t, 3);
+            }
+            
+            updateProgressBar(progress) {
+                const progressFill = document.getElementById('page-loading-progress-fill');
+                const progressText = document.getElementById('page-loading-progress');
+                
+                if (progressFill) {
+                    progressFill.style.width = `${progress}%`;
+                }
+                if (progressText) {
+                    progressText.textContent = `${Math.round(progress)}%`;
+                }
+            }
+            
+            updateText(text) {
+                const textEl = document.getElementById('page-loading-text');
+                if (textEl) {
+                    textEl.textContent = text;
+                }
+            }
+            
+            updateAnalysisProgress(progress) {
+                const mappedProgress = 75 + (progress * 0.20);
+                this.currentProgress = mappedProgress;
+                this.updateProgressBar(mappedProgress);
+            }
+            
+            async completeAllSteps() {
+                while (this.currentStepIndex < this.progressSteps.length) {
+                    await this.animateToNextStep();
+                }
+            }
+            
+            async finalizeProgress() {
+                this.updateText('初始化完成！');
+                await this.animateProgress(100, 300);
+            }
+            
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // 全局变量
+        let wordFreqManager = null;
+        let wordFreqUI = null;
+        let initializationStartTime = Date.now();
+        let performancePanelVisible = false;
+        let performanceUpdateInterval = null;
+        const progressManager = new SmoothProgressManager();
+
+        // 优化：页面加载状态管理
+        const PageLoader = {
+            updateProgress(progress, text = '') {
+                if (text) {
+                    progressManager.updateText(text);
+                }
+                if (progress >= 75) {
+                    progressManager.updateAnalysisProgress(progress - 75);
+                }
+            },
+
+            async animateToStep(stepIndex) {
+                progressManager.currentStepIndex = stepIndex;
+                await progressManager.animateToNextStep();
+            },
+
+            async completeSteps() {
+                await progressManager.completeAllSteps();
+            },
+
+            async finalize() {
+                await progressManager.finalizeProgress();
+            },
+
+            hide() {
+                const loader = document.getElementById('page-loading');
+                if (loader) {
+                    loader.style.opacity = '0';
+                    setTimeout(() => {
+                        loader.style.display = 'none';
+                    }, 300);
+                }
+            },
+
+            showError(title, message, actions = []) {
+                const loader = document.getElementById('page-loading');
+                if (loader) loader.style.display = 'none';
+
+                const container = document.getElementById('word-frequency-container');
+                container.innerHTML = `
+                    <div style="max-width: 600px; margin: 60px auto; padding: 40px 20px; text-align: center; background: #f8f9fa; border-radius: 12px; border: 1px solid #dee2e6;">
+                        <h2 style="color: #dc3545; margin-bottom: 20px;">${title}</h2>
+                        <p style="color: #6c757d; margin-bottom: 20px; line-height: 1.6;">${message}</p>
+                        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                            ${actions.map(action => 
+                                `<button style="padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; text-decoration: none; display: inline-block; transition: all 0.3s; background: ${action.type === 'error-btn-primary' ? '#007bff' : '#6c757d'}; color: white;" onclick="${action.onclick}">
+                                    ${action.text}
+                                </button>`
+                            ).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        };
+
+        // 优化：处理模式指示器管理
+        const ProcessingModeIndicator = {
+            show(mode) {
+                if (!DebugMode.isEnabled) return;
+                
+                const indicator = document.getElementById('processing-mode-indicator');
+                if (indicator) {
+                    indicator.className = `processing-mode-indicator debug-only`;
+                    indicator.style.background = mode === 'worker' ? 'rgba(40, 167, 69, 0.9)' : 'rgba(255, 193, 7, 0.9)';
+                    indicator.style.color = mode === 'worker' ? 'white' : '#333';
+                    indicator.innerHTML = mode === 'worker' ? '🚀 Web Worker模式' : '🔄 主线程模式';
+                    indicator.style.display = 'block';
+                }
+            },
+
+            hide() {
+                const indicator = document.getElementById('processing-mode-indicator');
+                if (indicator) {
+                    indicator.style.display = 'none';
+                }
+            }
+        };
+
+        // 优化：性能面板管理
+        const PerformancePanel = {
+            update(metrics) {
+                if (!performancePanelVisible || !DebugMode.isEnabled) return;
+
+                const perfMode = document.getElementById('perf-mode');
+                const perfArticles = document.getElementById('perf-articles');
+                const perfCache = document.getElementById('perf-cache');
+                const perfResponse = document.getElementById('perf-response');
+
+                if (perfMode) perfMode.textContent = metrics.processing.mode === 'worker' ? 'Web Worker' : '主线程';
+                if (perfArticles) perfArticles.textContent = metrics.processing.processedArticles;
+                if (perfCache) perfCache.textContent = metrics.analyzer.stemmerCache.hitRate || 0;
+                if (perfResponse) perfResponse.textContent = metrics.worker?.avgResponseTime ? `${metrics.worker.avgResponseTime}ms` : '-';
+            }
+        };
+
+        // 功能函数
+        function toggleDebugMode() {
+            DebugMode.toggle();
+        }
+
+        function showHelp() {
+            document.getElementById('help-modal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideHelp() {
+            document.getElementById('help-modal').style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        function togglePerformancePanel() {
+            if (!DebugMode.isEnabled) return;
+            
+            const panel = document.getElementById('performance-panel');
+            performancePanelVisible = !performancePanelVisible;
+            
+            if (performancePanelVisible) {
+                panel.style.display = 'block';
+                startPerformanceMonitoring();
+            } else {
+                panel.style.display = 'none';
+                stopPerformanceMonitoring();
+            }
+        }
+
+        // 优化：性能监控增强
+        function startPerformanceMonitoring() {
+            if (!DebugMode.isEnabled || performanceUpdateInterval) return;
+            
+            performanceUpdateInterval = setInterval(() => {
+                if (wordFreqManager) {
+                    try {
+                        const metrics = wordFreqManager.getPerformanceMetrics();
+                        PerformancePanel.update(metrics);
+                    } catch (error) {
+                        console.warn('性能监控更新失败:', error);
+                        stopPerformanceMonitoring();
+                    }
+                }
+            }, 2000);
+        }
+
+        function stopPerformanceMonitoring() {
+            if (performanceUpdateInterval) {
+                clearInterval(performanceUpdateInterval);
+                performanceUpdateInterval = null;
+            }
+        }
+
+        function handleReload() {
+            location.reload();
+        }
+
+        function handleGoHome() {
+            window.location.href = 'index.html';
+        }
+
+        // 优化：主初始化函数
+        async function initializeWordFrequencyPage() {
+            try {
+                console.log('🚀 开始初始化词频统计页面...');
+                
+                await progressManager.animateToNextStep(); // 0%
+                await progressManager.animateToNextStep(); // 10%
+                await progressManager.animateToNextStep(); // 20%
+
+                await window.EnglishSite.coreToolsReady;
+                await progressManager.animateToNextStep(); // 30%
+
+                await progressManager.animateToNextStep(); // 40%
+                
+                if (!window.EnglishSite.WordFrequencyManager) {
+                    throw new Error('WordFrequencyManager 类未找到，请检查 word-frequency.js 是否正确加载');
+                }
+
+                if (!window.EnglishSite.WordFrequencyUI) {
+                    throw new Error('WordFrequencyUI 类未找到，请检查 word-frequency-ui.js 是否正确加载');
+                }
+
+                await progressManager.animateToNextStep(); // 50%
+
+                wordFreqManager = new window.EnglishSite.WordFrequencyManager();
+                
+                await progressManager.animateToNextStep(); // 60%
+                
+                try {
+                    const workerEnabled = await wordFreqManager.enableWebWorker();
+                    if (DebugMode.isEnabled) {
+                        if (workerEnabled) {
+                            console.log('✅ Web Worker模式已启用');
+                            ProcessingModeIndicator.show('worker');
+                        } else {
+                            console.log('🔄 使用主线程模式');
+                            ProcessingModeIndicator.show('main');
+                        }
+                    }
+                } catch (error) {
+                    if (DebugMode.isEnabled) {
+                        console.warn('⚠️ Web Worker启用失败，使用主线程模式:', error);
+                        ProcessingModeIndicator.show('main');
+                    }
+                }
+
+                await progressManager.animateToNextStep(); // 70%
+
+                const container = document.getElementById('word-frequency-container');
+                if (!container) {
+                    throw new Error('容器元素未找到');
+                }
+                
+                wordFreqUI = new window.EnglishSite.WordFrequencyUI(container, wordFreqManager);
+
+                await progressManager.animateToNextStep(); // 75%
+
+                document.addEventListener('wordFreqProgress', (e) => {
+                    const analysisProgress = e.detail.progress;
+                    progressManager.updateAnalysisProgress(analysisProgress);
+                    progressManager.updateText('正在分析文章内容...');
+                });
+
+                await wordFreqUI.initialize();
+                
+                await progressManager.finalizeProgress(); // 100%
+
+                if (DebugMode.isEnabled) {
+                    const finalMetrics = wordFreqManager.getPerformanceMetrics();
+                    ProcessingModeIndicator.show(finalMetrics.processing.mode);
+                }
+
+                const initTime = ((Date.now() - initializationStartTime) / 1000).toFixed(1);
+                console.log(`✅ 词频统计页面初始化完成，耗时 ${initTime}s`);
+
+                setTimeout(() => {
+                    PageLoader.hide();
+                }, 600);
+
+                if (DebugMode.isEnabled) {
+                    console.log('📊 词频统计完成，点击右上角"📈 性能监控"查看详细数据');
+                }
+
+            } catch (error) {
+                console.error('❌ 词频统计页面初始化失败:', error);
+                
+                ProcessingModeIndicator.hide();
+                
+                if (window.EnglishSite?.ErrorHandler) {
+                    window.EnglishSite.ErrorHandler.record('wordFreqPage', 'initialization', error);
+                }
+
+                let errorMessage = '页面初始化时遇到了问题。';
+                let actions = [
+                    { text: '🔄 重新加载', type: 'error-btn-primary', onclick: 'handleReload()' },
+                    { text: '🏠 返回首页', type: 'error-btn-secondary', onclick: 'handleGoHome()' }
+                ];
+
+                if (error.message.includes('WordFrequency')) {
+                    errorMessage = '词频分析模块加载失败，请检查网络连接或联系技术支持。';
+                } else if (error.message.includes('未找到任何文章')) {
+                    errorMessage = '未找到文章数据，请确保网站内容已正确配置。';
+                    actions.unshift({ 
+                        text: '📖 查看帮助', 
+                        type: 'error-btn-secondary', 
+                        onclick: 'showHelp()' 
+                    });
+                } else if (error.message.includes('网络')) {
+                    errorMessage = '网络连接出现问题，请检查您的网络连接后重试。';
+                }
+
+                PageLoader.showError('🚫 初始化失败', errorMessage, actions);
+            }
+        }
+
+        // 优化：事件监听器
+        window.addEventListener('beforeunload', () => {
+            if (wordFreqManager && typeof wordFreqManager.destroy === 'function') {
+                wordFreqManager.destroy();
+            }
+            if (wordFreqUI && typeof wordFreqUI.destroy === 'function') {
+                wordFreqUI.destroy();
+            }
+            stopPerformanceMonitoring();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (DebugMode.isEnabled) {
+                    console.log('🔇 页面隐藏，暂停后台操作');
+                }
+                stopPerformanceMonitoring();
+            } else {
+                if (DebugMode.isEnabled) {
+                    console.log('👁️ 页面恢复可见');
+                }
+                if (wordFreqUI && typeof wordFreqUI.refreshData === 'function') {
+                    wordFreqUI.refreshData();
+                }
+                if (performancePanelVisible && DebugMode.isEnabled) {
+                    startPerformanceMonitoring();
+                }
+            }
+        });
+
+        // 优化：DOM加载完成后启动
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                DebugMode.init();
+                initializeWordFrequencyPage();
+            });
+        } else {
+            DebugMode.init();
+            initializeWordFrequencyPage();
+        }
+
+        // 优化：全局错误处理
+        window.addEventListener('error', (e) => {
+            if (DebugMode.isEnabled) {
+                console.error('🚨 全局错误:', e.error);
+            }
+            
+            if (window.EnglishSite?.ErrorHandler) {
+                window.EnglishSite.ErrorHandler.record('wordFreqPage', 'globalError', e.error);
+            }
+        });
+
+        window.addEventListener('unhandledrejection', (e) => {
+            if (DebugMode.isEnabled) {
+                console.error('🚨 未处理的Promise错误:', e.reason);
+            }
+            
+            if (window.EnglishSite?.ErrorHandler) {
+                window.EnglishSite.ErrorHandler.record('wordFreqPage', 'unhandledPromise', e.reason);
+            }
+        });
+    </script>
+</body>
+</html>
