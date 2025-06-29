@@ -1,199 +1,251 @@
-// js/word-frequency-ui.js - 完全重构版 v3.0 (彻底解决搜索问题)
+// js/word-frequency-ui.js - 简化重构版 v1.0 (专注可用性和双模式搜索)
 window.EnglishSite = window.EnglishSite || {};
 
-// 🔧 搜索状态管理器 - 完全重构
-class SearchStateManager {
-    constructor() {
-        this.reset();
-        this.debugMode = false;
-        this.errorCount = 0;
-        this.maxErrors = 3;
-    }
-    
-    reset() {
-        this.clearAllTimeouts();
+// 🎯 简化的搜索管理器 - 移除过度复杂的状态机
+class SimplifiedSearchManager {
+    constructor(analyzer, container) {
+        this.analyzer = analyzer;
+        this.container = container;
+
+        // 🎯 简单的搜索状态 - 只保留必要信息
         this.state = {
-            isActive: false,
-            currentMode: 'intelligent',
-            currentQuery: '',
-            sanitizedQuery: '',
-            rawQuery: '',
-            currentResults: [],
-            alternativeResults: [],
-            lastSearchData: null,
-            suggestion: null,
-            suggestionTimeout: null,
-            frozenResults: null,
-            lastValidQuery: '',
-            errorState: false,
-            processingState: false
+            isSearching: false,
+            query: '',
+            mode: 'intelligent', // 'intelligent' | 'exact'
+            results: [],
+            hasResults: false,
+            error: null
         };
-        this.logDebug('搜索状态已完全重置');
+
+        // 🎯 简单防抖 - 移除复杂的序列号管理
+        this.debounceTimer = null;
+        this.debounceDelay = 300;
+
+        // 🎯 简单缓存 - 移除复杂的LRU和Base64编码
+        this.cache = new Map();
+        this.maxCacheSize = 50;
+
+        console.log('✅ 简化搜索管理器已初始化');
     }
-    
-    setState(updates) {
+
+    // 🎯 统一搜索入口 - 简化逻辑
+    handleSearch(query) {
+        // 清除之前的防抖定时器
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+        }
+
+        // 输入验证 - 简化规则
+        const cleanQuery = this.cleanInput(query);
+
+        if (!cleanQuery) {
+            this.clearSearch();
+            return;
+        }
+
+        // 防抖执行搜索
+        this.debounceTimer = setTimeout(() => {
+            this.executeSearch(cleanQuery);
+        }, this.debounceDelay);
+    }
+
+    // 🎯 修复的输入清理 - 解决空格问题
+    cleanInput(input) {
+        if (!input || typeof input !== 'string') return '';
+
+        // 🔧 修复：简化处理，避免意外插入空格
+        const cleaned = input
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-zA-Z]/g, '') // ← 修复：只保留字母，移除所有其他字符
+            .trim();
+
+        // 简单验证：长度2-50，包含字母
+        if (cleaned.length < 2 || cleaned.length > 50) return '';
+
+        return cleaned;
+    }
+
+    // 🎯 执行搜索 - 统一入口
+    async executeSearch(query) {
         try {
-            Object.assign(this.state, updates);
-            this.logDebug('状态更新:', Object.keys(updates));
+            this.state.isSearching = true;
+            this.state.query = query;
+            this.state.error = null;
+
+            console.log(`🔍 执行${this.state.mode}搜索: "${query}"`);
+
+            // 检查缓存
+            const cacheKey = `${query}_${this.state.mode}`;
+            if (this.cache.has(cacheKey)) {
+                console.log('📦 使用缓存结果');
+                const cachedResults = this.cache.get(cacheKey);
+                this.handleSearchResults(cachedResults, query);
+                return;
+            }
+
+            // 执行对应模式的搜索
+            let results;
+            if (this.state.mode === 'intelligent') {
+                results = await this.executeIntelligentSearch(query);
+            } else {
+                results = await this.executeExactSearch(query);
+            }
+
+            // 缓存结果
+            this.setCacheResult(cacheKey, results);
+
+            // 处理结果
+            this.handleSearchResults(results, query);
+
         } catch (error) {
-            this.logError('状态更新失败:', error);
-            this.handleError(error);
+            console.error('搜索执行失败:', error);
+            this.handleSearchError(error);
+        } finally {
+            this.state.isSearching = false;
         }
     }
-    
+
+    // 🎯 智能搜索 - 基于词干合并
+    async executeIntelligentSearch(query) {
+        if (!this.analyzer || typeof this.analyzer.searchWords !== 'function') {
+            throw new Error('智能搜索功能不可用');
+        }
+
+        const results = this.analyzer.searchWords(query);
+        console.log(`📊 智能搜索找到 ${results.length} 个结果`);
+
+        // 统一结果格式
+        return results.map(item => ({
+            ...item,
+            searchMode: 'intelligent',
+            isIntelligentMatch: true,
+            isExactMatch: false
+        }));
+    }
+
+    // 🎯 精确搜索 - 基于原文匹配
+    async executeExactSearch(query) {
+        if (!this.analyzer || typeof this.analyzer.searchWordsExact !== 'function') {
+            throw new Error('精确搜索功能不可用');
+        }
+
+        const results = this.analyzer.searchWordsExact(query);
+        console.log(`🎯 精确搜索找到 ${results.length} 个结果`);
+
+        // 统一结果格式
+        return results.map(item => ({
+            ...item,
+            searchMode: 'exact',
+            isIntelligentMatch: false,
+            isExactMatch: true
+        }));
+    }
+
+    // 🎯 处理搜索结果
+    handleSearchResults(results, query) {
+        this.state.results = results || [];
+        this.state.hasResults = this.state.results.length > 0;
+
+        console.log(`✅ 搜索完成: ${this.state.results.length} 个结果`);
+
+        // 触发UI更新
+        this.container.dispatchEvent(new CustomEvent('searchComplete', {
+            detail: {
+                query: query,
+                mode: this.state.mode,
+                results: this.state.results,
+                hasResults: this.state.hasResults
+            }
+        }));
+    }
+
+    // 🎯 处理搜索错误
+    handleSearchError(error) {
+        this.state.error = error.message;
+        console.error('🚨 搜索错误:', error);
+
+        this.container.dispatchEvent(new CustomEvent('searchError', {
+            detail: {
+                error: error.message
+            }
+        }));
+    }
+
+    // 🎯 切换搜索模式
+    switchMode(newMode) {
+        if (newMode !== 'intelligent' && newMode !== 'exact') {
+            console.warn('无效的搜索模式:', newMode);
+            return;
+        }
+
+        const oldMode = this.state.mode;
+        this.state.mode = newMode;
+
+        console.log(`🔄 搜索模式切换: ${oldMode} -> ${newMode}`);
+
+        // 如果有当前查询，重新搜索
+        if (this.state.query) {
+            this.executeSearch(this.state.query);
+        }
+
+        // 触发模式切换事件
+        this.container.dispatchEvent(new CustomEvent('searchModeChanged', {
+            detail: {
+                oldMode,
+                newMode
+            }
+        }));
+    }
+
+    // 🎯 清除搜索
+    clearSearch() {
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = null;
+        }
+
+        this.state = {
+            isSearching: false,
+            query: '',
+            mode: this.state.mode, // 保持当前模式
+            results: [],
+            hasResults: false,
+            error: null
+        };
+
+        console.log('🧹 搜索已清除');
+
+        this.container.dispatchEvent(new CustomEvent('searchCleared'));
+    }
+
+    // 🎯 简单缓存管理
+    setCacheResult(key, result) {
+        if (this.cache.size >= this.maxCacheSize) {
+            const firstKey = this.cache.keys().next().value;
+            this.cache.delete(firstKey);
+        }
+        this.cache.set(key, result);
+    }
+
+    // 🎯 获取当前状态
     getState() {
-        return Object.freeze({ ...this.state });
+        return {
+            ...this.state
+        };
     }
-    
-    handleError(error) {
-        this.errorCount++;
-        this.state.errorState = true;
-        this.logError(`搜索错误 #${this.errorCount}:`, error);
-        
-        if (this.errorCount >= this.maxErrors) {
-            this.logError('错误次数过多，强制重置');
-            this.forceReset();
-        }
-    }
-    
-    forceReset() {
-        this.errorCount = 0;
-        this.reset();
-        this.logDebug('强制重置完成');
-    }
-    
-    clearAllTimeouts() {
-        if (this.state?.suggestionTimeout) {
-            clearTimeout(this.state.suggestionTimeout);
-            this.state.suggestionTimeout = null;
-        }
-    }
-    
-    logDebug(message, data = null) {
-        if (this.debugMode) {
-            console.log(`[SearchState] ${message}`, data || '');
-        }
-    }
-    
-    logError(message, error = null) {
-        console.error(`[SearchState] ${message}`, error || '');
-    }
-    
-    enableDebug() {
-        this.debugMode = true;
-        this.logDebug('调试模式已启用');
-    }
-}
 
-// 🔧 输入处理器 - 彻底修复字符分割问题
-class SearchInputProcessor {
-    constructor() {
-        this.cleaningRules = [
-            { pattern: /\s+/g, replacement: ' ' },
-            { pattern: /^\s+|\s+$/g, replacement: '' },
-            { pattern: /[^a-zA-Z\-']/g, replacement: '' },
-            { pattern: /[-']{2,}/g, replacement: '-' },
-            { pattern: /^[-']+|[-']+$/g, replacement: '' }
-        ];
-    }
-    
-    sanitizeInput(input) {
-        if (!input || typeof input !== 'string') {
-            return '';
-        }
-        
-        try {
-            let cleaned = input.toLowerCase();
-            
-            for (const rule of this.cleaningRules) {
-                cleaned = cleaned.replace(rule.pattern, rule.replacement);
-            }
-            
-            if (cleaned.length > 50) {
-                cleaned = cleaned.substring(0, 50);
-            }
-            
-            return cleaned;
-            
-        } catch (error) {
-            console.error('输入清理失败:', error);
-            return '';
-        }
-    }
-    
-    isValidQuery(query) {
-        return query && 
-               typeof query === 'string' && 
-               query.length >= 1 && 
-               query.length <= 50 && 
-               /^[a-zA-Z\-']+$/.test(query);
-    }
-}
-
-// 🔧 防抖搜索管理器 - 完全重构
-class DebouncedSearchManager {
-    constructor(searchFunction, delay = 300) {
-        this.searchFunction = searchFunction;
-        this.delay = delay;
-        this.timeoutId = null;
-        this.lastQuery = '';
-        this.isDestroyed = false;
-    }
-    
-    search(query) {
-        if (this.isDestroyed) {
-            console.warn('DebouncedSearchManager已销毁');
-            return;
-        }
-        
-        this.clearTimeout();
-        
-        if (!query || query.trim() === '') {
-            this.lastQuery = '';
-            this.executeSearch('');
-            return;
-        }
-        
-        if (query === this.lastQuery) {
-            return;
-        }
-        
-        this.lastQuery = query;
-        
-        this.timeoutId = setTimeout(() => {
-            try {
-                if (!this.isDestroyed) {
-                    this.executeSearch(query);
-                }
-            } catch (error) {
-                console.error('防抖搜索执行失败:', error);
-            }
-            this.timeoutId = null;
-        }, this.delay);
-    }
-    
-    executeSearch(query) {
-        if (this.searchFunction && typeof this.searchFunction === 'function') {
-            this.searchFunction(query);
-        }
-    }
-    
-    clearTimeout() {
-        if (this.timeoutId) {
-            clearTimeout(this.timeoutId);
-            this.timeoutId = null;
-        }
-    }
-    
+    // 🎯 销毁管理器
     destroy() {
-        this.isDestroyed = true;
-        this.clearTimeout();
-        this.searchFunction = null;
-        this.lastQuery = '';
+        if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+        }
+        this.cache.clear();
+        console.log('🧹 搜索管理器已销毁');
     }
 }
 
-// 🔧 主UI类 - 完全重构版
+// 🎯 简化的WordFrequencyUI - 专注核心功能
 class WordFrequencyUI {
     constructor(container, manager) {
         this.container = container;
@@ -202,93 +254,40 @@ class WordFrequencyUI {
         this.currentFilter = 'all';
         this.selectedWord = null;
         this.isInitialized = false;
-        
-        // 初始化搜索系统
-        this.initializeSearchSystem();
-        
-        // 状态管理
-        this.jumpInProgress = false;
-        this.lastJumpTime = 0;
-        this.jumpCooldown = 2000;
-        
-        // DOM缓存系统
+
+        // 🎯 创建简化的搜索管理器
+        this.searchManager = new SimplifiedSearchManager(manager, container);
+
+        // DOM缓存
         this.domCache = new Map();
-        this.eventDelegateRoot = null;
-        
-        // 虚拟滚动系统
+
+        // 虚拟滚动设置
         this.virtualScroll = {
             containerHeight: 600,
             itemHeight: 50,
-            visibleStart: 0,
-            visibleEnd: 0,
-            scrollTop: 0,
-            totalItems: 0,
-            buffer: 3,
-            lastScrollTop: 0,
-            isScrolling: false,
-            scrollTimeout: null,
-            currentDataSource: 'normal'
+            isEnabled: true
         };
-        
-        // 渲染缓存
-        this.renderCache = {
-            renderedItems: new Map(),
-            itemElements: new Map(),
-            maxCacheSize: 200
-        };
-        
-        // 节流函数
-        this.throttledScroll = this.throttle(this.handleVirtualScroll.bind(this), 33);
-        this.throttledResize = this.throttle(this.handleResize.bind(this), 100);
-        
-        // 渲染优化
-        this.renderQueue = [];
-        this.isRendering = false;
-        this.useImmediateRender = true;
-        
+
+        // 移动端检测
+        this.isMobile = this.detectMobile();
+
         // 数据缓存
         this.dataCache = new Map();
-        this.lastDataVersion = null;
-        
-        // 移动端优化
-        this.isMobile = this.detectMobile();
-        this.touchState = {
-            startY: 0,
-            currentY: 0,
-            isScrolling: false
-        };
-        
+        this.currentWordsData = null;
+
+        // 渲染和初始化
         this.render();
-        this.setupAdvancedEventDelegation();
+        this.setupEventListeners();
         this.initializeVirtualScroll();
+
+        console.log('✅ WordFrequencyUI已初始化');
     }
-    
-    // 🔧 初始化搜索系统
-    initializeSearchSystem() {
-        this.searchStateManager = new SearchStateManager();
-        this.inputProcessor = new SearchInputProcessor();
-        this.debouncedSearchManager = new DebouncedSearchManager(
-            this.executeSafeSearch.bind(this), 
-            300
-        );
-        
-        if (this.isDebugMode()) {
-            this.searchStateManager.enableDebug();
-        }
-        
-        console.log('✅ 搜索系统初始化完成');
-    }
-    
-    isDebugMode() {
-        return document.body.classList.contains('debug-mode') || 
-               localStorage.getItem('wordFreq_debugMode') === 'true';
-    }
-    
+
     detectMobile() {
         return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-               window.innerWidth <= 768;
+            window.innerWidth <= 768;
     }
-    
+
     getElement(selector) {
         if (!this.domCache.has(selector)) {
             const element = this.container.querySelector(selector);
@@ -298,36 +297,7 @@ class WordFrequencyUI {
         }
         return this.domCache.get(selector);
     }
-    
-    createVirtualItem(tag = 'div', className = '') {
-        const element = document.createElement(tag);
-        if (className) element.className = className;
-        return element;
-    }
-    
-    debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func.apply(this, args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-    
-    throttle(func, limit) {
-        let inThrottle;
-        return function(...args) {
-            if (!inThrottle) {
-                func.apply(this, args);
-                inThrottle = true;
-                setTimeout(() => inThrottle = false, limit);
-            }
-        };
-    }
-    
+
     render() {
         this.container.innerHTML = `
             <div class="word-freq-page">
@@ -344,24 +314,20 @@ class WordFrequencyUI {
                             <div class="search-box">
                                 <input type="text" id="word-search" placeholder="搜索单词..." autocomplete="off" />
                                 <button id="search-btn" title="搜索">🔍</button>
-                                <button id="clear-search" title="清除搜索" style="display: none;">✕</button>
+                                <button id="clear-search" title="清除搜索">✕</button>
                             </div>
                             
-                            <div class="search-mode-tabs" id="search-mode-tabs" style="display: none;">
-                                <button class="search-mode-tab active" data-mode="intelligent" title="基于词根的智能合并搜索">
-                                    🧠 智能匹配
+                            <div class="search-mode-tabs" id="search-mode-tabs">
+                                <button class="search-mode-tab active" data-mode="intelligent" title="智能搜索：基于词干合并，搜索take会找到take/takes/took/taken">
+                                    🧠 智能搜索 (找相关变形)
                                 </button>
-                                <button class="search-mode-tab" data-mode="exact" title="只显示包含具体变形词的文章">
-                                    🎯 精确搜索
+                                <button class="search-mode-tab" data-mode="exact" title="精确搜索：基于原文匹配，搜索taken只找包含taken的文章">
+                                    🎯 精确搜索 (找确切词汇)
                                 </button>
                             </div>
                             
-                            <div class="search-suggestion" id="search-suggestion" style="display: none;">
-                                <div class="suggestion-content">
-                                    <span class="suggestion-text" id="suggestion-text"></span>
-                                    <button class="suggestion-action" id="suggestion-action">切换模式</button>
-                                </div>
-                                <button class="suggestion-close" id="suggestion-close" title="关闭提示">✕</button>
+                            <div class="search-status" id="search-status" style="display: none;">
+                                <small class="status-text"></small>
                             </div>
                         </div>
                         
@@ -413,679 +379,375 @@ class WordFrequencyUI {
                 </main>
             </div>
         `;
-        
+
         this.loadStyles();
         this.cacheKeyElements();
     }
-    
+
     cacheKeyElements() {
         const selectors = [
             '#word-search', '#search-btn', '#clear-search', '#freq-filter',
             '#freq-loading', '#freq-display', '#word-details', '#stats-summary',
             '#progress-fill', '#progress-text', '.view-btn',
             '#virtual-container', '#virtual-content',
-            '#search-mode-tabs', '.search-mode-tab', 
-            '#search-suggestion', '#suggestion-text', '#suggestion-action', '#suggestion-close'
+            '#search-mode-tabs', '.search-mode-tab', '#search-status'
         ];
-        
+
         selectors.forEach(selector => this.getElement(selector));
     }
-    
-    setupAdvancedEventDelegation() {
-        if (this.eventDelegateRoot) {
-            this.removeAllEventListeners();
+
+    // 🎯 简化的事件监听 - 移除复杂的事件委托
+    setupEventListeners() {
+        // 搜索输入事件
+        const searchInput = this.getElement('#word-search');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.handleSearchInput(e.target.value);
+            });
+
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.handleSearchButton();
+                }
+            });
         }
-        
-        this.eventDelegateRoot = this.container;
-        
-        this.boundHandlers = {
-            click: this.handleDelegatedClick.bind(this),
-            input: this.handleDelegatedInput.bind(this),
-            change: this.handleDelegatedChange.bind(this),
-            keypress: this.handleDelegatedKeypress.bind(this),
-            scroll: this.handleDelegatedScroll.bind(this),
-            touchstart: this.handleTouchStart.bind(this),
-            touchmove: this.handleTouchMove.bind(this),
-            touchend: this.handleTouchEnd.bind(this),
-            resize: this.throttledResize
-        };
-        
-        this.eventDelegateRoot.addEventListener('click', this.boundHandlers.click, { passive: false });
-        this.eventDelegateRoot.addEventListener('input', this.boundHandlers.input, { passive: true });
-        this.eventDelegateRoot.addEventListener('change', this.boundHandlers.change, { passive: true });
-        this.eventDelegateRoot.addEventListener('keypress', this.boundHandlers.keypress, { passive: false });
-        
+
+        // 搜索按钮
+        const searchBtn = this.getElement('#search-btn');
+        if (searchBtn) {
+            searchBtn.addEventListener('click', () => {
+                this.handleSearchButton();
+            });
+        }
+
+        // 清除搜索按钮
+        const clearBtn = this.getElement('#clear-search');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                this.clearSearch();
+            });
+        }
+
+        // 搜索模式切换
+        const modeTabs = this.container.querySelectorAll('.search-mode-tab');
+        modeTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                this.handleModeSwitch(tab.dataset.mode);
+            });
+        });
+
+        // 视图切换
+        const viewBtns = this.container.querySelectorAll('.view-btn');
+        viewBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.handleViewToggle(btn.dataset.view);
+            });
+        });
+
+        // 频次筛选
+        const filterSelect = this.getElement('#freq-filter');
+        if (filterSelect) {
+            filterSelect.addEventListener('change', (e) => {
+                this.handleFilterChange(e.target.value);
+            });
+        }
+
+        // 🎯 搜索管理器事件
+        this.container.addEventListener('searchComplete', (e) => {
+            this.handleSearchComplete(e.detail);
+        });
+
+        this.container.addEventListener('searchError', (e) => {
+            this.handleSearchError(e.detail);
+        });
+
+        this.container.addEventListener('searchCleared', () => {
+            this.handleSearchCleared();
+        });
+
+        this.container.addEventListener('searchModeChanged', (e) => {
+            this.handleSearchModeChanged(e.detail);
+        });
+
+        // 单词和文章点击事件 - 使用事件委托
+        this.container.addEventListener('click', (e) => {
+            this.handleDelegatedClick(e);
+        });
+
+        // 虚拟滚动
         const virtualContainer = this.getElement('#virtual-container');
         if (virtualContainer) {
-            virtualContainer.addEventListener('scroll', this.throttledScroll, { passive: true });
+            virtualContainer.addEventListener('scroll', this.throttle(this.handleVirtualScroll.bind(this), 50));
         }
-        
-        if (this.isMobile) {
-            this.eventDelegateRoot.addEventListener('touchstart', this.boundHandlers.touchstart, { passive: true });
-            this.eventDelegateRoot.addEventListener('touchmove', this.boundHandlers.touchmove, { passive: false });
-            this.eventDelegateRoot.addEventListener('touchend', this.boundHandlers.touchend, { passive: true });
-        }
-        
-        window.addEventListener('resize', this.boundHandlers.resize, { passive: true });
-        
+
+        // 进度事件
         document.addEventListener('wordFreqProgress', (e) => {
             this.updateProgress(e.detail.progress);
-        }, { passive: true });
-    }
-    
-    initializeVirtualScroll() {
-        const container = this.getElement('#virtual-container');
-        if (!container) return;
-        
-        this.virtualScroll.containerHeight = this.isMobile ? 
-            Math.min(window.innerHeight * 0.6, 500) : 
-            Math.min(window.innerHeight * 0.7, 600);
-        
-        container.style.height = `${this.virtualScroll.containerHeight}px`;
-        container.style.overflowY = 'auto';
-        container.style.position = 'relative';
-        
-        this.virtualScroll.itemHeight = this.currentView === 'list' ? 80 : 35;
-    }
-    
-    handleVirtualScroll(e) {
-        if (!e.target.matches('#virtual-container')) return;
-        
-        // 搜索状态下完全禁用虚拟滚动
-        if (this.searchStateManager.getState().isActive) {
-            return;
-        }
-        
-        const scrollTop = e.target.scrollTop;
-        
-        if (Math.abs(scrollTop - this.virtualScroll.lastScrollTop) < 5) return;
-        
-        this.virtualScroll.scrollTop = scrollTop;
-        this.virtualScroll.lastScrollTop = scrollTop;
-        this.virtualScroll.isScrolling = true;
-        
-        if (this.virtualScroll.scrollTimeout) {
-            clearTimeout(this.virtualScroll.scrollTimeout);
-        }
-        
-        this.updateVirtualScrollViewportImmediate();
-        
-        this.virtualScroll.scrollTimeout = setTimeout(() => {
-            this.virtualScroll.isScrolling = false;
-        }, 150);
-    }
-    
-    updateVirtualScrollViewportImmediate() {
-        if (this.searchStateManager.getState().isActive) return;
-        
-        const { containerHeight, itemHeight, scrollTop, totalItems, buffer } = this.virtualScroll;
-        
-        if (totalItems === 0) return;
-        
-        const visibleCount = Math.ceil(containerHeight / itemHeight);
-        const startIndex = Math.floor(scrollTop / itemHeight);
-        
-        const newVisibleStart = Math.max(0, startIndex - buffer);
-        const newVisibleEnd = Math.min(totalItems, startIndex + visibleCount + buffer * 2);
-        
-        if (Math.abs(newVisibleStart - this.virtualScroll.visibleStart) >= buffer ||
-            Math.abs(newVisibleEnd - this.virtualScroll.visibleEnd) >= buffer) {
-            
-            this.virtualScroll.visibleStart = newVisibleStart;
-            this.virtualScroll.visibleEnd = newVisibleEnd;
-            
-            this.renderVirtualItemsImmediate();
-        }
-    }
-    
-    handleTouchStart(e) {
-        if (!e.target.closest('#virtual-container')) return;
-        
-        this.touchState.startY = e.touches[0].clientY;
-        this.touchState.isScrolling = true;
-    }
-    
-    handleTouchMove(e) {
-        if (!this.touchState.isScrolling) return;
-        
-        this.touchState.currentY = e.touches[0].clientY;
-        
-        const container = this.getElement('#virtual-container');
-        if (container) {
-            if (container.scrollTop <= 0 && this.touchState.currentY > this.touchState.startY) {
-                e.preventDefault();
-            }
-            
-            const maxScroll = container.scrollHeight - container.clientHeight;
-            if (container.scrollTop >= maxScroll && this.touchState.currentY < this.touchState.startY) {
-                e.preventDefault();
-            }
-        }
-    }
-    
-    handleTouchEnd(e) {
-        this.touchState.isScrolling = false;
-    }
-    
-    handleResize() {
-        this.isMobile = this.detectMobile();
-        this.initializeVirtualScroll();
-        
-        if (this.isInitialized) {
-            const state = this.searchStateManager.getState();
-            if (state.isActive) {
-                this.displaySearchResults(state.frozenResults);
-            } else {
-                this.displayCurrentView();
-            }
-        }
-    }
-    
-    // 🔧 完全重构的事件处理
-    handleDelegatedClick(e) {
-        const target = e.target;
-        
-        try {
-            if (target.closest('.close-details-btn')) {
-                e.preventDefault();
-                this.hideWordDetails();
-                return;
-            }
-            
-            if (target.closest('.article-item')) {
-                e.preventDefault();
-                this.handleArticleClick(target.closest('.article-item'));
-                return;
-            }
-            
-            if (target.closest('.word-item, .word-list-item')) {
-                e.preventDefault();
-                this.handleWordClick(target.closest('.word-item, .word-list-item'));
-                return;
-            }
-            
-            if (target.closest('.view-btn')) {
-                e.preventDefault();
-                this.handleViewToggle(target.closest('.view-btn').dataset.view);
-                return;
-            }
-            
-            if (target.matches('#search-btn')) {
-                e.preventDefault();
-                this.handleSearchButton();
-                return;
-            }
-            
-            if (target.matches('#clear-search')) {
-                e.preventDefault();
-                this.clearSearchCompletely();
-                return;
-            }
-            
-            if (target.closest('.search-mode-tab')) {
-                e.preventDefault();
-                this.handleSearchModeSwitch(target.closest('.search-mode-tab').dataset.mode);
-                return;
-            }
-            
-            if (target.matches('#suggestion-action')) {
-                e.preventDefault();
-                this.handleSuggestionAction();
-                return;
-            }
-            
-            if (target.matches('#suggestion-close')) {
-                e.preventDefault();
-                this.hideSuggestion();
-                return;
-            }
-        } catch (error) {
-            console.error('点击事件处理失败:', error);
-            this.searchStateManager.handleError(error);
-        }
-    }
-    
-    // 🔧 完全重构的输入处理
-    handleDelegatedInput(e) {
-        const target = e.target;
-        
-        if (target.matches('#word-search')) {
-            try {
-                const rawValue = target.value || '';
-                const sanitizedValue = this.inputProcessor.sanitizeInput(rawValue);
-                
-                // 更新搜索状态
-                this.searchStateManager.setState({
-                    rawQuery: rawValue,
-                    sanitizedQuery: sanitizedValue
-                });
-                
-                // 更新UI状态
-                this.updateSearchUI(rawValue.length > 0);
-                
-                // 执行搜索
-                if (!sanitizedValue) {
-                    this.clearSearchCompletely();
-                } else {
-                    this.debouncedSearchManager.search(sanitizedValue);
-                }
-                
-            } catch (error) {
-                console.error('输入处理失败:', error);
-                this.showSearchError('输入处理失败，请重试');
-                this.searchStateManager.handleError(error);
-            }
-        }
-    }
-    
-    handleDelegatedChange(e) {
-        const target = e.target;
-        
-        if (target.matches('#freq-filter')) {
-            this.currentFilter = target.value;
-            this.clearDataCache();
-            
-            const state = this.searchStateManager.getState();
-            if (state.isActive) {
-                this.executeSafeSearch(state.sanitizedQuery);
-            } else {
-                this.displayCurrentView();
-            }
-        }
-    }
-    
-    handleDelegatedKeypress(e) {
-        const target = e.target;
-        
-        if (target.matches('#word-search') && e.key === 'Enter') {
-            e.preventDefault();
-            this.handleSearchButton();
-        }
-    }
-    
-    handleDelegatedScroll(e) {
-        // 由throttledScroll处理
-    }
-    
-    // 🔧 更新搜索UI状态
-    updateSearchUI(hasValue) {
-        try {
-            const clearBtn = this.getElement('#clear-search');
-            const modeTabs = this.getElement('#search-mode-tabs');
-            
-            if (clearBtn) {
-                clearBtn.style.display = hasValue ? 'block' : 'none';
-            }
-            
-            if (modeTabs) {
-                modeTabs.style.display = hasValue ? 'flex' : 'none';
-            }
-        } catch (error) {
-            console.error('更新搜索UI失败:', error);
-        }
-    }
-    
-    // 🔧 安全的搜索执行器
-    executeSafeSearch(query) {
-        try {
-            if (!query || !this.inputProcessor.isValidQuery(query)) {
-                this.clearSearchCompletely();
-                return;
-            }
-            
-            this.searchStateManager.setState({
-                processingState: true,
-                errorState: false
-            });
-            
-            this.performDualSearch(query);
-            
-        } catch (error) {
-            console.error('搜索执行失败:', error);
-            this.showSearchError(`搜索失败: ${error.message}`);
-            this.searchStateManager.handleError(error);
-        } finally {
-            this.searchStateManager.setState({
-                processingState: false
-            });
-        }
-    }
-    
-    // 🔧 双模式搜索执行
-    performDualSearch(query) {
-        if (!query || query.trim() === '') {
-            this.clearSearchCompletely();
-            return;
-        }
-        
-        const currentState = this.searchStateManager.getState();
-        
-        try {
-            if (!this.manager || typeof this.manager.searchWordsDual !== 'function') {
-                console.warn('searchWordsDual method not available, using fallback');
-                const results = this.manager && typeof this.manager.searchWords === 'function' 
-                    ? this.manager.searchWords(query) 
-                    : [];
-                this.displayLegacySearchResults(results, query);
-                return;
-            }
-            
-            const searchData = this.manager.searchWordsDual(query, currentState.currentMode);
-
-            if (!searchData || typeof searchData !== 'object') {
-                console.warn('Invalid search result:', searchData);
-                this.showNoResults(`搜索出现错误`);
-                return;
-            }
-            
-            // 确保搜索数据完整性
-            const safeSearchData = {
-                currentMode: searchData.currentMode || currentState.currentMode,
-                currentQuery: query,
-                currentResults: Array.isArray(searchData.currentResults) ? searchData.currentResults : [],
-                alternativeMode: searchData.alternativeMode || (currentState.currentMode === 'intelligent' ? 'exact' : 'intelligent'),
-                alternativeResults: Array.isArray(searchData.alternativeResults) ? searchData.alternativeResults : [],
-                suggestions: searchData.suggestions
-            };
-            
-            // 更新搜索状态
-            this.searchStateManager.setState({
-                isActive: true,
-                currentQuery: query,
-                currentResults: safeSearchData.currentResults,
-                alternativeResults: safeSearchData.alternativeResults,
-                lastSearchData: safeSearchData,
-                frozenResults: safeSearchData
-            });
-            
-            // 显示搜索结果
-            this.displaySearchResults(safeSearchData);
-            this.showSearchSuggestion(safeSearchData.suggestions);
-            
-        } catch (error) {
-            console.error('Search failed:', error);
-            this.showNoResults(`搜索出现错误: ${error.message}`);
-            this.searchStateManager.handleError(error);
-        }
-    }
-    
-    // 🔧 搜索按钮处理
-    handleSearchButton() {
-        try {
-            const searchInput = this.getElement('#word-search');
-            if (!searchInput) return;
-            
-            const query = searchInput.value.trim();
-            const sanitizedQuery = this.inputProcessor.sanitizeInput(query);
-            
-            if (!sanitizedQuery) {
-                this.clearSearchCompletely();
-                return;
-            }
-            
-            this.executeSafeSearch(sanitizedQuery);
-        } catch (error) {
-            console.error('搜索按钮处理失败:', error);
-            this.searchStateManager.handleError(error);
-        }
-    }
-    
-    // 🔧 搜索模式切换
-    handleSearchModeSwitch(newMode) {
-        try {
-            const currentState = this.searchStateManager.getState();
-            
-            if (newMode === currentState.currentMode) return;
-            
-            this.updateSearchModeUI(newMode);
-            this.searchStateManager.setState({ currentMode: newMode });
-            
-            if (currentState.isActive && currentState.sanitizedQuery) {
-                this.executeSafeSearch(currentState.sanitizedQuery);
-            }
-        } catch (error) {
-            console.error('搜索模式切换失败:', error);
-            this.searchStateManager.handleError(error);
-        }
-    }
-    
-    updateSearchModeUI(activeMode) {
-        try {
-            this.container.querySelectorAll('.search-mode-tab').forEach(tab => {
-                tab.classList.toggle('active', tab.dataset.mode === activeMode);
-            });
-        } catch (error) {
-            console.error('搜索模式UI更新失败:', error);
-        }
-    }
-    
-    // 🔧 智能建议处理
-    showSearchSuggestion(suggestion) {
-        if (!suggestion) {
-            this.hideSuggestion();
-            return;
-        }
-        
-        try {
-            const suggestionEl = this.getElement('#search-suggestion');
-            const suggestionText = this.getElement('#suggestion-text');
-            const suggestionAction = this.getElement('#suggestion-action');
-            
-            if (!suggestionEl || !suggestionText || !suggestionAction) {
-                return;
-            }
-            
-            const currentState = this.searchStateManager.getState();
-            if (currentState.suggestionTimeout) {
-                clearTimeout(currentState.suggestionTimeout);
-            }
-            
-            suggestionText.textContent = suggestion.message || '';
-            suggestionAction.textContent = '切换查看';
-            suggestionAction.dataset.action = suggestion.action || '';
-            
-            suggestionEl.style.display = 'flex';
-            
-            const timeout = setTimeout(() => {
-                this.hideSuggestion();
-            }, 10000);
-            
-            this.searchStateManager.setState({
-                suggestion: suggestion,
-                suggestionTimeout: timeout
-            });
-            
-        } catch (error) {
-            console.warn('Failed to show suggestion:', error);
-        }
-    }
-    
-    hideSuggestion() {
-        try {
-            const suggestionEl = this.getElement('#search-suggestion');
-            if (suggestionEl) {
-                suggestionEl.style.display = 'none';
-            }
-            
-            const currentState = this.searchStateManager.getState();
-            if (currentState.suggestionTimeout) {
-                clearTimeout(currentState.suggestionTimeout);
-            }
-            
-            this.searchStateManager.setState({
-                suggestion: null,
-                suggestionTimeout: null
-            });
-        } catch (error) {
-            console.warn('隐藏建议失败:', error);
-        }
-    }
-    
-    handleSuggestionAction() {
-        try {
-            const currentState = this.searchStateManager.getState();
-            const suggestion = currentState.suggestion;
-            
-            if (!suggestion) return;
-            
-            const targetMode = suggestion.action === 'switch-to-exact' ? 'exact' : 'intelligent';
-            this.handleSearchModeSwitch(targetMode);
-            this.hideSuggestion();
-        } catch (error) {
-            console.error('建议操作处理失败:', error);
-        }
-    }
-    
-    // 🔧 彻底清除搜索状态
-    clearSearchCompletely() {
-        try {
-            // 重置UI元素
-            const searchInput = this.getElement('#word-search');
-            const clearBtn = this.getElement('#clear-search');
-            const modeTabs = this.getElement('#search-mode-tabs');
-            
-            if (searchInput) searchInput.value = '';
-            if (clearBtn) clearBtn.style.display = 'none';
-            if (modeTabs) modeTabs.style.display = 'none';
-            
-            // 彻底重置搜索状态
-            this.searchStateManager.reset();
-            
-            // 隐藏建议
-            this.hideSuggestion();
-            
-            // 清理缓存
-            this.clearDataCache();
-            this.clearRenderCache();
-            
-            // 重置虚拟滚动状态
-            this.virtualScroll.currentDataSource = 'normal';
-            
-            // 恢复正常显示
-            this.displayCurrentView();
-            
-            console.log('✅ 搜索状态已完全清除');
-            
-        } catch (error) {
-            console.error('清除搜索失败:', error);
-            // 强制重置
-            this.searchStateManager.forceReset();
-            this.displayCurrentView();
-        }
-    }
-    
-    // 🔧 显示搜索结果
-    displaySearchResults(searchData) {
-        if (!searchData || !searchData.currentResults) {
-            this.showNoResults('搜索数据无效');
-            return;
-        }
-        
-        const { currentMode, currentQuery, currentResults } = searchData;
-        
-        if (!Array.isArray(currentResults) || currentResults.length === 0) {
-            const modeText = currentMode === 'intelligent' ? '智能匹配' : '精确搜索';
-            this.showNoResults(`📭 ${modeText}未找到 "${currentQuery}" 的相关结果`);
-            return;
-        }
-        
-        // 设置搜索状态
-        this.searchStateManager.setState({
-            isActive: true,
-            frozenResults: searchData
         });
+
+        console.log('✅ 事件监听器已设置');
+    }
+
+    // 🎯 搜索输入处理 - 简化逻辑
+    handleSearchInput(value) {
+        const hasValue = value && value.trim().length > 0;
+
+        // 更新UI状态
+        this.updateSearchUI(hasValue);
+
+        // 执行搜索
+        this.searchManager.handleSearch(value);
+    }
+
+    // 🎯 更新搜索UI状态
+    updateSearchUI(hasValue) {
+        const clearBtn = this.getElement('#clear-search');
+        const modeTabs = this.getElement('#search-mode-tabs');
+
+        if (clearBtn) {
+            clearBtn.style.display = hasValue ? 'inline-block' : 'none';
+        }
+
+        if (modeTabs) {
+            modeTabs.style.display = hasValue ? 'flex' : 'flex'; // 始终显示模式选择
+        }
+    }
+
+    // 🎯 搜索按钮处理
+    handleSearchButton() {
+        const searchInput = this.getElement('#word-search');
+        if (searchInput) {
+            const query = searchInput.value.trim();
+            if (query) {
+                this.searchManager.executeSearch(query);
+            }
+        }
+    }
+
+    // 🎯 模式切换处理
+    handleModeSwitch(newMode) {
+        // 更新UI
+        this.container.querySelectorAll('.search-mode-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.mode === newMode);
+        });
+
+        // 切换搜索管理器模式
+        this.searchManager.switchMode(newMode);
+    }
+
+    // 🎯 清除搜索
+    clearSearch() {
+        const searchInput = this.getElement('#word-search');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+
+        this.searchManager.clearSearch();
+        this.updateSearchUI(false);
+    }
+
+// 🎯 搜索完成处理 - 修复版
+handleSearchComplete(detail) {
+    const { query, mode, results, hasResults } = detail;
+    
+    console.log(`🎯 搜索完成: "${query}" (${mode}模式) - ${results.length}个结果`);
+    
+    // 🔧 强制清空DOM
+    const display = this.getElement('#freq-display');
+    const container = this.getElement('#virtual-container');
+    
+    if (display && container) {
+        // 完全清空
+        display.innerHTML = '';
+        container.innerHTML = '';
         
-        this.virtualScroll.currentDataSource = 'search';
-        
-        // 直接渲染搜索结果
-        this.renderSearchResultsDirectly(searchData);
+        // 重建基础结构
+        display.innerHTML = `
+            <div class="word-freq-display" style="padding: 20px;">
+                <div class="virtual-scroll-container" id="virtual-container">
+                    <div class="virtual-scroll-content" id="virtual-content"></div>
+                </div>
+            </div>
+        `;
     }
     
-    // 🔧 直接渲染搜索结果
-    renderSearchResultsDirectly(searchData) {
+    // 重新获取元素
+    this.domCache.clear();
+    
+    if (hasResults) {
+        this.displaySearchResults(results, query, mode);
+        this.showSearchStatus(`找到 ${results.length} 个结果`, 'success');
+    } else {
+        this.showNoResults(`未找到与 "${query}" 相关的结果`);
+        this.showSearchStatus('未找到结果', 'warning');
+    }
+}
+
+    // 🎯 搜索错误处理
+    handleSearchError(detail) {
+        console.error('🚨 搜索错误:', detail.error);
+        this.showNoResults(`搜索出现错误: ${detail.error}`);
+        this.showSearchStatus('搜索失败', 'error');
+    }
+
+    // 🎯 搜索清除处理
+    handleSearchCleared() {
+        console.log('🧹 搜索已清除，恢复正常显示');
+        this.hideSearchStatus();
+        this.displayCurrentView();
+    }
+
+    // 🔧 新增：清理之前的搜索结果显示
+    clearPreviousResults() {
+        const container = this.getElement('#virtual-container');
+        const content = this.getElement('#virtual-content');
+        const display = this.getElement('#freq-display');
+
+        if (content) {
+            content.innerHTML = '';
+            content.style.height = 'auto';
+            content.style.position = 'static';
+        }
+
+        if (container) {
+            container.style.display = 'block';
+        }
+
+        if (display) {
+            display.style.display = 'block';
+        }
+
+        console.log('🧹 已清理之前的搜索结果显示');
+    }
+    // 🎯 搜索模式变更处理
+    handleSearchModeChanged(detail) {
+        const {
+            newMode
+        } = detail;
+        console.log(`🔄 搜索模式已切换到: ${newMode}`);
+
+        const modeText = newMode === 'intelligent' ? '智能搜索模式' : '精确搜索模式';
+        this.showSearchStatus(modeText, 'info');
+    }
+
+    // 🎯 显示搜索状态
+    showSearchStatus(message, type = 'info') {
+        const statusEl = this.getElement('#search-status');
+        const textEl = statusEl?.querySelector('.status-text');
+
+        if (statusEl && textEl) {
+            textEl.textContent = message;
+            statusEl.className = `search-status ${type}`;
+            statusEl.style.display = 'block';
+
+            // 自动隐藏非错误状态
+            if (type !== 'error') {
+                setTimeout(() => {
+                    this.hideSearchStatus();
+                }, 3000);
+            }
+        }
+    }
+
+    // 🎯 隐藏搜索状态
+    hideSearchStatus() {
+        const statusEl = this.getElement('#search-status');
+        if (statusEl) {
+            statusEl.style.display = 'none';
+        }
+    }
+
+    // 🎯 显示搜索结果 - 统一格式
+    displaySearchResults(results, query, mode) {
         try {
             const container = this.getElement('#virtual-container');
             const content = this.getElement('#virtual-content');
             const display = this.getElement('#freq-display');
-            
-            if (!container || !content || !display) return;
-            
-            const { currentMode, currentQuery, currentResults } = searchData;
-            
-            // 清空内容并重置样式
+
+            if (!container || !content || !display) {
+                throw new Error('搜索结果容器未找到');
+            }
+
+            // 清空内容
             content.innerHTML = '';
             content.style.height = 'auto';
             content.style.position = 'static';
-            
+
             // 创建搜索结果容器
-            const searchContainer = this.createVirtualItem('div', 'search-results-wrapper');
-            searchContainer.style.cssText = `
-                width: 100%;
-                background: white;
-                overflow: visible;
-            `;
-            
-            // 创建搜索标题
-            const searchHeader = this.createSearchHeader(searchData);
-            searchContainer.appendChild(searchHeader);
-            
-            // 创建结果内容区域
-            const resultsArea = this.createVirtualItem('div', 'search-results-area');
-            resultsArea.style.cssText = `
-                padding: 20px;
-                background: white;
-            `;
-            
-            // 根据视图模式渲染结果
-            if (this.currentView === 'cloud') {
-                this.renderSearchResultsAsCloud(resultsArea, currentResults);
-            } else {
-                this.renderSearchResultsAsList(resultsArea, currentResults);
-            }
-            
-            searchContainer.appendChild(resultsArea);
+            const searchContainer = this.createSearchResultsContainer(query, mode, results.length);
             content.appendChild(searchContainer);
-            
-            // 显示容器并重置滚动
+
+            // 根据视图模式渲染结果
+            const resultsArea = searchContainer.querySelector('.search-results-area');
+            if (this.currentView === 'cloud') {
+                this.renderSearchResultsAsCloud(resultsArea, results);
+            } else {
+                this.renderSearchResultsAsList(resultsArea, results);
+            }
+
+            // 显示容器
             container.style.display = 'block';
             display.style.display = 'block';
             container.scrollTop = 0;
-            
+
+            console.log(`✅ 搜索结果已显示: ${results.length}个结果`);
+
         } catch (error) {
-            console.error('渲染搜索结果失败:', error);
-            this.showSearchError('渲染搜索结果时出错');
+            console.error('显示搜索结果失败:', error);
+            this.showNoResults('显示搜索结果时出错');
         }
     }
-    
-    createSearchHeader(searchData) {
-        const { currentMode, currentQuery, currentResults } = searchData;
-        
-        const searchHeader = this.createVirtualItem('div', 'search-results-header');
-        searchHeader.style.cssText = `
+
+    // 🎯 创建搜索结果容器
+    createSearchResultsContainer(query, mode, resultCount) {
+        const container = document.createElement('div');
+        container.className = 'search-results-wrapper';
+        container.style.cssText = `
+            width: 100%;
+            background: white;
+            overflow: visible;
+            padding: 20px;
+        `;
+
+        // 搜索标题
+        const header = this.createSearchHeader(query, mode, resultCount);
+        container.appendChild(header);
+
+        // 结果区域
+        const resultsArea = document.createElement('div');
+        resultsArea.className = 'search-results-area';
+        resultsArea.style.cssText = `
+            margin-top: 20px;
+            background: white;
+        `;
+        container.appendChild(resultsArea);
+
+        return container;
+    }
+
+    // 🎯 创建搜索标题
+    createSearchHeader(query, mode, resultCount) {
+        const header = document.createElement('div');
+        header.className = 'search-results-header';
+        header.style.cssText = `
             background: linear-gradient(135deg, #007bff, #0056b3);
             color: white;
             padding: 20px;
-            border-radius: 8px 8px 0 0;
-            position: sticky;
-            top: 0;
-            z-index: 10;
+            border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
         `;
-        
-        const modeText = currentMode === 'intelligent' ? '智能匹配' : '精确搜索';
-        const resultCount = currentResults ? currentResults.length : 0;
-        
-        let modeDescription = '';
-        if (currentMode === 'intelligent') {
-            modeDescription = '显示所有相关变形词的合并结果';
-        } else {
-            modeDescription = `只显示包含 "${currentQuery}" 的文章`;
-        }
-        
-        searchHeader.innerHTML = `
+
+        const modeText = mode === 'intelligent' ? '智能搜索' : '精确搜索';
+        const modeDescription = mode === 'intelligent' ?
+            '找到了所有相关变形词的合并结果' :
+            `只显示包含确切词汇 "${query}" 的文章`;
+
+        header.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <h3 style="margin: 0; font-size: 20px; font-weight: 600;">
-                    🔍 ${modeText}搜索结果
+                    ${mode === 'intelligent' ? '🧠' : '🎯'} ${modeText}结果
                 </h3>
                 <div style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 15px; font-size: 14px; font-weight: 500;">
                     ${resultCount} 个结果
@@ -1093,7 +755,7 @@ class WordFrequencyUI {
             </div>
             <div style="background: rgba(255,255,255,0.1); padding: 12px 16px; border-radius: 6px; font-size: 14px; line-height: 1.4;">
                 <div style="margin-bottom: 8px;">
-                    <strong>搜索词：</strong> "${currentQuery}"
+                    <strong>搜索词：</strong> "${query}"
                 </div>
                 <div style="opacity: 0.9;">
                     ${modeDescription}
@@ -1103,15 +765,17 @@ class WordFrequencyUI {
                 💡 可以通过上方的模式选项卡切换搜索方式
             </div>
         `;
-        
-        return searchHeader;
+
+        return header;
     }
-    
+
+    // 🎯 以词云形式渲染搜索结果
     renderSearchResultsAsCloud(container, results) {
         const maxCount = results[0]?.totalCount || 1;
         const minCount = results[results.length - 1]?.totalCount || 1;
-        
-        const cloudContainer = this.createVirtualItem('div', 'search-word-cloud');
+
+        const cloudContainer = document.createElement('div');
+        cloudContainer.className = 'search-word-cloud';
         cloudContainer.style.cssText = `
             display: flex;
             flex-wrap: wrap;
@@ -1121,146 +785,422 @@ class WordFrequencyUI {
             padding: 30px 20px;
             background: linear-gradient(135deg, #f8f9fa, #e9ecef);
             border-radius: 12px;
-            margin: 20px 0;
             min-height: 150px;
             border: 2px solid #dee2e6;
         `;
-        
+
         results.forEach(item => {
-            const wordElement = this.createVirtualItem('span', 'word-item');
-            const fontSize = this.calculateFontSize(item.totalCount, minCount, maxCount);
-            const color = this.getWordColor(item.totalCount, maxCount);
-            
-            wordElement.dataset.word = item.word;
-            wordElement.style.cssText = `
-                font-size: ${fontSize}px; 
-                color: ${color};
-                margin: 5px 8px;
-                padding: 8px 12px;
-                cursor: pointer;
-                border-radius: 20px;
-                background: ${item.isExactMatch ? 'rgba(40, 167, 69, 0.15)' : 'rgba(0, 123, 255, 0.1)'};
-                border: 2px solid ${item.isExactMatch ? 'rgba(40, 167, 69, 0.4)' : 'rgba(0, 123, 255, 0.3)'};
-                transition: all 0.3s ease;
-                font-weight: 600;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            `;
-            
-            wordElement.textContent = item.word;
-            wordElement.title = `${item.word}: ${item.totalCount} 次，出现在 ${item.articleCount} 篇文章中`;
-            
-            // 添加悬停效果
-            wordElement.addEventListener('mouseenter', () => {
-                wordElement.style.transform = 'translateY(-2px)';
-                wordElement.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
-            });
-            
-            wordElement.addEventListener('mouseleave', () => {
-                wordElement.style.transform = 'translateY(0)';
-                wordElement.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-            });
-            
+            const wordElement = this.createWordCloudItem(item, minCount, maxCount);
             cloudContainer.appendChild(wordElement);
         });
-        
+
         container.appendChild(cloudContainer);
     }
-    
+
+    // 🎯 创建词云项目
+    createWordCloudItem(item, minCount, maxCount) {
+        const wordElement = document.createElement('span');
+        wordElement.className = 'word-item';
+        wordElement.dataset.word = item.word;
+
+        const fontSize = this.calculateFontSize(item.totalCount, minCount, maxCount);
+        const color = this.getWordColor(item.totalCount, maxCount);
+
+        wordElement.style.cssText = `
+            font-size: ${fontSize}px; 
+            color: ${color};
+            margin: 5px 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 20px;
+            background: ${item.isExactMatch ? 'rgba(40, 167, 69, 0.15)' : 'rgba(0, 123, 255, 0.1)'};
+            border: 2px solid ${item.isExactMatch ? 'rgba(40, 167, 69, 0.4)' : 'rgba(0, 123, 255, 0.3)'};
+            transition: all 0.3s ease;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        `;
+
+        wordElement.textContent = item.word;
+        wordElement.title = `${item.word}: ${item.totalCount} 次，出现在 ${item.articleCount} 篇文章中`;
+
+        // 添加悬停效果
+        wordElement.addEventListener('mouseenter', () => {
+            wordElement.style.transform = 'translateY(-2px)';
+            wordElement.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+        });
+
+        wordElement.addEventListener('mouseleave', () => {
+            wordElement.style.transform = 'translateY(0)';
+            wordElement.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+        });
+
+        return wordElement;
+    }
+
+    // 🎯 以列表形式渲染搜索结果
     renderSearchResultsAsList(container, results) {
-        const listContainer = this.createVirtualItem('div', 'search-word-list');
+        const listContainer = document.createElement('div');
+        listContainer.className = 'search-word-list';
         listContainer.style.cssText = `
             display: flex;
             flex-direction: column;
             gap: 16px;
-            margin: 20px 0;
         `;
-        
-        results.forEach((item, index) => {
-            const listItem = this.createVirtualItem('div', 'word-list-item');
-            
-            listItem.dataset.word = item.word;
-            listItem.style.cssText = `
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 20px 24px;
-                border: 2px solid ${item.isExactMatch ? '#28a745' : '#e9ecef'};
-                border-radius: 12px;
-                cursor: pointer;
-                background: ${item.isExactMatch ? 'rgba(40, 167, 69, 0.05)' : 'white'};
-                transition: all 0.3s ease;
-                box-sizing: border-box;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            `;
-            
-            const matchTypeText = item.isExactMatch ? '精确匹配' : '智能匹配';
-            const matchColor = item.isExactMatch ? '#28a745' : '#007bff';
-            
-            listItem.innerHTML = `
-                <div class="word-info" style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                        <strong style="font-size: 18px; color: #2c3e50;">${item.word}</strong>
-                        <span style="background: ${matchColor}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase;">${matchTypeText}</span>
-                    </div>
-                    <div style="color: #6c757d; font-size: 14px; display: flex; gap: 20px;">
-                        <span>📄 ${item.articleCount} 篇文章</span>
-                        <span>🔢 总计 ${item.totalCount} 次</span>
-                    </div>
-                </div>
-                <div class="word-count" style="background: linear-gradient(135deg, ${matchColor}, ${matchColor}dd); color: white; padding: 12px 20px; border-radius: 20px; font-weight: 700; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                    ${item.totalCount}
-                </div>
-            `;
-            
-            // 添加悬停效果
-            listItem.addEventListener('mouseenter', () => {
-                listItem.style.transform = 'translateY(-2px)';
-                listItem.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-            });
-            
-            listItem.addEventListener('mouseleave', () => {
-                listItem.style.transform = 'translateY(0)';
-                listItem.style.boxShadow = '0 2px 6px rgba(0,0,0,0.1)';
-            });
-            
+
+        results.forEach(item => {
+            const listItem = this.createWordListItem(item);
             listContainer.appendChild(listItem);
         });
-        
+
         container.appendChild(listContainer);
     }
-    
-    // 🔧 显示搜索错误
-    showSearchError(message) {
-        console.error('搜索错误:', message);
-        this.showNoResults(`❌ ${message}`);
+
+    // 🎯 创建列表项目
+    createWordListItem(item) {
+        const listItem = document.createElement('div');
+        listItem.className = 'word-list-item';
+        listItem.dataset.word = item.word;
+
+        listItem.style.cssText = `
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border: 2px solid ${item.isExactMatch ? '#28a745' : '#e9ecef'};
+            border-radius: 12px;
+            cursor: pointer;
+            background: ${item.isExactMatch ? 'rgba(40, 167, 69, 0.05)' : 'white'};
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        `;
+
+        const matchTypeText = item.isExactMatch ? '精确匹配' : '智能匹配';
+        const matchColor = item.isExactMatch ? '#28a745' : '#007bff';
+
+        listItem.innerHTML = `
+            <div class="word-info" style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                    <strong style="font-size: 18px; color: #2c3e50;">${item.word}</strong>
+                    <span style="background: ${matchColor}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase;">${matchTypeText}</span>
+                </div>
+                <div style="color: #6c757d; font-size: 14px; display: flex; gap: 20px;">
+                    <span>📄 ${item.articleCount} 篇文章</span>
+                    <span>🔢 总计 ${item.totalCount} 次</span>
+                </div>
+            </div>
+            <div class="word-count" style="background: linear-gradient(135deg, ${matchColor}, ${matchColor}dd); color: white; padding: 12px 20px; border-radius: 20px; font-weight: 700; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                ${item.totalCount}
+            </div>
+        `;
+
+        // 添加悬停效果
+        listItem.addEventListener('mouseenter', () => {
+            listItem.style.transform = 'translateY(-2px)';
+            listItem.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        });
+
+        listItem.addEventListener('mouseleave', () => {
+            listItem.style.transform = 'translateY(0)';
+            listItem.style.boxShadow = '0 2px 6px rgba(0,0,0,0.1)';
+        });
+
+        return listItem;
     }
-    
-    displayLegacySearchResults(results, query) {
+
+    // 工具方法
+    calculateFontSize(count, minCount, maxCount) {
+        const minSize = this.isMobile ? 12 : 14;
+        const maxSize = this.isMobile ? 28 : 36;
+
+        if (maxCount === minCount) return minSize;
+
+        const ratio = (count - minCount) / (maxCount - minCount);
+        return Math.round(minSize + ratio * (maxSize - minSize));
+    }
+
+    getWordColor(count, maxCount) {
+        const intensity = count / maxCount;
+        if (intensity > 0.8) return '#d32f2f';
+        if (intensity > 0.6) return '#f57c00';
+        if (intensity > 0.4) return '#388e3c';
+        if (intensity > 0.2) return '#1976d2';
+        return '#757575';
+    }
+
+    throttle(func, limit) {
+        let inThrottle;
+        return function(...args) {
+            if (!inThrottle) {
+                func.apply(this, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+
+    // 🎯 委托点击处理 - 简化逻辑
+    handleDelegatedClick(e) {
+        const target = e.target;
+
         try {
-            const validResults = Array.isArray(results) ? results : [];
-            
-            if (validResults.length === 0) {
-                this.showNoResults(`未找到包含 "${query}" 的单词`);
+            // 关闭详情按钮
+            if (target.closest('.close-details-btn')) {
+                e.preventDefault();
+                this.hideWordDetails();
                 return;
             }
-            
-            const searchData = {
-                currentMode: 'intelligent',
-                currentQuery: query,
-                currentResults: validResults
-            };
-            
-            this.displaySearchResults(searchData);
-            
+
+            // 文章项目点击
+            if (target.closest('.article-item')) {
+                e.preventDefault();
+                this.handleArticleClick(target.closest('.article-item'));
+                return;
+            }
+
+            // 单词项目点击
+            if (target.closest('.word-item, .word-list-item')) {
+                e.preventDefault();
+                this.handleWordClick(target.closest('.word-item, .word-list-item'));
+                return;
+            }
+
         } catch (error) {
-            console.error('Failed to display legacy search results:', error);
-            this.showNoResults(`显示搜索结果时出错`);
+            console.error('点击处理失败:', error);
         }
     }
-    
+
+    // 处理单词点击
+    handleWordClick(wordElement) {
+        const word = wordElement.dataset.word;
+
+        if (!word || word.trim() === '') {
+            console.error('无效的单词数据:', word);
+            return;
+        }
+
+        const details = this.manager.getWordDetails(word.trim());
+        if (!details) {
+            console.warn('未找到单词详情:', word);
+            return;
+        }
+
+        this.selectedWord = word.trim();
+        this.showWordDetails(details);
+    }
+
+    // 显示单词详情
+    showWordDetails(details) {
+        const {
+            word,
+            totalCount,
+            articleCount,
+            articles
+        } = details;
+
+        const panel = this.getElement('#word-details');
+        if (!panel) return;
+
+        // 创建详情内容
+        const detailsHTML = this.createWordDetailsHTML(word, totalCount, articleCount, articles);
+        panel.innerHTML = detailsHTML;
+        panel.style.display = 'block';
+
+        // 滚动到详情面板
+        setTimeout(() => {
+            panel.scrollIntoView({
+                behavior: 'smooth',
+                block: 'nearest'
+            });
+        }, 100);
+    }
+
+    // 创建单词详情HTML
+    createWordDetailsHTML(word, totalCount, articleCount, articles) {
+        const statsItems = [
+            ['总出现次数', totalCount, '#007bff'],
+            ['出现文章数', articleCount, '#28a745'],
+            ['平均每篇', (totalCount / articleCount).toFixed(1), '#fd7e14']
+        ];
+
+        const statsHTML = statsItems.map(([label, value, color]) => `
+            <div class="stat" style="background: linear-gradient(135deg, ${color}15, ${color}05); border: 2px solid ${color}30; padding: 16px; border-radius: 12px; text-align: center; transition: transform 0.2s ease;">
+                <div style="color: ${color}; font-weight: 700; font-size: 24px; margin-bottom: 4px;">${value}</div>
+                <div style="color: #6c757d; font-size: 14px; font-weight: 500;">${label}</div>
+            </div>
+        `).join('');
+
+        const articlesHTML = articles.map(article => this.createArticleItemHTML(article, word)).join('');
+
+        return `
+            <div class="word-details" style="background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 24px; margin: 20px 0;">
+                <h3 style="margin: 0 0 20px 0; color: #2c3e50; border-bottom: 2px solid #007bff; padding-bottom: 10px; font-size: 24px;">
+                    📝 "${word}" 详细分析
+                </h3>
+                
+                <div class="word-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 25px;">
+                    ${statsHTML}
+                </div>
+                
+                <h4 style="color: #2c3e50; margin: 30px 0 15px 0; font-size: 18px;">
+                    📚 相关文章 (按出现频次排序)
+                </h4>
+                
+                <div class="article-list" style="display: grid; gap: 16px; margin-top: 20px; max-height: 500px; overflow-y: auto; padding-right: 8px;">
+                    ${articlesHTML}
+                </div>
+                
+                <button class="close-details-btn" style="background: linear-gradient(135deg, #6c757d, #5a6268); color: white; border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer; margin-top: 24px; font-size: 14px; font-weight: 600; transition: all 0.3s ease; display: block; margin-left: auto; margin-right: auto;">
+                    ✕ 关闭详情
+                </button>
+            </div>
+        `;
+    }
+
+    // 创建文章项目HTML
+    createArticleItemHTML(article, word) {
+        const contextsHTML = article.contexts && article.contexts.length > 0 ?
+            article.contexts.map(ctx => `
+                <div class="context" style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); padding: 12px 16px; border-radius: 8px; margin: 8px 0; font-size: 13px; line-height: 1.5; border-left: 3px solid #28a745; font-family: 'Segoe UI', system-ui, sans-serif;">
+                    ${ctx}
+                </div>
+            `).join('') : '';
+
+        return `
+            <div class="article-item" data-article-id="${article.id}" data-word="${word}" style="position: relative; padding: 20px 24px; background: white; border-radius: 12px; border-left: 4px solid #007bff; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); border: 1px solid #e9ecef;">
+                <div class="article-title" style="font-weight: 600; color: #2c3e50; margin-bottom: 12px; font-size: 16px; line-height: 1.4;">
+                    ${article.title}
+                </div>
+                <div class="article-stats" style="margin-bottom: 12px;">
+                    <span style="color: #6c757d; font-size: 14px;">在此文章中出现 </span>
+                    <strong style="color: #007bff; font-size: 16px; font-weight: 700;">${article.count}</strong>
+                    <span style="color: #6c757d; font-size: 14px;"> 次</span>
+                    <span class="click-hint" style="font-size: 12px; color: #007bff; opacity: 0; transition: opacity 0.3s; margin-left: 15px; font-weight: 500;">👆 点击跳转并高亮</span>
+                </div>
+                ${contextsHTML ? `<div class="contexts" style="margin-top: 16px;">${contextsHTML}</div>` : ''}
+            </div>
+        `;
+    }
+
+    // 隐藏单词详情
+    hideWordDetails() {
+        const panel = this.getElement('#word-details');
+        if (panel) {
+            panel.style.display = 'none';
+            panel.innerHTML = '';
+        }
+        this.selectedWord = null;
+    }
+
+    // 处理文章点击
+    handleArticleClick(articleElement) {
+        const articleId = articleElement.dataset.articleId;
+        const word = articleElement.dataset.word || this.selectedWord;
+
+        if (!word || !articleId) {
+            console.error('跳转数据无效:', {
+                word,
+                articleId
+            });
+            return;
+        }
+
+        this.prepareHighlightData(word.trim());
+        this.performJump(articleId.trim(), word.trim());
+    }
+
+    // 准备高亮数据
+    prepareHighlightData(word) {
+        sessionStorage.removeItem('highlightWord');
+        sessionStorage.removeItem('highlightSource');
+        sessionStorage.removeItem('highlightVariants');
+
+        setTimeout(() => {
+            sessionStorage.setItem('highlightWord', word);
+            sessionStorage.setItem('highlightSource', 'wordFreq');
+
+            const wordDetails = this.manager.getWordDetails(word);
+            if (wordDetails && wordDetails.variants) {
+                const variants = wordDetails.variants.map(([variant]) => variant).filter(v => v && v.trim());
+                if (variants.length > 0) {
+                    sessionStorage.setItem('highlightVariants', JSON.stringify(variants));
+                }
+            }
+        }, 50);
+    }
+
+    // 执行跳转
+    performJump(articleId, word) {
+        this.showJumpNotification(articleId, word);
+
+        setTimeout(() => {
+            if (window.app?.navigation?.navigateToChapter) {
+                window.app.navigation.navigateToChapter(articleId);
+            } else if (window.location.pathname.includes('word-frequency.html')) {
+                window.location.href = `index.html#${articleId}`;
+            } else {
+                window.location.hash = articleId;
+            }
+        }, 100);
+    }
+
+    // 显示跳转通知
+    showJumpNotification(articleId, word) {
+        document.querySelectorAll('[data-jump-notification]').forEach(el => el.remove());
+
+        const notification = document.createElement('div');
+        notification.setAttribute('data-jump-notification', 'true');
+        notification.style.cssText = `
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: linear-gradient(135deg, #28a745, #20c997); color: white;
+            padding: 12px 20px; border-radius: 25px; z-index: 10000;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+            font-size: 14px; font-weight: 500; max-width: 400px;
+            backdrop-filter: blur(10px);
+        `;
+
+        notification.innerHTML = `🚀 正在跳转到文章 (高亮 "${word}")`;
+        document.body.appendChild(notification);
+
+        setTimeout(() => notification.remove(), 4000);
+    }
+
+    // 其他必要方法（保持简化）
+    handleViewToggle(view) {
+        this.container.querySelectorAll('.view-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.view === view);
+        });
+
+        this.currentView = view;
+        this.clearDataCache();
+        this.initializeVirtualScroll();
+
+        // 如果在搜索状态，重新显示搜索结果
+        const searchState = this.searchManager.getState();
+        if (searchState.hasResults) {
+            this.displaySearchResults(searchState.results, searchState.query, searchState.mode);
+        } else {
+            this.displayCurrentView();
+        }
+    }
+
+    handleFilterChange(filter) {
+        this.currentFilter = filter;
+        this.clearDataCache();
+
+        const searchState = this.searchManager.getState();
+        if (searchState.hasResults) {
+            // 在搜索状态下不应用频次筛选
+            return;
+        }
+
+        this.displayCurrentView();
+    }
+
+    // 初始化和其他核心方法保持不变...
     async initialize() {
         this.showLoading();
-        
+
         try {
             await this.manager.waitForReady();
             this.isInitialized = true;
@@ -1272,48 +1212,16 @@ class WordFrequencyUI {
             this.showError('初始化失败: ' + error.message);
         }
     }
-    
-    updateStatsSummary() {
-        const summary = this.manager.getStatsSummary();
-        const summaryEl = this.getElement('#stats-summary');
-        
-        if (summaryEl && summary) {
-            const statsHTML = [
-                `📚 ${summary.totalArticlesAnalyzed} 篇文章`,
-                `📝 ${summary.totalUniqueWords.toLocaleString()} 个不同单词`,
-                `🔢 ${summary.totalWordOccurrences.toLocaleString()} 总词次`,
-                `📊 平均 ${summary.averageWordsPerArticle} 词/篇`
-            ];
-            
-            summaryEl.innerHTML = statsHTML.map(stat => 
-                `<span class="stat-item">${stat}</span>`
-            ).join('');
-        }
-    }
-    
-    handleViewToggle(view) {
-        this.container.querySelectorAll('.view-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.view === view);
-        });
-        
-        this.currentView = view;
-        this.clearDataCache();
-        this.clearRenderCache();
-        this.initializeVirtualScroll();
-        
-        const state = this.searchStateManager.getState();
-        if (state.isActive) {
-            this.displaySearchResults(state.frozenResults);
-        } else {
-            this.displayCurrentView();
-        }
-    }
-    
+
     displayCurrentView() {
-        if (!this.isInitialized || this.searchStateManager.getState().isActive) return;
-        
-        this.virtualScroll.currentDataSource = 'normal';
-        
+        if (!this.isInitialized) return;
+
+        // 检查是否在搜索状态
+        const searchState = this.searchManager.getState();
+        if (searchState.hasResults) {
+            return; // 在搜索状态下不覆盖搜索结果
+        }
+
         switch (this.currentView) {
             case 'cloud':
                 this.displayWordCloudVirtual();
@@ -1323,597 +1231,238 @@ class WordFrequencyUI {
                 break;
         }
     }
-    
+
     displayWordCloudVirtual() {
         const words = this.getFilteredWords();
-        
+
         if (words.length === 0) {
             this.showNoResults();
             return;
         }
-        
+
         this.currentWordsData = words;
-        this.virtualScroll.totalItems = words.length;
-        this.virtualScroll.itemHeight = 35;
-        
-        const container = this.getElement('#virtual-container');
-        const content = this.getElement('#virtual-content');
-        const display = this.getElement('#freq-display');
-        
-        if (container && content && display) {
-            this.virtualScroll.scrollTop = 0;
-            this.virtualScroll.visibleStart = 0;
-            this.virtualScroll.visibleEnd = 0;
-            
-            const totalHeight = Math.ceil(words.length / this.getWordsPerRow()) * this.virtualScroll.itemHeight;
-            content.style.height = `${totalHeight}px`;
-            content.style.position = 'relative';
-            
-            container.scrollTop = 0;
-            container.style.display = 'block';
-            display.style.display = 'block';
-            
-            this.updateVirtualScrollViewportImmediate();
-        }
+        this.setupVirtualScrollForNormalView(words);
+        this.renderWordCloudView(words);
     }
-    
+
     displayWordListVirtual() {
         const words = this.getFilteredWords();
-        
+
         if (words.length === 0) {
             this.showNoResults();
             return;
         }
-        
+
         this.currentWordsData = words;
-        this.virtualScroll.totalItems = words.length;
-        this.virtualScroll.itemHeight = 80;
-        
+        this.setupVirtualScrollForNormalView(words);
+        this.renderWordListView(words);
+    }
+
+    setupVirtualScrollForNormalView(words) {
         const container = this.getElement('#virtual-container');
         const content = this.getElement('#virtual-content');
         const display = this.getElement('#freq-display');
-        
+
         if (container && content && display) {
-            this.virtualScroll.scrollTop = 0;
-            this.virtualScroll.visibleStart = 0;
-            this.virtualScroll.visibleEnd = 0;
-            
-            const totalHeight = words.length * this.virtualScroll.itemHeight;
-            content.style.height = `${totalHeight}px`;
-            content.style.position = 'relative';
-            
-            container.scrollTop = 0;
+            this.virtualScroll.totalItems = words.length;
+            this.virtualScroll.itemHeight = this.currentView === 'list' ? 80 : 35;
+            this.virtualScroll.isEnabled = true;
+
             container.style.display = 'block';
             display.style.display = 'block';
-            
-            this.updateVirtualScrollViewportImmediate();
+            container.scrollTop = 0;
         }
     }
-    
-    renderVirtualItemsImmediate() {
-        if (this.searchStateManager.getState().isActive) return;
-        if (!this.currentWordsData || this.currentWordsData.length === 0) return;
-        
+
+    renderWordCloudView(words) {
         const content = this.getElement('#virtual-content');
         if (!content) return;
-        
-        const { visibleStart, visibleEnd, itemHeight } = this.virtualScroll;
-        const visibleItems = this.currentWordsData.slice(visibleStart, visibleEnd);
-        
+
+        const maxCount = words[0]?.totalCount || 1;
+        const minCount = words[words.length - 1]?.totalCount || 1;
+
         content.innerHTML = '';
-        
-        const itemsContainer = this.createVirtualItem('div', 'virtual-items-container');
-        itemsContainer.style.cssText = `
-            position: absolute;
-            top: ${visibleStart * itemHeight}px;
-            left: 0;
-            right: 0;
+        content.style.height = 'auto';
+        content.style.position = 'static';
+
+        const cloudContainer = document.createElement('div');
+        cloudContainer.className = 'word-cloud-container';
+        cloudContainer.style.cssText = `
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 30px 20px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 12px;
+            min-height: 200px;
         `;
-        
-        if (this.currentView === 'cloud') {
-            this.renderWordCloudItemsImmediate(itemsContainer, visibleItems, visibleStart);
-        } else {
-            this.renderWordListItemsImmediate(itemsContainer, visibleItems, visibleStart);
-        }
-        
-        content.appendChild(itemsContainer);
-    }
-    
-    renderWordCloudItemsImmediate(container, items, startIndex) {
-        const wordsPerRow = this.getWordsPerRow();
-        const maxCount = items[0]?.totalCount || 1;
-        const minCount = items[items.length - 1]?.totalCount || 1;
-        
-        let currentRow = null;
-        
-        items.forEach((item, index) => {
-            const globalIndex = startIndex + index;
-            const rowIndex = Math.floor(globalIndex / wordsPerRow);
-            const colIndex = globalIndex % wordsPerRow;
-            
-            if (colIndex === 0) {
-                currentRow = this.createVirtualItem('div', 'word-cloud-row');
-                currentRow.style.cssText = `
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    flex-wrap: wrap;
-                    padding: 5px;
-                    min-height: ${this.virtualScroll.itemHeight}px;
-                `;
-                container.appendChild(currentRow);
-            }
-            
-            const wordElement = this.createVirtualItem('span', 'word-item');
-            const fontSize = this.calculateFontSize(item.totalCount, minCount, maxCount);
-            const color = this.getWordColor(item.totalCount, maxCount);
-            
-            wordElement.dataset.word = item.word;
-            wordElement.style.cssText = `
-                font-size: ${fontSize}px; 
-                color: ${color};
-                margin: 3px 6px;
-                padding: 4px 8px;
-                cursor: pointer;
-                border-radius: 15px;
-                background: rgba(0, 123, 255, 0.05);
-                border: 1px solid transparent;
-                transition: all 0.2s ease;
-                will-change: transform;
-            `;
-            
-            wordElement.textContent = item.word;
-            wordElement.title = `${item.word}: ${item.totalCount} 次，出现在 ${item.articleCount} 篇文章中`;
-            
-            if (currentRow) {
-                currentRow.appendChild(wordElement);
-            }
+
+        words.slice(0, 200).forEach(item => { // 限制显示数量以提高性能
+            const wordElement = this.createWordCloudItem(item, minCount, maxCount);
+            cloudContainer.appendChild(wordElement);
         });
+
+        content.appendChild(cloudContainer);
     }
-    
-    renderWordListItemsImmediate(container, items, startIndex) {
-        items.forEach((item, index) => {
-            const listItem = this.createVirtualItem('div', 'word-list-item');
-            
-            listItem.dataset.word = item.word;
-            listItem.style.cssText = `
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 16px 20px;
-                margin-bottom: 8px;
-                border: 1px solid #e9ecef;
-                border-radius: 10px;
-                cursor: pointer;
-                background: white;
-                transition: all 0.3s ease;
-                height: ${this.virtualScroll.itemHeight - 8}px;
-                box-sizing: border-box;
-                will-change: transform;
-            `;
-            
-            listItem.innerHTML = `
-                <div class="word-info">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                        <strong style="font-size: 16px; color: #2c3e50;">${item.word}</strong>
-                    </div>
-                    <small style="color: #6c757d; font-size: 12px;">${item.articleCount} 篇文章</small>
-                </div>
-                <div class="word-count" style="background: #007bff; color: white; padding: 6px 12px; border-radius: 15px; font-weight: 600; font-size: 14px;">${item.totalCount}</div>
-            `;
-            
-            container.appendChild(listItem);
+
+    renderWordListView(words) {
+        const content = this.getElement('#virtual-content');
+        if (!content) return;
+
+        content.innerHTML = '';
+        content.style.height = 'auto';
+        content.style.position = 'static';
+
+        const listContainer = document.createElement('div');
+        listContainer.className = 'word-list-container';
+        listContainer.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 20px;
+        `;
+
+        words.slice(0, 100).forEach(item => { // 限制显示数量以提高性能
+            const listItem = this.createWordListItem(item);
+            listContainer.appendChild(listItem);
         });
+
+        content.appendChild(listContainer);
     }
-    
-    getWordsPerRow() {
-        const containerWidth = this.getElement('#virtual-container')?.clientWidth || 800;
-        const avgWordWidth = this.isMobile ? 80 : 100;
-        return Math.max(1, Math.floor(containerWidth / avgWordWidth));
-    }
-    
-    clearRenderCache() {
-        this.renderCache.renderedItems.clear();
-        this.renderCache.itemElements.clear();
-    }
-    
-    getFilteredWords(limit = 2000) {
+
+    getFilteredWords(limit = 1000) {
         const cacheKey = `${this.currentFilter}_${limit}`;
-        
+
         if (this.dataCache.has(cacheKey)) {
             return this.dataCache.get(cacheKey);
         }
-        
+
         let words = this.manager.getTopWords(limit);
-        
+
         const filterMap = {
             'high': item => item.totalCount >= 10,
             'medium': item => item.totalCount >= 5 && item.totalCount <= 9,
             'low': item => item.totalCount >= 2 && item.totalCount <= 4,
             'rare': item => item.totalCount === 1
         };
-        
+
         if (this.currentFilter !== 'all' && filterMap[this.currentFilter]) {
             words = words.filter(filterMap[this.currentFilter]);
         }
-        
+
         this.dataCache.set(cacheKey, words);
-        
+
         if (this.dataCache.size > 10) {
             const firstKey = this.dataCache.keys().next().value;
             this.dataCache.delete(firstKey);
         }
-        
+
         return words;
     }
-    
+
     clearDataCache() {
         this.dataCache.clear();
         this.currentWordsData = null;
     }
-    
-    calculateFontSize(count, minCount, maxCount) {
-        const minSize = this.isMobile ? 12 : 14;
-        const maxSize = this.isMobile ? 28 : 36;
-        
-        if (maxCount === minCount) return minSize;
-        
-        const ratio = (count - minCount) / (maxCount - minCount);
-        return Math.round(minSize + ratio * (maxSize - minSize));
-    }
-    
-    getWordColor(count, maxCount) {
-        const intensity = count / maxCount;
-        if (intensity > 0.8) return '#d32f2f';
-        if (intensity > 0.6) return '#f57c00';
-        if (intensity > 0.4) return '#388e3c';
-        if (intensity > 0.2) return '#1976d2';
-        return '#757575';
-    }
-    
-    handleWordClick(wordElement) {
-        const word = wordElement.dataset.word;
-        
-        if (!word || word.trim() === '') {
-            console.error('无效的单词数据:', word);
-            return;
-        }
-        
-        const details = this.manager.getWordDetails(word.trim());
-        if (!details) {
-            console.warn('未找到单词详情:', word);
-            return;
-        }
-        
-        this.selectedWord = word.trim();
-        this.showWordDetails(details);
-    }
-    
-    showWordDetails(details) {
-        const { word, totalCount, articleCount, articles } = details;
-        
-        const panel = this.getElement('#word-details');
-        if (!panel) return;
-        
-        const detailsContainer = this.createVirtualItem('div', 'word-details');
-        detailsContainer.style.cssText = `
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            padding: 24px;
-            margin: 20px 0;
-        `;
-        
-        const header = this.createVirtualItem('h3');
-        header.textContent = `📝 "${word}" 详细分析`;
-        header.style.cssText = 'margin: 0 0 20px 0; color: #2c3e50; border-bottom: 2px solid #007bff; padding-bottom: 10px; font-size: 24px;';
-        
-        const statsContainer = this.createVirtualItem('div', 'word-stats');
-        statsContainer.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 25px;';
-        
-        const stats = [
-            ['总出现次数', totalCount, '#007bff'],
-            ['出现文章数', articleCount, '#28a745'],
-            ['平均每篇', (totalCount / articleCount).toFixed(1), '#fd7e14']
-        ];
-        
-        stats.forEach(([label, value, color]) => {
-            const statItem = this.createVirtualItem('div', 'stat');
-            statItem.style.cssText = `
-                background: linear-gradient(135deg, ${color}15, ${color}05);
-                border: 2px solid ${color}30;
-                padding: 16px;
-                border-radius: 12px;
-                text-align: center;
-                transition: transform 0.2s ease;
-            `;
-            statItem.innerHTML = `
-                <div style="color: ${color}; font-weight: 700; font-size: 24px; margin-bottom: 4px;">${value}</div>
-                <div style="color: #6c757d; font-size: 14px; font-weight: 500;">${label}</div>
-            `;
-            
-            statItem.addEventListener('mouseenter', () => {
-                statItem.style.transform = 'translateY(-2px)';
-            });
-            statItem.addEventListener('mouseleave', () => {
-                statItem.style.transform = 'translateY(0)';
-            });
-            
-            statsContainer.appendChild(statItem);
-        });
-        
-        const articlesHeader = this.createVirtualItem('h4');
-        articlesHeader.textContent = '📚 相关文章 (按出现频次排序)';
-        articlesHeader.style.cssText = 'color: #2c3e50; margin: 30px 0 15px 0; font-size: 18px;';
-        
-        const articlesList = this.createVirtualItem('div', 'article-list');
-        articlesList.style.cssText = 'display: grid; gap: 16px; margin-top: 20px; max-height: 500px; overflow-y: auto; padding-right: 8px;';
-        
-        articles.forEach(article => {
-            const articleItem = this.createArticleItem(article, word);
-            articlesList.appendChild(articleItem);
-        });
-        
-        const closeBtn = this.createVirtualItem('button', 'close-details-btn');
-        closeBtn.textContent = '✕ 关闭详情';
-        closeBtn.style.cssText = `
-            background: linear-gradient(135deg, #6c757d, #5a6268);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 25px;
-            cursor: pointer;
-            margin-top: 24px;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-        `;
-        
-        closeBtn.addEventListener('mouseenter', () => {
-            closeBtn.style.background = 'linear-gradient(135deg, #5a6268, #495057)';
-            closeBtn.style.transform = 'translateY(-1px)';
-        });
-        
-        closeBtn.addEventListener('mouseleave', () => {
-            closeBtn.style.background = 'linear-gradient(135deg, #6c757d, #5a6268)';
-            closeBtn.style.transform = 'translateY(0)';
-        });
-        
-        detailsContainer.appendChild(header);
-        detailsContainer.appendChild(statsContainer);
-        detailsContainer.appendChild(articlesHeader);
-        detailsContainer.appendChild(articlesList);
-        detailsContainer.appendChild(closeBtn);
-        
-        panel.innerHTML = '';
-        panel.appendChild(detailsContainer);
-        panel.style.display = 'block';
-        
-        setTimeout(() => {
-            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }, 100);
-    }
-    
-    createArticleItem(article, word) {
-        const articleItem = this.createVirtualItem('div', 'article-item');
-        
-        articleItem.dataset.articleId = article.id;
-        articleItem.dataset.word = word;
-        articleItem.title = `点击跳转到文章并高亮 '${word}'`;
-        articleItem.style.cssText = `
-            position: relative;
-            padding: 20px 24px;
-            background: white;
-            border-radius: 12px;
-            border-left: 4px solid #007bff;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e9ecef;
-        `;
-        
-        const titleEl = this.createVirtualItem('div', 'article-title');
-        titleEl.textContent = article.title;
-        titleEl.style.cssText = 'font-weight: 600; color: #2c3e50; margin-bottom: 12px; font-size: 16px; line-height: 1.4;';
-        
-        const statsEl = this.createVirtualItem('div', 'article-stats');
-        statsEl.innerHTML = `
-            <span style="color: #6c757d; font-size: 14px;">在此文章中出现 </span>
-            <strong style="color: #007bff; font-size: 16px; font-weight: 700;">${article.count}</strong>
-            <span style="color: #6c757d; font-size: 14px;"> 次</span>
-            <span class="click-hint" style="font-size: 12px; color: #007bff; opacity: 0; transition: opacity 0.3s; margin-left: 15px; font-weight: 500;">👆 点击跳转并高亮</span>
-        `;
-        statsEl.style.cssText = 'margin-bottom: 12px;';
-        
-        articleItem.appendChild(titleEl);
-        articleItem.appendChild(statsEl);
-        
-        if (article.contexts && article.contexts.length > 0) {
-            const contextsContainer = this.createVirtualItem('div', 'contexts');
-            contextsContainer.style.cssText = 'margin-top: 16px;';
-            
-            article.contexts.forEach(ctx => {
-                const contextEl = this.createVirtualItem('div', 'context');
-                contextEl.innerHTML = ctx;
-                contextEl.style.cssText = `
-                    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-                    padding: 12px 16px;
-                    border-radius: 8px;
-                    margin: 8px 0;
-                    font-size: 13px;
-                    line-height: 1.5;
-                    border-left: 3px solid #28a745;
-                    font-family: 'Segoe UI', system-ui, sans-serif;
-                `;
-                contextsContainer.appendChild(contextEl);
-            });
-            
-            articleItem.appendChild(contextsContainer);
-        }
-        
-        // 添加悬停效果
-        articleItem.addEventListener('mouseenter', () => {
-            articleItem.style.transform = 'translateY(-2px)';
-            articleItem.style.boxShadow = '0 4px 16px rgba(0, 123, 255, 0.15)';
-            articleItem.style.borderLeftColor = '#0056b3';
-            const hint = articleItem.querySelector('.click-hint');
-            if (hint) hint.style.opacity = '1';
-        });
-        
-        articleItem.addEventListener('mouseleave', () => {
-            articleItem.style.transform = 'translateY(0)';
-            articleItem.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.08)';
-            articleItem.style.borderLeftColor = '#007bff';
-            const hint = articleItem.querySelector('.click-hint');
-            if (hint) hint.style.opacity = '0';
-        });
-        
-        return articleItem;
-    }
-    
-    hideWordDetails() {
-        const panel = this.getElement('#word-details');
-        if (panel) {
-            panel.style.display = 'none';
-            panel.innerHTML = '';
-        }
-        this.selectedWord = null;
-    }
-    
-    handleArticleClick(articleElement) {
-        const now = Date.now();
-        
-        if (this.jumpInProgress || (now - this.lastJumpTime) < this.jumpCooldown) {
-            return;
-        }
-        
-        this.jumpInProgress = true;
-        this.lastJumpTime = now;
-        
-        const articleId = articleElement.dataset.articleId;
-        const word = articleElement.dataset.word || this.selectedWord;
-        
-        if (!word || !articleId) {
-            console.error('跳转数据无效:', { word, articleId });
-            this.jumpInProgress = false;
-            return;
-        }
-        
-        this.prepareHighlightData(word.trim());
-        this.performJump(articleId.trim(), word.trim());
-        
-        setTimeout(() => {
-            this.jumpInProgress = false;
-        }, 1000);
-    }
-    
-    prepareHighlightData(word) {
-        sessionStorage.removeItem('highlightWord');
-        sessionStorage.removeItem('highlightSource');
-        sessionStorage.removeItem('highlightVariants');
-        
-        setTimeout(() => {
-            sessionStorage.setItem('highlightWord', word);
-            sessionStorage.setItem('highlightSource', 'wordFreq');
-            
-            const wordDetails = this.manager.getWordDetails(word);
-            if (wordDetails && wordDetails.variants) {
-                const variants = wordDetails.variants.map(([variant]) => variant).filter(v => v && v.trim());
-                if (variants.length > 0) {
-                    sessionStorage.setItem('highlightVariants', JSON.stringify(variants));
-                }
-            }
-        }, 50);
-    }
-    
-    performJump(articleId, word) {
-        this.showJumpNotification(articleId, word);
-        
-        setTimeout(() => {
-            if (window.app?.navigation?.navigateToChapter) {
-                window.app.navigation.navigateToChapter(articleId);
-            } else if (window.location.pathname.includes('word-frequency.html')) {
-                window.location.href = `index.html#${articleId}`;
-            } else {
-                window.location.hash = articleId;
-            }
-        }, 100);
-    }
-    
-    showJumpNotification(articleId, word) {
-        document.querySelectorAll('[data-jump-notification]').forEach(el => el.remove());
-        
-        const notification = document.createElement('div');
-        notification.setAttribute('data-jump-notification', 'true');
-        notification.style.cssText = `
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            background: linear-gradient(135deg, #28a745, #20c997); color: white;
-            padding: 12px 20px; border-radius: 25px; z-index: 10000;
-            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-            font-size: 14px; font-weight: 500; max-width: 400px;
-            backdrop-filter: blur(10px);
-        `;
-        
-        notification.innerHTML = `🚀 正在跳转到文章 (高亮 "${word}")`;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => notification.remove(), 4000);
-    }
-    
-    showLoading() {
-        const loading = this.getElement('#freq-loading');
-        const display = this.getElement('#freq-display');
-        
-        if (loading) loading.style.display = 'flex';
-        if (display) display.style.display = 'none';
-    }
-    
-    hideLoading() {
-        const loading = this.getElement('#freq-loading');
-        const display = this.getElement('#freq-display');
-        
-        if (loading) loading.style.display = 'none';
-        if (display) display.style.display = 'block';
-    }
-    
-    updateProgress(progress) {
-        const progressFill = this.getElement('#progress-fill');
-        const progressText = this.getElement('#progress-text');
-        
-        if (progressFill) progressFill.style.width = `${progress}%`;
-        if (progressText) progressText.textContent = `${progress}%`;
-    }
-    
+
     showNoResults(message = '暂无数据') {
         const display = this.getElement('#freq-display');
         const container = this.getElement('#virtual-container');
-        
+
         if (display && container) {
+            // 🔧 修复：先清空容器内容
+            container.innerHTML = '';
             container.style.display = 'none';
+
+            // 然后显示无结果消息
             display.innerHTML = `
-                <div class="no-results" style="text-align: center; padding: 60px 20px; color: #6c757d; background: linear-gradient(135deg, #f8f9fa, #ffffff); border-radius: 12px; margin: 20px 0; border: 2px dashed #dee2e6;">
-                    <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.6;">📭</div>
-                    <h3 style="color: #495057; margin-bottom: 12px; font-size: 20px;">${message}</h3>
-                    <p style="margin-bottom: 20px; font-size: 14px; line-height: 1.6;">尝试调整筛选条件或搜索其他关键词</p>
-                    ${this.searchStateManager.getState().isActive ? `
-                        <button onclick="this.closest('.word-freq-page').querySelector('#clear-search').click()" 
-                                style="margin-top: 15px; padding: 12px 24px; background: linear-gradient(135deg, #007bff, #0056b3); color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);">
-                            🔄 清除搜索，返回浏览
-                        </button>
-                    ` : ''}
-                </div>
-            `;
+            <div class="no-results" style="text-align: center; padding: 60px 20px; color: #6c757d; background: linear-gradient(135deg, #f8f9fa, #ffffff); border-radius: 12px; margin: 20px 0; border: 2px dashed #dee2e6;">
+                <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.6;">📭</div>
+                <h3 style="color: #495057; margin-bottom: 12px; font-size: 20px;">${message}</h3>
+                <p style="margin-bottom: 20px; font-size: 14px; line-height: 1.6;">尝试调整筛选条件或搜索其他关键词</p>
+                <button onclick="document.querySelector('#clear-search').click()" 
+                        style="margin-top: 15px; padding: 12px 24px; background: linear-gradient(135deg, #007bff, #0056b3); color: white; border: none; border-radius: 25px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);">
+                    🔄 清除搜索，重新开始
+                </button>
+            </div>
+        `;
             display.style.display = 'block';
         }
     }
-    
+
+    // 其他必要的工具方法...
+    initializeVirtualScroll() {
+        const container = this.getElement('#virtual-container');
+        if (!container) return;
+
+        this.virtualScroll.containerHeight = this.isMobile ?
+            Math.min(window.innerHeight * 0.6, 500) :
+            Math.min(window.innerHeight * 0.7, 600);
+
+        container.style.height = `${this.virtualScroll.containerHeight}px`;
+        container.style.overflowY = 'auto';
+        container.style.position = 'relative';
+    }
+
+    handleVirtualScroll(e) {
+        // 简化的虚拟滚动处理
+        // 在搜索状态下不使用虚拟滚动
+        if (this.searchManager.getState().hasResults) {
+            return;
+        }
+
+        // 正常浏览状态的虚拟滚动逻辑
+        // 这里可以根据需要实现具体的虚拟滚动逻辑
+    }
+
+    updateStatsSummary() {
+        const summary = this.manager.getStatsSummary();
+        const summaryEl = this.getElement('#stats-summary');
+
+        if (summaryEl && summary) {
+            const statsHTML = [
+                `📚 ${summary.totalArticlesAnalyzed} 篇文章`,
+                `📝 ${summary.totalUniqueWords.toLocaleString()} 个不同单词`,
+                `🔢 ${summary.totalWordOccurrences.toLocaleString()} 总词次`,
+                `📊 平均 ${summary.averageWordsPerArticle} 词/篇`
+            ];
+
+            summaryEl.innerHTML = statsHTML.map(stat =>
+                `<span class="stat-item">${stat}</span>`
+            ).join('');
+        }
+    }
+
+    showLoading() {
+        const loading = this.getElement('#freq-loading');
+        const display = this.getElement('#freq-display');
+
+        if (loading) loading.style.display = 'flex';
+        if (display) display.style.display = 'none';
+    }
+
+    hideLoading() {
+        const loading = this.getElement('#freq-loading');
+        const display = this.getElement('#freq-display');
+
+        if (loading) loading.style.display = 'none';
+        if (display) display.style.display = 'block';
+    }
+
+    updateProgress(progress) {
+        const progressFill = this.getElement('#progress-fill');
+        const progressText = this.getElement('#progress-text');
+
+        if (progressFill) progressFill.style.width = `${progress}%`;
+        if (progressText) progressText.textContent = `${progress}%`;
+    }
+
     showError(message) {
         const display = this.getElement('#freq-display');
         const container = this.getElement('#virtual-container');
-        
+
         if (display && container) {
             container.style.display = 'none';
             display.innerHTML = `
@@ -1930,78 +1479,54 @@ class WordFrequencyUI {
         }
         this.hideLoading();
     }
-    
+
     refreshData() {
         if (this.isInitialized) {
             this.clearDataCache();
-            this.clearRenderCache();
             this.updateStatsSummary();
-            
-            const state = this.searchStateManager.getState();
-            if (state.isActive) {
-                this.executeSafeSearch(state.sanitizedQuery);
+
+            const searchState = this.searchManager.getState();
+            if (searchState.hasResults) {
+                this.searchManager.executeSearch(searchState.query);
             } else {
                 this.displayCurrentView();
             }
         }
     }
-    
-    removeAllEventListeners() {
-        if (this.eventDelegateRoot && this.boundHandlers) {
-            Object.entries(this.boundHandlers).forEach(([event, handler]) => {
-                this.eventDelegateRoot.removeEventListener(event, handler);
-            });
-        }
-        
-        const virtualContainer = this.getElement('#virtual-container');
-        if (virtualContainer) {
-            virtualContainer.removeEventListener('scroll', this.throttledScroll);
-        }
-        
-        window.removeEventListener('resize', this.throttledResize);
-    }
-    
+
     destroy() {
-        // 销毁搜索系统
-        if (this.searchStateManager) {
-            this.searchStateManager.forceReset();
+        console.log('🧹 开始销毁 WordFrequencyUI...');
+
+        try {
+            // 销毁搜索管理器
+            if (this.searchManager) {
+                this.searchManager.destroy();
+            }
+
+            // 清理缓存
+            this.domCache.clear();
+            this.dataCache.clear();
+
+            // 移除样式
+            const styleEl = document.getElementById('word-freq-styles');
+            if (styleEl) styleEl.remove();
+
+            // 清空引用
+            this.container = null;
+            this.manager = null;
+            this.currentWordsData = null;
+            this.searchManager = null;
+
+            console.log('✅ WordFrequencyUI已完全销毁');
+
+        } catch (error) {
+            console.error('销毁过程中出错:', error);
         }
-        
-        if (this.debouncedSearchManager) {
-            this.debouncedSearchManager.destroy();
-        }
-        
-        // 清理超时
-        if (this.virtualScroll.scrollTimeout) {
-            clearTimeout(this.virtualScroll.scrollTimeout);
-        }
-        
-        // 移除事件监听器
-        this.removeAllEventListeners();
-        
-        // 清理缓存
-        this.domCache.clear();
-        this.dataCache.clear();
-        this.clearRenderCache();
-        
-        // 移除样式
-        const styleEl = document.getElementById('word-freq-styles');
-        if (styleEl) styleEl.remove();
-        
-        // 清空引用
-        this.container = null;
-        this.manager = null;
-        this.currentWordsData = null;
-        this.searchStateManager = null;
-        this.inputProcessor = null;
-        this.debouncedSearchManager = null;
-        
-        console.log('✅ WordFrequencyUI已完全销毁');
     }
-    
+
     loadStyles() {
         if (document.getElementById('word-freq-styles')) return;
-        
+
         const style = document.createElement('style');
         style.id = 'word-freq-styles';
         style.textContent = `
@@ -2040,7 +1565,7 @@ class WordFrequencyUI {
                 transition: all 0.3s ease; 
                 font-size: 13px; 
                 white-space: nowrap; 
-                min-width: 120px;
+                min-width: 140px;
                 color: #6c757d;
                 font-weight: 600;
             }
@@ -2056,77 +1581,17 @@ class WordFrequencyUI {
                 transform: translateY(-1px);
             }
             
-            .search-suggestion {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
-                border: 2px solid #90caf9;
-                border-radius: 12px;
-                padding: 14px 18px;
-                margin-top: 12px;
-                animation: slideInDown 0.4s ease-out;
-                box-shadow: 0 2px 12px rgba(144, 202, 249, 0.3);
-            }
-            
-            @keyframes slideInDown {
-                from { opacity: 0; transform: translateY(-12px); }
-                to { opacity: 1; transform: translateY(0); }
-            }
-            
-            .suggestion-content {
-                display: flex;
-                align-items: center;
-                gap: 16px;
-                flex: 1;
-            }
-            
-            .suggestion-text {
-                color: #1565c0;
-                font-size: 13px;
-                font-weight: 600;
-                line-height: 1.4;
-            }
-            
-            .suggestion-action {
-                background: linear-gradient(135deg, #1976d2, #1565c0);
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 18px;
+            .search-status {
+                padding: 8px 12px;
+                border-radius: 6px;
                 font-size: 12px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                font-weight: 600;
-                white-space: nowrap;
+                font-weight: 500;
+                margin-top: 8px;
             }
-            
-            .suggestion-action:hover {
-                background: linear-gradient(135deg, #1565c0, #0d47a1);
-                transform: translateY(-1px);
-                box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
-            }
-            
-            .suggestion-close {
-                background: rgba(0,0,0,0.1);
-                color: #1565c0;
-                border: none;
-                border-radius: 50%;
-                width: 28px;
-                height: 28px;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                font-size: 14px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin-left: 12px;
-            }
-            
-            .suggestion-close:hover {
-                background: rgba(0,0,0,0.2);
-                transform: scale(1.1);
-            }
+            .search-status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+            .search-status.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+            .search-status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+            .search-status.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
             
             .view-section .view-toggles { display: flex; gap: 8px; }
             .view-btn { padding: 12px 20px; border: 2px solid #dee2e6; border-radius: 25px; background: white; cursor: pointer; transition: all 0.3s ease; font-size: 14px; font-weight: 600; color: #6c757d; }
@@ -2157,7 +1622,6 @@ class WordFrequencyUI {
             .search-word-cloud .word-item:hover { transform: scale(1.05) translateY(-2px); }
             .search-word-list .word-list-item:hover { border-color: #007bff; }
             
-            .word-cloud-row { min-height: 35px; }
             .word-item { display: inline-block; transition: all 0.2s ease; }
             .word-item:hover { transform: scale(1.05); background: rgba(0, 123, 255, 0.15) !important; }
             
@@ -2179,63 +1643,18 @@ class WordFrequencyUI {
                 .stats-summary { gap: 12px; }
                 .stat-item { padding: 10px 14px; font-size: 0.85rem; }
                 .view-btn { padding: 10px 16px; font-size: 13px; }
-                .search-mode-tab { min-width: 100px; padding: 8px 14px; font-size: 12px; }
-                .suggestion-content { flex-direction: column; align-items: flex-start; gap: 12px; }
+                .search-mode-tab { min-width: 120px; padding: 8px 14px; font-size: 12px; }
                 .word-details-panel { padding: 16px; }
                 .virtual-scroll-container { margin: 0 -8px; }
             }
         `;
-        
+
         document.head.appendChild(style);
     }
 }
 
 // 导出到全局
 window.EnglishSite.WordFrequencyUI = WordFrequencyUI;
+window.EnglishSite.SimplifiedSearchManager = SimplifiedSearchManager;
 
-console.log('📊 词频UI模块已加载（完全重构版v3.0）- 搜索功能已彻底修复');
-
-// 🔧 完整性验证
-(function validateWordFrequencyUI() {
-    const requiredClasses = ['SearchStateManager', 'SearchInputProcessor', 'DebouncedSearchManager', 'WordFrequencyUI'];
-    const missingClasses = [];
-    
-    requiredClasses.forEach(className => {
-        if (typeof eval(className) !== 'function') {
-            missingClasses.push(className);
-        }
-    });
-    
-    if (missingClasses.length > 0) {
-        console.error('❌ 缺少必要的类:', missingClasses);
-        return false;
-    }
-    
-    // 检查WordFrequencyUI的关键方法
-    const ui = WordFrequencyUI.prototype;
-    const requiredMethods = [
-        'initializeSearchSystem', 'executeSafeSearch', 'performDualSearch', 
-        'handleSearchModeSwitch', 'clearSearchCompletely', 'displaySearchResults',
-        'renderSearchResultsDirectly', 'handleDelegatedInput', 'handleDelegatedClick',
-        'showSearchSuggestion', 'updateSearchUI', 'initialize', 'destroy'
-    ];
-    
-    const missingMethods = requiredMethods.filter(method => typeof ui[method] !== 'function');
-    
-    if (missingMethods.length > 0) {
-        console.error('❌ WordFrequencyUI缺少必要的方法:', missingMethods);
-        return false;
-    }
-    
-    // 检查导出
-    if (!window.EnglishSite || !window.EnglishSite.WordFrequencyUI) {
-        console.error('❌ WordFrequencyUI未正确导出到全局');
-        return false;
-    }
-    
-    console.log('✅ 代码完整性验证通过');
-    console.log('📋 包含的类:', requiredClasses);
-    console.log('🔧 WordFrequencyUI方法数:', Object.getOwnPropertyNames(ui).filter(name => typeof ui[name] === 'function').length);
-    
-    return true;
-})();
+console.log('📊 词频UI模块已加载（简化重构版v1.0）- 专注可用性和双模式搜索');
