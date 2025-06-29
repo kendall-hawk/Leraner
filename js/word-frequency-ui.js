@@ -319,10 +319,10 @@ class WordFrequencyUI {
                             
                             <div class="search-mode-tabs" id="search-mode-tabs">
                                 <button class="search-mode-tab active" data-mode="intelligent" title="智能搜索：基于词干合并，搜索take会找到take/takes/took/taken">
-                                    🧠 智能搜索 (找相关变形)
+                                    🧠 智能搜索
                                 </button>
                                 <button class="search-mode-tab" data-mode="exact" title="精确搜索：基于原文匹配，搜索taken只找包含taken的文章">
-                                    🎯 精确搜索 (找确切词汇)
+                                    🎯 精确搜索
                                 </button>
                             </div>
                             
