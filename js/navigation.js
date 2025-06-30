@@ -387,51 +387,30 @@ class Navigation {
         return classes.join(' ');
     }
 
-renderChaptersList(chapters, container) {
-    if (!container) return;
-    
-    // 🔑 最简单的测试版本
-    let html = '<div style="padding: 10px; background: yellow; margin: 10px;">测试：章节列表</div>';
-    
-    if (chapters && chapters.length > 0) {
+    renderChaptersList(chapters, container) {
+        if (!container || !chapters) return;
+        
+        const fragment = document.createDocumentFragment();
+        
         chapters.forEach(chapter => {
-            html += `
-                <div style="
-                    padding: 15px; 
-                    margin: 10px; 
-                    background: white; 
-                    border: 2px solid red;
-                    font-size: 16px;
-                    cursor: pointer;
-                " 
-                onclick="alert('点击了: ${chapter.title}')"
-                data-id="${chapter.id}"
-                data-action="navigate-chapter">
-                    📚 ${chapter.title}
-                </div>
-            `;
+            const element = document.createElement('div');
+            element.className = `nav-item level-${this.state.currentLevel + 1} clickable chapter-item`;
+            element.setAttribute('data-id', chapter.id);
+            element.setAttribute('data-action', 'navigate-chapter');
+            
+            const iconHtml = chapter.icon ? `<span class="nav-icon">${chapter.icon}</span>` : '';
+            element.innerHTML = `${iconHtml}<span class="nav-title">${chapter.title}</span>`;
+            
+            fragment.appendChild(element);
         });
+        
+        container.innerHTML = '';
+        container.appendChild(fragment);
     }
-    
-    container.innerHTML = html;
-}
 
     // === 🎯 自定义导航核心逻辑 ===
     
-handleNavItemClick(itemId) {
-    alert('点击了: ' + itemId); // 🔍 测试是否被调用
-    
-    const node = this.findNodeById(itemId);
-    if (!node) {
-        alert('找不到节点: ' + itemId); // 🔍 测试节点查找
-        console.error('[CustomNavigation] 找不到节点:', itemId);
-        return;
-    }
-    
-    alert('找到节点: ' + node.title); // 🔍 测试节点数据
-    
-    // ... 原来的代码
-        
+    handleNavItemClick(itemId) {
         const node = this.findNodeById(itemId);
         if (!node) {
             console.error('[CustomNavigation] 找不到节点:', itemId);
@@ -482,7 +461,6 @@ handleNavItemClick(itemId) {
 
     // 🔑 显示章节列表
     showChaptersList(node) {
-        alert('showChaptersList被调用: ' + node.title); // 🔍 测试此方法是否被调用
         // 添加到导航路径
         this.state.currentPath.push({
             id: node.id,
