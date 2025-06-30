@@ -418,7 +418,20 @@ renderChaptersList(chapters, container) {
 
     // === 🎯 自定义导航核心逻辑 ===
     
-    handleNavItemClick(itemId) {
+handleNavItemClick(itemId) {
+    alert('点击了: ' + itemId); // 🔍 测试是否被调用
+    
+    const node = this.findNodeById(itemId);
+    if (!node) {
+        alert('找不到节点: ' + itemId); // 🔍 测试节点查找
+        console.error('[CustomNavigation] 找不到节点:', itemId);
+        return;
+    }
+    
+    alert('找到节点: ' + node.title); // 🔍 测试节点数据
+    
+    // ... 原来的代码
+        
         const node = this.findNodeById(itemId);
         if (!node) {
             console.error('[CustomNavigation] 找不到节点:', itemId);
