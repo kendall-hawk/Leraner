@@ -1,4 +1,4 @@
-// js/navigation.js - 重构版侧边导航系统 v3.1 (边框+点击关闭修复版)
+// js/navigation.js - 重构版侧边导航系统 v3.2 (子菜单完全隐藏修复版)
 window.EnglishSite = window.EnglishSite || {};
 
 // === 1. 🚀 核心状态管理器 ===
@@ -232,7 +232,7 @@ class SidebarManager {
         const sidebarContainer = this.dom.create(`
             <div class="sidebar-container" data-state="closed">
                 <nav class="sidebar-main"></nav>
-                <div class="sidebar-submenu" style="opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(150%) translateZ(0);"></div>
+                <div class="sidebar-submenu"></div>
             </div>
         `);
 
@@ -256,6 +256,7 @@ class SidebarManager {
 
         // 🚨 新增：确保子菜单初始状态完全隐藏
         this.ensureSubmenuHidden();
+        this.addSubmenuFixCSS();
     }
 
     createSiteHeader() {
@@ -266,6 +267,67 @@ class SidebarManager {
         `);
         document.body.insertBefore(header, document.body.firstChild);
         return header;
+    }
+
+    // 🚨 新增：添加子菜单修复CSS
+    addSubmenuFixCSS() {
+        const existingStyle = document.getElementById('submenu-fix-css');
+        if (existingStyle) return;
+        
+        const style = document.createElement('style');
+        style.id = 'submenu-fix-css';
+        style.textContent = `
+            /* 🚨 子菜单完全隐藏修复 */
+            .sidebar-submenu:not(.expanded) {
+                background: transparent !important;
+                border-left: none !important;
+                transform: translateX(150%) translateZ(0) !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+                pointer-events: none !important;
+                position: absolute !important;
+                right: 0 !important;
+                top: 0 !important;
+                bottom: 0 !important;
+            }
+            
+            /* 展开状态恢复正常 */
+            .sidebar-submenu.expanded {
+                background: var(--sidebar-bg-secondary, #f8f9fa) !important;
+                border-left: 1px solid rgba(0, 0, 0, 0.04) !important;
+                transform: translateX(0) translateZ(0) !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                pointer-events: auto !important;
+                position: relative !important;
+                border-radius: 0 16px 16px 0 !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // 🚨 新增：确保子菜单完全隐藏
+    ensureSubmenuHidden() {
+        const submenu = this.elements.submenuPanel;
+        if (!submenu) return;
+        
+        // 强制隐藏所有可见属性
+        submenu.style.opacity = '0';
+        submenu.style.visibility = 'hidden';
+        submenu.style.pointerEvents = 'none';
+        submenu.style.transform = 'translateX(150%) translateZ(0)';
+        submenu.style.background = 'transparent';
+        submenu.style.borderLeft = 'none';
+        submenu.style.position = 'absolute';
+        submenu.style.right = '0';
+        submenu.style.top = '0';
+        submenu.style.bottom = '0';
+        
+        // 移除展开类
+        submenu.classList.remove('expanded');
+        
+        // 清空内容
+        submenu.innerHTML = '';
     }
 
     applySidebarConfig() {
@@ -301,33 +363,13 @@ class SidebarManager {
         }
     }
 
-    // 🚨 新增：确保子菜单完全隐藏
-    ensureSubmenuHidden() {
-        const submenu = this.elements.submenuPanel;
-        if (!submenu) return;
-        
-        // 强制隐藏所有可见属性
-        submenu.style.opacity = '0';
-        submenu.style.visibility = 'hidden';
-        submenu.style.pointerEvents = 'none';
-        submenu.style.transform = 'translateX(150%) translateZ(0)';
-        submenu.style.background = 'transparent';
-        submenu.style.borderLeft = 'none';
-        
-        // 移除展开类
-        submenu.classList.remove('expanded');
-        
-        // 清空内容
-        submenu.innerHTML = '';
-    }
-
     // 🚨 新增：强制正确的初始状态
     forceCorrectInitialState() {
         requestAnimationFrame(() => {
             this.dom.forceHide(this.elements.container);
             this.elements.overlay.classList.remove('visible');
             document.body.style.overflow = '';
-            document.body.classList.remove('sidebar-open'); // 添加body类管理
+            document.body.classList.remove('sidebar-open');
             this.state.setState('isOpen', false);
             
             // 🚨 确保子菜单完全隐藏
@@ -362,9 +404,8 @@ class SidebarManager {
         if (target.matches('.sidebar-overlay') || target.closest('.sidebar-overlay')) {
             event.preventDefault();
             event.stopPropagation();
-            event.stopImmediatePropagation(); // 阻止其他监听器
+            event.stopImmediatePropagation();
             this.close();
-            console.log('🎯 Overlay clicked - closing sidebar');
             return;
         }
 
@@ -379,7 +420,6 @@ class SidebarManager {
             event.preventDefault();
             event.stopPropagation();
             this.close();
-            console.log('🎯 Outside click detected - closing sidebar');
             return;
         }
 
@@ -434,13 +474,11 @@ class SidebarManager {
             this.elements.container.classList.add('open');
             this.elements.overlay.classList.add('visible');
             document.body.style.overflow = 'hidden';
-            document.body.classList.add('sidebar-open'); // 添加body类
+            document.body.classList.add('sidebar-open');
             this.state.setState('isOpen', true);
             
             // 🚨 确保overlay在正确位置和层级
             this.ensureOverlayCorrectness();
-            
-            console.log('🚀 Sidebar opened');
         });
     }
 
@@ -451,7 +489,7 @@ class SidebarManager {
             this.elements.container.classList.remove('open');
             this.elements.overlay.classList.remove('visible');
             document.body.style.overflow = '';
-            document.body.classList.remove('sidebar-open'); // 移除body类
+            document.body.classList.remove('sidebar-open');
             
             // 🚨 修复：关闭时立即隐藏子菜单
             this.collapseSubmenu();
@@ -460,8 +498,6 @@ class SidebarManager {
             
             // 🚨 确保关闭后内容不被遮挡
             setTimeout(() => this.ensureContentAreaNotBlocked(), 50);
-            
-            console.log('🚀 Sidebar closed');
         });
     }
 
@@ -479,9 +515,6 @@ class SidebarManager {
         overlay.style.zIndex = '998';
         overlay.style.pointerEvents = 'auto';
         overlay.style.cursor = 'pointer';
-        
-        // 添加调试类（可选）
-        overlay.setAttribute('data-debug', 'overlay-active');
     }
 
     expandSubmenu(seriesData) {
@@ -785,6 +818,7 @@ class NavigationCore {
     finalOverlapFix() {
         setTimeout(() => {
             this.sidebar.ensureContentAreaNotBlocked();
+            this.sidebar.ensureSubmenuHidden();
             if (!this.state.getState('isOpen')) {
                 this.dom.forceHide(this.sidebar.elements.container);
             }
@@ -885,7 +919,6 @@ class NavigationCore {
 
     handleNewsClick() {
         this.sidebar.close();
-        // 可以添加新闻页面逻辑
     }
 
     handleExpandableClick(element) {
@@ -1193,6 +1226,12 @@ class NavigationCore {
             this.sidebar.elements.hamburger.remove();
         }
         
+        // 移除修复CSS
+        const fixStyle = document.getElementById('submenu-fix-css');
+        if (fixStyle) {
+            fixStyle.remove();
+        }
+        
         // 清理缓存和状态
         this.clearCache();
         this.events.destroy();
@@ -1283,48 +1322,3 @@ window.closeSidebarNavigation = function() {
     }
     return false;
 };
-
-// === 11. 🚨 调试工具（开发环境可用） ===
-if (window.location.hostname === 'localhost' || window.location.search.includes('debug')) {
-    window.debugSidebar = {
-        toggleDebugMode: function() {
-            document.body.classList.toggle('debug');
-            console.log('🐛 Debug mode toggled');
-        },
-        
-        testOverlayClick: function() {
-            const overlay = document.querySelector('.sidebar-overlay');
-            if (overlay) {
-                overlay.click();
-                console.log('🎯 Overlay click simulated');
-            }
-        },
-        
-        inspectSidebarState: function() {
-            const container = document.querySelector('.sidebar-container');
-            const overlay = document.querySelector('.sidebar-overlay');
-            
-            console.log('🔍 Sidebar State Inspection:', {
-                containerExists: !!container,
-                overlayExists: !!overlay,
-                containerVisible: container ? container.classList.contains('open') : false,
-                overlayVisible: overlay ? overlay.classList.contains('visible') : false,
-                containerStyles: container ? {
-                    display: getComputedStyle(container).display,
-                    visibility: getComputedStyle(container).visibility,
-                    transform: getComputedStyle(container).transform,
-                    zIndex: getComputedStyle(container).zIndex
-                } : null,
-                overlayStyles: overlay ? {
-                    display: getComputedStyle(overlay).display,
-                    visibility: getComputedStyle(overlay).visibility,
-                    opacity: getComputedStyle(overlay).opacity,
-                    zIndex: getComputedStyle(overlay).zIndex,
-                    pointerEvents: getComputedStyle(overlay).pointerEvents
-                } : null
-            });
-        }
-    };
-    
-    console.log('🛠️ Debug tools available: window.debugSidebar');
-}
