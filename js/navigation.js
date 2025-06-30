@@ -1,15 +1,13 @@
-// js/navigation.js - 重构版导航系统 (简化架构 + 3级支持)
+// js/navigation.js - 修复版导航系统（解决主页内容显示问题）
 window.EnglishSite = window.EnglishSite || {};
 
 /**
- * 🚀 全新简化导航系统
- * 特点：
- * - 单类架构，简化维护
- * - 原生支持3级导航
- * - 完全修复二级菜单隐藏问题
- * - 保持100%外观一致性
- * - 不干扰音频播放器
- * - 完全数据驱动
+ * 🚀 修复版导航系统
+ * 修复内容：
+ * - 解决主页没有关联到所有文章页面的问题
+ * - 确保页面初始化时有默认内容显示
+ * - 优化事件派发和内容加载逻辑
+ * - 保持100%接口兼容性
  */
 class Navigation {
     constructor(navContainer, contentArea, navData, options = {}) {
@@ -45,7 +43,12 @@ class Navigation {
             
             // 兼容性状态  
             activeLink: null,
-            lastElement: null
+            lastElement: null,
+            
+            // 🆕 新增状态：内容管理
+            hasInitialContent: false,  // 是否已加载初始内容
+            defaultContentLoaded: false, // 默认内容是否已加载
+            isMainPage: false          // 是否在主页状态
         };
         
         // 配置管理
@@ -54,6 +57,10 @@ class Navigation {
             debug: options.debug || false,
             animationDuration: 250,
             maxLevels: 4,
+            // 🆕 新增配置：内容管理
+            autoLoadDefaultContent: true,  // 自动加载默认内容
+            defaultContentType: 'all-articles', // 默认内容类型
+            showWelcomeMessage: true,      // 显示欢迎信息
             ...options
         });
         
@@ -78,8 +85,11 @@ class Navigation {
             this.renderMainNavigation();
             this.ensureCorrectInitialState();
             
+            // 🆕 重要修复：确保主页有内容显示
+            await this.ensureInitialContentDisplay();
+            
             if (this.config.debug) {
-                console.log('[Navigation] 🚀 重构版初始化完成');
+                console.log('[Navigation] 🚀 修复版初始化完成，主页内容已加载');
             }
             
         } catch (error) {
@@ -87,6 +97,162 @@ class Navigation {
             this.handleInitializationError(error);
             throw error;
         }
+    }
+
+    // 🆕 新增方法：确保初始内容显示
+    async ensureInitialContentDisplay() {
+        if (this.state.hasInitialContent) {
+            return; // 已有内容，无需重复加载
+        }
+
+        try {
+            // 检查当前URL是否指定了特定内容
+            const urlParams = new URLSearchParams(window.location.search);
+            const chapterId = urlParams.get('chapter');
+            const seriesId = urlParams.get('series');
+            
+            if (chapterId) {
+                // URL指定了章节，加载该章节
+                this.navigateToChapter(chapterId);
+                this.state.hasInitialContent = true;
+                return;
+            }
+            
+            if (seriesId) {
+                // URL指定了系列，加载该系列
+                const series = this.findItemById(seriesId);
+                if (series) {
+                    this.handleDirectNavigation(series);
+                    this.state.hasInitialContent = true;
+                    return;
+                }
+            }
+            
+            // 🔥 关键修复：默认显示所有文章页面
+            if (this.config.autoLoadDefaultContent) {
+                await this.loadDefaultContent();
+            }
+            
+        } catch (error) {
+            console.error('[Navigation] 初始内容加载失败:', error);
+            // 即使出错也要显示一个基本页面
+            this.displayFallbackContent();
+        }
+    }
+
+    // 🆕 新增方法：加载默认内容
+    async loadDefaultContent() {
+        if (this.config.defaultContentType === 'all-articles') {
+            // 显示所有文章页面
+            this.showAllArticles();
+            this.state.isMainPage = true;
+            
+            if (this.config.debug) {
+                console.log('[Navigation] 🏠 已加载默认内容：所有文章页面');
+            }
+        } else if (this.config.defaultContentType === 'welcome') {
+            // 显示欢迎页面
+            this.displayWelcomePage();
+        } else if (this.config.defaultContentType === 'tools') {
+            // 显示工具页面
+            this.showToolsPage();
+        }
+        
+        this.state.hasInitialContent = true;
+        this.state.defaultContentLoaded = true;
+    }
+
+    // 🆕 新增方法：显示欢迎页面
+    displayWelcomePage() {
+        const allChapters = this.getAllChapters();
+        const recentChapters = allChapters.slice(0, 6); // 显示最近6个章节
+        
+        const welcomeHtml = `
+            <div class="welcome-page">
+                <div class="welcome-header" style="text-align: center; margin-bottom: 40px; padding: 40px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">📚</div>
+                    <h1 style="margin-bottom: 16px; font-size: 2.5rem;">欢迎来到英语学习平台</h1>
+                    <p style="opacity: 0.9; font-size: 1.1rem;">探索丰富的学习资源，提升您的英语水平</p>
+                </div>
+                
+                <div class="quick-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 40px;">
+                    <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); text-align: center;">
+                        <div style="font-size: 2rem; color: #28a745; margin-bottom: 8px;">${allChapters.length}</div>
+                        <div style="color: #666;">篇章节内容</div>
+                    </div>
+                    <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); text-align: center;">
+                        <div style="font-size: 2rem; color: #dc3545; margin-bottom: 8px;">${this.state.processedData.length}</div>
+                        <div style="color: #666;">个学习系列</div>
+                    </div>
+                    <div class="stat-card" style="background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); text-align: center;">
+                        <div style="font-size: 2rem; color: #ffc107; margin-bottom: 8px;">${this.state.availableTools.length}</div>
+                        <div style="color: #666;">个学习工具</div>
+                    </div>
+                </div>
+                
+                <div class="quick-actions" style="margin-bottom: 40px;">
+                    <h2 style="margin-bottom: 20px; color: #333;">快速开始</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                        <button onclick="window.app.navigation.showAllArticles()" class="action-btn" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border: none; padding: 16px 24px; border-radius: 8px; cursor: pointer; font-size: 1rem; transition: transform 0.2s ease;">
+                            📖 浏览所有文章
+                        </button>
+                        <button onclick="window.app.navigation.showToolsPage()" class="action-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 16px 24px; border-radius: 8px; cursor: pointer; font-size: 1rem; transition: transform 0.2s ease;">
+                            🛠️ 学习工具
+                        </button>
+                    </div>
+                </div>
+                
+                ${recentChapters.length > 0 ? `
+                <div class="recent-content">
+                    <h2 style="margin-bottom: 20px; color: #333;">最新内容</h2>
+                    <div class="chapters-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+                        ${recentChapters.map(chapter => `
+                            <div class="chapter-card" onclick="window.app.navigation.navigateToChapter('${chapter.id}')" 
+                                 style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); cursor: pointer; transition: all 0.2s ease; border: 2px solid transparent;"
+                                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.15)'; this.style.borderColor='#667eea';" 
+                                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.1)'; this.style.borderColor='transparent';">
+                                <h3 style="margin-bottom: 8px; color: #333; font-size: 1.1rem;">${chapter.title}</h3>
+                                <p style="color: #666; font-size: 0.9rem; margin: 0;">${chapter.description || '点击查看详细内容'}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+            
+            <style>
+            .action-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            }
+            </style>
+        `;
+        
+        this.contentArea.innerHTML = welcomeHtml;
+        this.updateTitle('欢迎');
+        this.dispatchEvent('welcomePageLoaded');
+    }
+
+    // 🆕 新增方法：显示备用内容
+    displayFallbackContent() {
+        this.contentArea.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; margin: 20px 0;">
+                <div style="font-size: 3rem; margin-bottom: 20px;">📚</div>
+                <h1 style="margin-bottom: 16px; font-size: 2rem;">英语学习平台</h1>
+                <p style="margin-bottom: 24px; opacity: 0.9;">正在加载内容，请稍候...</p>
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 20px auto; max-width: 400px;">
+                    <button onclick="window.app.navigation.showAllArticles()" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px;">
+                        📖 浏览所有文章
+                    </button>
+                    <button onclick="window.app.navigation.showToolsPage()" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px;">
+                        🛠️ 学习工具
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        this.updateTitle('加载中');
+        this.state.hasInitialContent = true;
     }
 
     // === 🏗️ 核心架构方法 ===
@@ -481,6 +647,9 @@ class Navigation {
         // 🎯 直接导航：关闭侧边栏，触发相应事件
         this.close();
         
+        // 标记不再是主页状态
+        this.state.isMainPage = false;
+        
         // 🎯 处理外部链接类型
         if (item.type === 'external' && item.url) {
             const openInNew = item.openInNewTab !== false;
@@ -775,6 +944,9 @@ class Navigation {
             console.error('Chapter not found:', chapterId);
             return;
         }
+        
+        // 标记不再是主页状态
+        this.state.isMainPage = false;
         
         this.loadChapterContent(chapterId, chapterData);
     }
@@ -1079,10 +1251,92 @@ class Navigation {
 
     // === 📊 增强的兼容性方法 ===
     
+    // 🆕 增强方法：获取所有章节
+    getAllChapters() {
+        const allChapters = [];
+        this.walkDataTree(this.state.processedData, (item) => {
+            if (item.chapters) {
+                allChapters.push(...item.chapters);
+            }
+        });
+        return allChapters;
+    }
+
     showAllArticles() {
+        // 标记为主页状态
+        this.state.isMainPage = true;
+        
         this.dispatchEvent('allArticlesRequested');
         this.setActiveLink('all-articles');
         this.updateTitle('所有文章');
+        
+        // 🆕 改进：如果没有外部监听器处理，直接显示所有文章
+        setTimeout(() => {
+            if (this.contentArea.innerHTML.trim() === '' || this.state.isMainPage) {
+                this.displayAllArticlesPage();
+            }
+        }, 100);
+    }
+
+    // 🆕 新增方法：显示所有文章页面
+    displayAllArticlesPage() {
+        const allChapters = this.getAllChapters();
+        
+        if (allChapters.length === 0) {
+            this.displayFallbackContent();
+            return;
+        }
+        
+        // 按系列分组
+        const chaptersBySeries = new Map();
+        this.walkDataTree(this.state.processedData, (item) => {
+            if (item.chapters && item.chapters.length > 0) {
+                chaptersBySeries.set(item.id, {
+                    series: item,
+                    chapters: item.chapters
+                });
+            }
+        });
+        
+        const seriesHtml = Array.from(chaptersBySeries.values())
+            .map(({ series, chapters }) => `
+                <div class="series-section" style="margin-bottom: 40px;">
+                    <h2 style="color: #333; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 3px solid #667eea;">
+                        ${series.title}
+                    </h2>
+                    <div class="chapters-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+                        ${chapters.map(chapter => `
+                            <div class="chapter-card" onclick="window.app.navigation.navigateToChapter('${chapter.id}')" 
+                                 style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); cursor: pointer; transition: all 0.2s ease; border: 2px solid transparent;"
+                                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.15)'; this.style.borderColor='#667eea';" 
+                                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.1)'; this.style.borderColor='transparent';">
+                                <h3 style="margin-bottom: 8px; color: #333; font-size: 1.1rem;">${chapter.title}</h3>
+                                <p style="color: #666; font-size: 0.9rem; margin: 0;">${chapter.description || '点击查看详细内容'}</p>
+                                ${chapter.difficulty ? `<div style="margin-top: 8px;"><span style="background: #e9ecef; color: #495057; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">难度: ${chapter.difficulty}</span></div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        
+        this.contentArea.innerHTML = `
+            <div class="all-articles-page">
+                <div class="page-header" style="text-align: center; margin-bottom: 40px; padding: 40px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">📚</div>
+                    <h1 style="margin-bottom: 16px; font-size: 2.5rem;">所有文章</h1>
+                    <p style="opacity: 0.9; font-size: 1.1rem;">探索我们精心准备的所有学习内容</p>
+                    <div style="margin-top: 20px;">
+                        <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-size: 0.9rem;">
+                            共 ${allChapters.length} 篇文章 • ${chaptersBySeries.size} 个系列
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="articles-content" style="padding: 0 20px;">
+                    ${seriesHtml}
+                </div>
+            </div>
+        `;
     }
 
     showToolsPage() {
@@ -1090,10 +1344,12 @@ class Navigation {
         this.setActiveLink('tools');
         this.updateTitle('学习工具');
         
-        // 如果有工具数据，显示工具页面
-        if (this.state.availableTools && this.state.availableTools.length > 0) {
-            this.displayToolsPageContent();
-        }
+        // 🆕 改进：如果没有外部监听器处理，直接显示工具页面
+        setTimeout(() => {
+            if (this.contentArea.innerHTML.trim() === '' || this.state.isMainPage) {
+                this.displayToolsPageContent();
+            }
+        }, 100);
     }
 
     displayToolsPageContent() {
@@ -1171,7 +1427,9 @@ class Navigation {
             currentLevel: this.state.currentLevel,
             navigationPathLength: this.state.navigationPath.length,
             isOpen: this.state.isOpen,
-            processedDataLength: this.state.processedData.length
+            processedDataLength: this.state.processedData.length,
+            hasInitialContent: this.state.hasInitialContent,
+            isMainPage: this.state.isMainPage
         };
     }
 
