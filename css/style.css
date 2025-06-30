@@ -383,14 +383,19 @@ body.sidebar-open {
     contain: layout;
 }
 
-/* === 6. 🚨 子菜单面板（边框优化）=== */
+/* === 6. 🚨 子菜单面板（完全隐藏修复）=== */
 .sidebar-submenu {
     width: var(--submenu-panel-ratio);
-    background: var(--sidebar-bg-secondary);
-    /* 🚨 边框修复：使用更柔和的左边框 */
-    border-left: 1px solid rgba(0, 0, 0, 0.04);
-    transform: translateX(100%) translateZ(0);
-    transition: transform var(--submenu-transition);
+    /* 🚨 修复：默认状态完全透明，无背景 */
+    background: transparent;
+    /* 🚨 修复：默认状态无边框 */
+    border-left: none;
+    /* 🚨 修复：完全隐藏 - 移出视野更远 */
+    transform: translateX(150%) translateZ(0);
+    transition: transform var(--submenu-transition), 
+                background var(--submenu-transition),
+                border var(--submenu-transition),
+                opacity var(--submenu-transition);
     overflow-y: auto;
     overflow-x: hidden;
     flex-shrink: 0;
@@ -398,12 +403,32 @@ body.sidebar-open {
     overscroll-behavior: contain;
     contain: layout style;
     will-change: transform;
-    /* 🚨 添加：圆角适配 */
-    border-radius: 0 16px 16px 0;
+    /* 🚨 修复：默认状态完全不可见 */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    /* 🚨 修复：确保不占用空间 */
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
 }
 
+/* 🚨 修复：只有展开时才显示所有样式 */
 .sidebar-submenu.expanded {
+    /* 显示位置 */
     transform: translateX(0) translateZ(0);
+    /* 显示背景和边框 */
+    background: var(--sidebar-bg-secondary);
+    border-left: 1px solid rgba(0, 0, 0, 0.04);
+    /* 显示可见性 */
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    /* 恢复相对位置 */
+    position: relative;
+    /* 添加圆角 */
+    border-radius: 0 16px 16px 0;
 }
 
 .submenu-header {
