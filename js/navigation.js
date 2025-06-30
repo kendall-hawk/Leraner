@@ -1,4 +1,4 @@
-// js/navigation.js - 重构版侧边导航系统 v3.0 (遮挡问题修复版)
+// js/navigation.js - 重构版侧边导航系统 v3.1 (边框+点击关闭修复版)
 window.EnglishSite = window.EnglishSite || {};
 
 // === 1. 🚀 核心状态管理器 ===
@@ -142,7 +142,11 @@ class EventBus {
     }
 
     setupGlobalHandlers() {
-        document.addEventListener('click', this.handleGlobalClick.bind(this), { passive: false });
+        // 🚨 修复：使用捕获阶段确保事件优先处理
+        document.addEventListener('click', this.handleGlobalClick.bind(this), { 
+            passive: false, 
+            capture: true // 添加捕获阶段
+        });
         window.addEventListener('resize', this.debounce('resize', this.handleResize.bind(this), 100), { passive: true });
         window.addEventListener('popstate', this.handlePopState.bind(this), { passive: true });
         document.addEventListener('keydown', this.handleKeydown.bind(this), { passive: false });
@@ -232,9 +236,9 @@ class SidebarManager {
             </div>
         `);
 
-        // 创建遮罩
+        // 🚨 修复：创建更强健的遮罩
         const overlay = this.dom.create(`
-            <div class="sidebar-overlay" data-action="closeSidebar"></div>
+            <div class="sidebar-overlay" data-action="closeSidebar" aria-label="点击关闭导航"></div>
         `);
 
         // 添加到页面
@@ -300,6 +304,7 @@ class SidebarManager {
             this.dom.forceHide(this.elements.container);
             this.elements.overlay.classList.remove('visible');
             document.body.style.overflow = '';
+            document.body.classList.remove('sidebar-open'); // 添加body类管理
             this.state.setState('isOpen', false);
             
             // 🚨 确保内容区域不被遮挡
@@ -325,15 +330,34 @@ class SidebarManager {
         this.events.on('keydown', this.handleKeydown.bind(this));
     }
 
+    // 🚨 重大修复：点击事件处理逻辑
     handleClick({ event, target }) {
-        // 🚨 优先处理overlay点击
+        // 🚨 修复1：优先处理overlay点击（最高优先级）
         if (target.matches('.sidebar-overlay') || target.closest('.sidebar-overlay')) {
             event.preventDefault();
             event.stopPropagation();
+            event.stopImmediatePropagation(); // 阻止其他监听器
             this.close();
+            console.log('🎯 Overlay clicked - closing sidebar');
             return;
         }
 
+        // 🚨 修复2：检查是否点击了侧边栏外部区域
+        const sidebarContainer = this.elements.container;
+        const isClickOutside = sidebarContainer && 
+                               this.state.getState('isOpen') && 
+                               !sidebarContainer.contains(target) &&
+                               !target.closest('.nav-toggle');
+
+        if (isClickOutside) {
+            event.preventDefault();
+            event.stopPropagation();
+            this.close();
+            console.log('🎯 Outside click detected - closing sidebar');
+            return;
+        }
+
+        // 🚨 修复3：处理操作按钮点击
         const actionElement = target.closest('[data-action]');
         if (!actionElement) return;
 
@@ -342,10 +366,12 @@ class SidebarManager {
         switch (action) {
             case 'toggleSidebar':
                 event.preventDefault();
+                event.stopPropagation();
                 this.toggle();
                 break;
             case 'closeSidebar':
                 event.preventDefault();
+                event.stopPropagation();
                 this.close();
                 break;
         }
@@ -366,6 +392,7 @@ class SidebarManager {
 
     handleKeydown({ event, key }) {
         if (key === 'Escape' && this.state.getState('isOpen')) {
+            event.preventDefault();
             this.close();
         }
     }
@@ -381,7 +408,13 @@ class SidebarManager {
             this.elements.container.classList.add('open');
             this.elements.overlay.classList.add('visible');
             document.body.style.overflow = 'hidden';
+            document.body.classList.add('sidebar-open'); // 添加body类
             this.state.setState('isOpen', true);
+            
+            // 🚨 确保overlay在正确位置和层级
+            this.ensureOverlayCorrectness();
+            
+            console.log('🚀 Sidebar opened');
         });
     }
 
@@ -392,12 +425,34 @@ class SidebarManager {
             this.elements.container.classList.remove('open');
             this.elements.overlay.classList.remove('visible');
             document.body.style.overflow = '';
+            document.body.classList.remove('sidebar-open'); // 移除body类
             this.collapseSubmenu();
             this.state.setState('isOpen', false);
             
             // 🚨 确保关闭后内容不被遮挡
             setTimeout(() => this.ensureContentAreaNotBlocked(), 50);
+            
+            console.log('🚀 Sidebar closed');
         });
+    }
+
+    // 🚨 新增：确保overlay正确性
+    ensureOverlayCorrectness() {
+        const overlay = this.elements.overlay;
+        if (!overlay) return;
+        
+        // 强制设置overlay样式
+        overlay.style.position = 'fixed';
+        overlay.style.top = '60px';
+        overlay.style.left = '0';
+        overlay.style.right = '0';
+        overlay.style.bottom = '0';
+        overlay.style.zIndex = '998';
+        overlay.style.pointerEvents = 'auto';
+        overlay.style.cursor = 'pointer';
+        
+        // 添加调试类（可选）
+        overlay.setAttribute('data-debug', 'overlay-active');
     }
 
     expandSubmenu(seriesData) {
@@ -1080,6 +1135,7 @@ class NavigationCore {
         this.clearCache();
         this.events.destroy();
         document.body.style.overflow = '';
+        document.body.classList.remove('sidebar-open');
     }
 
     restoreOriginalNavigation() {
@@ -1165,58 +1221,48 @@ window.closeSidebarNavigation = function() {
     }
     return false;
 };
-/*
-// === 11. 🚨 立即修复脚本（自动运行） ===
-(function immediateOverlapFix() {
-    // 页面加载完成后立即修复
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', runFix);
-    } else {
-        runFix();
-    }
-    
-    function runFix() {
-        setTimeout(() => {
-            // 强制隐藏侧边栏
-            const sidebar = document.querySelector('.sidebar-container');
-            if (sidebar) {
-                sidebar.style.transform = 'translateX(-100%) translateX(-20px) translateZ(0)';
-                sidebar.style.visibility = 'hidden';
-                sidebar.style.opacity = '0';
-                sidebar.style.pointerEvents = 'none';
-                sidebar.dataset.state = 'closed';
-                sidebar.classList.remove('open');
-            }
-            
-            // 修复内容区域
-            const content = document.querySelector('#content, .content-area');
-            if (content) {
-                content.style.marginLeft = '0';
-                content.style.width = '100%';
-                content.style.position = 'relative';
-                content.style.zIndex = '1';
-                content.style.boxSizing = 'border-box';
-            }
-            
-            // 隐藏原导航
-            const nav = document.querySelector('.main-navigation');
-            if (nav) {
-                nav.style.display = 'none';
-            }
-            
-            // 隐藏遮罩
+
+// === 11. 🚨 调试工具（开发环境可用） ===
+if (window.location.hostname === 'localhost' || window.location.search.includes('debug')) {
+    window.debugSidebar = {
+        toggleDebugMode: function() {
+            document.body.classList.toggle('debug');
+            console.log('🐛 Debug mode toggled');
+        },
+        
+        testOverlayClick: function() {
             const overlay = document.querySelector('.sidebar-overlay');
             if (overlay) {
-                overlay.classList.remove('visible');
-                overlay.style.opacity = '0';
-                overlay.style.visibility = 'hidden';
-                overlay.style.pointerEvents = 'none';
+                overlay.click();
+                console.log('🎯 Overlay click simulated');
             }
+        },
+        
+        inspectSidebarState: function() {
+            const container = document.querySelector('.sidebar-container');
+            const overlay = document.querySelector('.sidebar-overlay');
             
-            // 恢复body滚动
-            document.body.style.overflow = '';
-            
-            console.log('🚀 [Navigation] Overlap fix applied');
-        }, 50);
+            console.log('🔍 Sidebar State Inspection:', {
+                containerExists: !!container,
+                overlayExists: !!overlay,
+                containerVisible: container ? container.classList.contains('open') : false,
+                overlayVisible: overlay ? overlay.classList.contains('visible') : false,
+                containerStyles: container ? {
+                    display: getComputedStyle(container).display,
+                    visibility: getComputedStyle(container).visibility,
+                    transform: getComputedStyle(container).transform,
+                    zIndex: getComputedStyle(container).zIndex
+                } : null,
+                overlayStyles: overlay ? {
+                    display: getComputedStyle(overlay).display,
+                    visibility: getComputedStyle(overlay).visibility,
+                    opacity: getComputedStyle(overlay).opacity,
+                    zIndex: getComputedStyle(overlay).zIndex,
+                    pointerEvents: getComputedStyle(overlay).pointerEvents
+                } : null
+            });
+        }
+    };
     
-})();}*/
+    console.log('🛠️ Debug tools available: window.debugSidebar');
+}
