@@ -3,7 +3,7 @@
         "id": "quick-start",
         "title": "🚀 快速开始",
         "type": "custom",
-        "customAction": "show-quick-start",  // ✅ 改为 customAction
+        "customAction": "show-quick-start",
         "description": "新手入门指南",
         "icon": "🚀"
     },
