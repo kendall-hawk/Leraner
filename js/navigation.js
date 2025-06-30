@@ -1165,7 +1165,7 @@ window.closeSidebarNavigation = function() {
     }
     return false;
 };
-
+/*
 // === 11. 🚨 立即修复脚本（自动运行） ===
 (function immediateOverlapFix() {
     // 页面加载完成后立即修复
@@ -1218,5 +1218,5 @@ window.closeSidebarNavigation = function() {
             
             console.log('🚀 [Navigation] Overlap fix applied');
         }, 50);
-    }
+    }*/
 })();
