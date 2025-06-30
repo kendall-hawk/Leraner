@@ -336,7 +336,8 @@ body.sidebar-open {
 
 .breadcrumb-separator {
     color: var(--nav-text-muted);
-    margin: 0 4px;
+    margin: 0 8px;
+    user-select: none;
 }
 
 .breadcrumb-current {
