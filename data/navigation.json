@@ -5,13 +5,7 @@
         "type": "direct",
         "description": "快速访问常用功能"
     },
-    
-    {
-        "series": "所有文章",
-        "seriesId": "all-articles", 
-        "type": "all-articles",
-        "description": "查看全部文章列表"
-    },
+
     
     {
         "series": "工具页面",
