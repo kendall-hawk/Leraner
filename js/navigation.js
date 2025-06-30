@@ -1,4 +1,5 @@
-// js/navigation.js - 最小化修改版，只改外观+三级导航，其他100%保持原状
+// js/navigation.js - 真正的自定义多级导航系统
+// 🎯 支持通过JSON完全自定义导航结构和行为
 window.EnglishSite = window.EnglishSite || {};
 
 class Navigation {
@@ -25,6 +26,7 @@ class Navigation {
             NAVIGATION_UPDATED: 'navigationUpdated',
             ALL_ARTICLES_REQUESTED: 'allArticlesRequested',
             TOOLS_REQUESTED: 'toolsRequested',
+            CUSTOM_NAVIGATION: 'customNavigation',
         }
     };
 
@@ -37,7 +39,7 @@ class Navigation {
         this.domCache = new Map();
         this.elements = new Map();
         
-        // 🔒 完全保留原有状态管理
+        // 🔒 完全保留原有状态管理 + 添加自定义导航
         this.state = {
             // 原有导航状态
             linksMap: new Map(),
@@ -62,12 +64,17 @@ class Navigation {
             preloadQueue: new Set(),
             preloadInProgress: false,
             
-            // 🆕 只添加侧边栏状态（不影响原功能）
+            // 🆕 自定义导航状态
             sidebar: {
                 isOpen: false,
                 currentLevel: 1,
                 navigationPath: [],
-                elements: {}
+                elements: {},
+                
+                // 🎯 自定义导航核心数据
+                navigationTree: [], // 解析后的导航树
+                flatItemsMap: new Map(), // 所有项目的扁平映射
+                currentItems: [] // 当前层级显示的项目
             }
         };
         
@@ -98,7 +105,7 @@ class Navigation {
         };
     }
 
-    // 🔒 保留原有初始化，只添加侧边栏创建
+    // 🔒 保留原有初始化，添加自定义导航解析
     async #initialize(options = {}) {
         try {
             if (window.EnglishSite.coreToolsReady) {
@@ -132,8 +139,9 @@ class Navigation {
                 throw new Error('Navigation: Missing required arguments');
             }
 
-            // 🆕 只添加侧边栏创建，其他不变
+            // 🆕 创建侧边栏 + 解析自定义导航
             this.#createSidebarStructure();
+            this.#parseCustomNavigation();
             
             // 🔒 完全保留原有初始化流程
             await Promise.all([
@@ -155,7 +163,100 @@ class Navigation {
         }
     }
 
-    // 🆕 创建侧边栏结构（新增方法）
+    // 🆕 解析自定义导航结构
+    #parseCustomNavigation() {
+        const { navigationTree, flatItemsMap } = this.state.sidebar;
+        
+        // 清空现有数据
+        navigationTree.length = 0;
+        flatItemsMap.clear();
+        
+        // 🎯 添加固定的 All Articles 项
+        const allArticlesItem = {
+            id: 'all-articles',
+            title: 'All Articles',
+            icon: '📚',
+            type: 'all-articles',
+            behavior: 'direct', // 直接导航
+            level: 1
+        };
+        navigationTree.push(allArticlesItem);
+        flatItemsMap.set('all-articles', allArticlesItem);
+        
+        // 🎯 递归解析用户自定义的导航数据
+        this.navData.forEach(item => {
+            const parsedItem = this.#parseNavItem(item, 1);
+            if (parsedItem) {
+                navigationTree.push(parsedItem);
+            }
+        });
+        
+        if (this.config.debug) {
+            console.log('[Navigation] 🎯 自定义导航解析完成');
+            console.log('[Navigation] 📊 导航树:', navigationTree);
+            console.log('[Navigation] 🗺️ 扁平映射:', flatItemsMap);
+        }
+    }
+
+    #parseNavItem(item, level, parentPath = []) {
+        // 🎯 标准化导航项属性
+        const id = item.id || item.seriesId || this.#generateId();
+        const title = item.title || item.series || 'Untitled';
+        
+        const navItem = {
+            id: id,
+            title: title,
+            level: level,
+            path: [...parentPath, id],
+            
+            // 🎯 外观配置
+            icon: item.icon,
+            description: item.description,
+            
+            // 🎯 行为配置
+            type: item.type || 'category',
+            behavior: item.behavior || 'auto', // 'direct', 'expand', 'custom', 'auto'
+            
+            // 🎯 导航目标
+            url: item.url,
+            externalUrl: item.externalUrl,
+            openInNewTab: item.openInNewTab,
+            action: item.action, // 自定义动作
+            
+            // 🎯 子项和内容
+            children: [],
+            chapters: item.chapters || [],
+            
+            // 原始数据
+            _originalData: item
+        };
+        
+        // 🎯 处理子项 (支持无限级嵌套)
+        if (item.children && Array.isArray(item.children)) {
+            item.children.forEach(child => {
+                const childItem = this.#parseNavItem(child, level + 1, navItem.path);
+                if (childItem) {
+                    navItem.children.push(childItem);
+                }
+            });
+        }
+        
+        // 🎯 自动判断行为
+        if (navItem.behavior === 'auto') {
+            if (navItem.children.length > 0 || navItem.chapters.length > 0) {
+                navItem.behavior = 'expand'; // 有子项则展开
+            } else {
+                navItem.behavior = 'direct'; // 无子项则直接导航
+            }
+        }
+        
+        // 存储到扁平映射
+        this.state.sidebar.flatItemsMap.set(id, navItem);
+        
+        return navItem;
+    }
+
+    // 🆕 创建侧边栏结构
     #createSidebarStructure() {
         // 隐藏原导航但保留备份
         if (this.navContainer) {
@@ -247,14 +348,18 @@ class Navigation {
                     const validTools = toolsData.filter(tool => tool.id && tool.title);
                     
                     if (validTools.length > 0) {
+                        // 🎯 创建工具分类，支持自定义配置
                         const toolsSeries = {
-                            series: "学习工具",
-                            seriesId: "tools",
+                            id: "tools",
+                            title: "学习工具",
+                            icon: "🛠️",
+                            type: "tools-category",
+                            behavior: "expand", // 工具分类展开显示工具列表
                             description: "实用的英语学习工具集合",
-                            chapters: validTools.map(tool => ({
+                            children: validTools.map(tool => ({
                                 ...tool,
                                 type: tool.type || 'tool',
-                                seriesId: 'tools'
+                                behavior: 'direct' // 工具项直接导航
                             }))
                         };
                         
@@ -275,131 +380,109 @@ class Navigation {
         }
 
         let totalChapters = 0;
-        this.navData.forEach(series => {
-            if (!series.seriesId || !Array.isArray(series.chapters)) return;
+        
+        // 🎯 递归处理章节数据，支持多级结构
+        const processItem = (item) => {
+            if (item.chapters && Array.isArray(item.chapters)) {
+                item.chapters.forEach(chapter => {
+                    if (!chapter.id) return;
+                    
+                    const chapterWithSeriesInfo = { 
+                        ...chapter, 
+                        seriesId: item.id || item.seriesId,
+                        seriesTitle: item.title || item.series
+                    };
+                    this.state.chaptersMap.set(chapter.id, chapterWithSeriesInfo);
+                    totalChapters++;
+                });
+            }
             
-            series.chapters.forEach(chapter => {
-                if (!chapter.id) return;
-                
-                const chapterWithSeriesInfo = { 
-                    ...chapter, 
-                    seriesId: series.seriesId,
-                    seriesTitle: series.series
-                };
-                this.state.chaptersMap.set(chapter.id, chapterWithSeriesInfo);
-                totalChapters++;
-            });
-        });
+            if (item.children && Array.isArray(item.children)) {
+                item.children.forEach(child => processItem(child));
+            }
+        };
+        
+        this.navData.forEach(item => processItem(item));
 
         if (this.config.debug) {
             console.log(`[Navigation] Preprocessed ${totalChapters} chapters from ${this.navData.length} series`);
         }
     }
 
-    // 🆕 修改渲染方法（从下拉菜单改为侧边栏）
+    // 🆕 自定义导航渲染系统
     #render() {
         this.state.linksMap.clear();
-        this.#renderSidebarNavigation();
+        this.#renderCurrentLevel();
     }
 
-    #renderSidebarNavigation() {
+    #renderCurrentLevel() {
+        const { currentLevel, navigationPath, navigationTree } = this.state.sidebar;
+        
+        // 🎯 根据当前路径确定要显示的项目
+        let itemsToShow;
+        
+        if (currentLevel === 1) {
+            // 第一级：显示根级项目
+            itemsToShow = navigationTree;
+        } else {
+            // 更深层级：根据导航路径找到当前项目
+            const currentParent = this.#getCurrentParentItem();
+            if (currentParent) {
+                if (currentParent.children && currentParent.children.length > 0) {
+                    itemsToShow = currentParent.children;
+                } else if (currentParent.chapters && currentParent.chapters.length > 0) {
+                    // 显示章节列表
+                    this.#renderChaptersList(currentParent.chapters);
+                    return;
+                }
+            }
+        }
+        
+        if (itemsToShow) {
+            this.#renderNavigationItems(itemsToShow);
+        }
+        
+        // 更新面包屑
+        this.#updateBreadcrumb();
+    }
+
+    #renderNavigationItems(items) {
         const mainContent = this.state.sidebar.elements.mainContent;
         if (!mainContent) return;
         
         const fragment = document.createDocumentFragment();
-
-        // 1. All Articles 链接
-        fragment.appendChild(this.#createSidebarNavItem(
-            'All Articles', 
-            `#${Navigation.CONFIG.HASH_PREFIX.ALL_ARTICLES}`, 
-            Navigation.CONFIG.ROUTES.ALL,
-            Navigation.CONFIG.ROUTES.ALL,
-            '📚'
-        ));
-
-        // 2. Series 项目（支持三级导航）
-        const learningSeries = this.navData.filter(series => {
-            return series.seriesId && series.seriesId !== 'tools' && 
-                   Array.isArray(series.chapters) && series.chapters.length > 0;
+        
+        items.forEach(item => {
+            const element = this.#createNavigationElement(item);
+            fragment.appendChild(element);
+            
+            // 缓存映射
+            this.state.linksMap.set(item.id, element);
         });
         
-        learningSeries.forEach(series => {
-            fragment.appendChild(this.#createSidebarNavItem(
-                series.series,
-                `#${Navigation.CONFIG.HASH_PREFIX.SERIES}${series.seriesId}`,
-                Navigation.CONFIG.ROUTES.SERIES,
-                series.seriesId,
-                series.icon || '📖',
-                series.chapters.length > 0 ? 'expandable' : 'clickable',
-                series
-            ));
-        });
-
-        // 3. Tools 链接
-        fragment.appendChild(this.#createSidebarNavItem(
-            'Tools', 
-            `#${Navigation.CONFIG.HASH_PREFIX.TOOLS}`, 
-            Navigation.CONFIG.ROUTES.TOOLS,
-            Navigation.CONFIG.ROUTES.TOOLS,
-            '🛠️'
-        ));
-
         mainContent.innerHTML = '';
         mainContent.appendChild(fragment);
     }
 
-    #createSidebarNavItem(text, href, routeType, id, icon = '', itemType = 'clickable', data = null) {
-        const item = document.createElement('div');
-        item.className = `nav-item level-1 ${itemType}`;
-        item.setAttribute('data-id', id);
-        item.setAttribute('data-route-type', routeType);
-        item.setAttribute('data-action', 'sidebar-nav-item');
+    #createNavigationElement(item) {
+        const hasExpandableContent = (item.behavior === 'expand') && 
+                                    ((item.children && item.children.length > 0) || 
+                                     (item.chapters && item.chapters.length > 0));
         
-        if (data) {
-            item.seriesData = data; // 存储系列数据用于展开
-        }
+        const element = document.createElement('div');
+        element.className = `nav-item level-${item.level} ${hasExpandableContent ? 'expandable' : 'clickable'}`;
+        element.setAttribute('data-id', item.id);
+        element.setAttribute('data-behavior', item.behavior);
+        element.setAttribute('data-type', item.type);
+        element.setAttribute('data-action', 'custom-nav-item');
         
-        const iconHtml = icon ? `<span class="nav-icon">${icon}</span>` : '';
-        const arrowHtml = itemType === 'expandable' ? '<span class="expand-arrow">></span>' : '';
+        // 🎯 构建HTML内容
+        const iconHtml = item.icon ? `<span class="nav-icon">${item.icon}</span>` : '';
+        const arrowHtml = hasExpandableContent ? '<span class="expand-arrow">></span>' : '';
         
-        item.innerHTML = `${iconHtml}<span class="nav-title">${text}</span>${arrowHtml}`;
+        element.innerHTML = `${iconHtml}<span class="nav-title">${item.title}</span>${arrowHtml}`;
         
-        this.state.linksMap.set(id, item);
-        return item;
-    }
-
-    // 🆕 侧边栏导航处理
-    #handleSidebarNavClick(element) {
-        const routeType = element.dataset.routeType;
-        const id = element.dataset.id;
-        
-        if (element.classList.contains('expandable') && element.seriesData) {
-            // 展开系列章节
-            this.#expandSeriesInSidebar(element.seriesData);
-        } else {
-            // 直接导航
-            this.#closeSidebar();
-            this.#route({ type: routeType, id });
-        }
-    }
-
-    #expandSeriesInSidebar(seriesData) {
-        // 更新导航路径
-        this.state.sidebar.navigationPath = [{
-            id: seriesData.seriesId,
-            title: seriesData.series,
-            level: 1
-        }];
-        this.state.sidebar.currentLevel = 2;
-        
-        // 显示面包屑
-        this.#updateBreadcrumb();
-        
-        // 渲染章节列表
-        this.#renderChaptersList(seriesData.chapters);
-        
-        // 显示子菜单
-        this.#showSubmenu();
+        return element;
     }
 
     #renderChaptersList(chapters) {
@@ -409,41 +492,219 @@ class Navigation {
         const fragment = document.createDocumentFragment();
         
         chapters.forEach(chapter => {
-            const item = document.createElement('div');
-            item.className = 'nav-item level-2 clickable chapter-item';
-            item.setAttribute('data-id', chapter.id);
-            item.setAttribute('data-action', 'sidebar-chapter-item');
+            const element = document.createElement('div');
+            element.className = `nav-item level-${this.state.sidebar.currentLevel} clickable chapter-item`;
+            element.setAttribute('data-id', chapter.id);
+            element.setAttribute('data-action', 'custom-chapter-item');
             
             const iconHtml = chapter.icon ? `<span class="nav-icon">${chapter.icon}</span>` : '';
-            item.innerHTML = `${iconHtml}<span class="nav-title">${chapter.title}</span>`;
+            element.innerHTML = `${iconHtml}<span class="nav-title">${chapter.title}</span>`;
             
-            fragment.appendChild(item);
+            fragment.appendChild(element);
         });
         
         submenuContent.innerHTML = '';
         submenuContent.appendChild(fragment);
+        
+        // 显示子菜单
+        this.#showSubmenu();
+    }
+
+    // 🆕 自定义导航交互处理
+    #handleCustomNavClick(element) {
+        const itemId = element.dataset.id;
+        const behavior = element.dataset.behavior;
+        const item = this.state.sidebar.flatItemsMap.get(itemId);
+        
+        if (!item) {
+            console.error('[Navigation] 找不到导航项:', itemId);
+            return;
+        }
+        
+        if (this.config.debug) {
+            console.log('[Navigation] 🎯 点击导航项:', item.title, '行为:', behavior);
+        }
+        
+        // 🎯 根据行为类型处理
+        switch (behavior) {
+            case 'expand':
+                this.#expandNavItem(item);
+                break;
+            case 'direct':
+                this.#directNavigate(item);
+                break;
+            case 'custom':
+                this.#customAction(item);
+                break;
+            default:
+                console.warn('[Navigation] 未知行为类型:', behavior);
+                break;
+        }
+    }
+
+    #expandNavItem(item) {
+        // 🎯 展开导航项 - 进入下一级
+        
+        // 更新导航路径
+        this.state.sidebar.navigationPath.push({
+            id: item.id,
+            title: item.title,
+            level: item.level
+        });
+        this.state.sidebar.currentLevel = item.level + 1;
+        
+        // 重新渲染当前级别
+        this.#renderCurrentLevel();
+        
+        if (this.config.debug) {
+            console.log('[Navigation] 🔄 展开导航项:', item.title);
+            console.log('[Navigation] 📍 当前路径:', this.state.sidebar.navigationPath);
+        }
+    }
+
+    #directNavigate(item) {
+        // 🎯 直接导航 - 关闭侧边栏并跳转
+        this.#closeSidebar();
+        
+        // 根据项目类型进行导航
+        switch (item.type) {
+            case 'all-articles':
+                this.#route({ type: Navigation.CONFIG.ROUTES.ALL, id: null });
+                break;
+            case 'tools':
+            case 'tools-category':
+                this.#route({ type: Navigation.CONFIG.ROUTES.TOOLS, id: null });
+                break;
+            case 'tool':
+                this.#route({ type: Navigation.CONFIG.ROUTES.CHAPTER, id: item.id });
+                break;
+            case 'external':
+                this.#handleExternalLink(item);
+                break;
+            case 'series':
+                this.#route({ type: Navigation.CONFIG.ROUTES.SERIES, id: item.id });
+                break;
+            default:
+                if (item.url || item.externalUrl) {
+                    this.#handleExternalLink(item);
+                } else {
+                    // 自定义类型，触发事件
+                    this.#dispatchEvent(Navigation.CONFIG.EVENTS.CUSTOM_NAVIGATION, {
+                        item: item,
+                        action: 'navigate'
+                    });
+                }
+                break;
+        }
+        
+        if (this.config.debug) {
+            console.log('[Navigation] 🎯 直接导航:', item.title, '类型:', item.type);
+        }
+    }
+
+    #customAction(item) {
+        // 🎯 自定义动作 - 触发自定义事件
+        this.#closeSidebar();
+        
+        this.#dispatchEvent(Navigation.CONFIG.EVENTS.CUSTOM_NAVIGATION, {
+            item: item,
+            action: item.action || 'custom',
+            customData: item._originalData
+        });
+        
+        if (this.config.debug) {
+            console.log('[Navigation] 🎭 自定义动作:', item.action);
+        }
+    }
+
+    #handleExternalLink(item) {
+        const url = item.externalUrl || item.url;
+        const openInNewTab = item.openInNewTab !== false; // 默认新窗口
+        
+        if (openInNewTab) {
+            window.open(url, '_blank', 'noopener,noreferrer');
+            this.#displayExternalLinkMessage(item);
+        } else {
+            window.location.href = url;
+        }
+    }
+
+    #displayExternalLinkMessage(item) {
+        this.contentArea.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border-radius: 12px; margin: 20px 0;">
+                <div style="font-size: 3rem; margin-bottom: 20px;">${item.icon || '🌐'}</div>
+                <h2 style="margin-bottom: 16px;">${item.title}</h2>
+                <p style="margin-bottom: 24px; opacity: 0.9;">${item.description || '外部链接已在新窗口打开'}</p>
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 20px auto; max-width: 400px;">
+                    <small style="opacity: 0.8;">如果页面没有自动打开，请点击下方链接：</small><br>
+                    <a href="${item.externalUrl || item.url}" target="_blank" style="color: #fff; text-decoration: underline; font-weight: 500;">
+                        ${item.externalUrl || item.url}
+                    </a>
+                </div>
+            </div>
+        `;
+        
+        this.#updateTitle(item.title);
+    }
+
+    // 🆕 导航路径管理
+    #getCurrentParentItem() {
+        const { navigationPath } = this.state.sidebar;
+        if (navigationPath.length === 0) return null;
+        
+        const parentId = navigationPath[navigationPath.length - 1].id;
+        return this.state.sidebar.flatItemsMap.get(parentId);
+    }
+
+    #goBackInSidebar() {
+        const { navigationPath } = this.state.sidebar;
+        
+        if (navigationPath.length === 0) {
+            // 已经在根级，关闭侧边栏
+            this.#closeSidebar();
+            return;
+        }
+        
+        // 返回上一级
+        navigationPath.pop();
+        this.state.sidebar.currentLevel--;
+        
+        // 隐藏子菜单
+        this.#hideSubmenu();
+        
+        // 重新渲染
+        this.#renderCurrentLevel();
+        
+        if (this.config.debug) {
+            console.log('[Navigation] ⬅️ 返回上级，当前路径:', navigationPath);
+        }
     }
 
     #updateBreadcrumb() {
         const breadcrumb = this.state.sidebar.elements.breadcrumb;
         if (!breadcrumb) return;
         
-        if (this.state.sidebar.navigationPath.length === 0) {
+        const { navigationPath } = this.state.sidebar;
+        
+        if (navigationPath.length === 0) {
             breadcrumb.style.display = 'none';
             return;
         }
         
         breadcrumb.style.display = 'block';
-        const pathHtml = this.state.sidebar.navigationPath
-            .map(item => `<span>${item.title}</span>`)
-            .join(' > ');
+        const pathHtml = navigationPath
+            .map(item => `<span class="breadcrumb-item">${item.title}</span>`)
+            .join(' <span class="breadcrumb-separator">></span> ');
         
         breadcrumb.innerHTML = `
-            <button data-action="sidebar-back">‹ 返回</button>
-            <span class="breadcrumb-path">${pathHtml}</span>
+            <div class="breadcrumb-container">
+                <button class="breadcrumb-back" data-action="custom-nav-back" aria-label="返回上级">‹</button>
+                <div class="breadcrumb-path">${pathHtml}</div>
+            </div>
         `;
     }
 
+    // 子菜单控制
     #showSubmenu() {
         const submenu = this.state.sidebar.elements.submenuPanel;
         if (submenu) {
@@ -458,13 +719,6 @@ class Navigation {
             submenu.classList.remove('expanded');
             submenu.style.display = 'none';
         }
-    }
-
-    #goBackInSidebar() {
-        this.state.sidebar.navigationPath = [];
-        this.state.sidebar.currentLevel = 1;
-        this.#updateBreadcrumb();
-        this.#hideSubmenu();
     }
 
     // 侧边栏控制
@@ -494,7 +748,10 @@ class Navigation {
         document.body.classList.remove('sidebar-open');
         
         // 重置导航状态
-        this.#goBackInSidebar();
+        this.state.sidebar.navigationPath = [];
+        this.state.sidebar.currentLevel = 1;
+        this.#updateBreadcrumb();
+        this.#hideSubmenu();
     }
 
     // 🔒 完全保留原有事件处理
@@ -536,14 +793,14 @@ class Navigation {
             case 'close-sidebar':
                 this.#closeSidebar();
                 break;
-            case 'sidebar-nav-item':
-                this.#handleSidebarNavClick(actionElement);
+            case 'custom-nav-item':
+                this.#handleCustomNavClick(actionElement);
                 break;
-            case 'sidebar-chapter-item':
+            case 'custom-chapter-item':
                 this.navigateToChapter(actionElement.dataset.id);
                 this.#closeSidebar();
                 break;
-            case 'sidebar-back':
+            case 'custom-nav-back':
                 this.#goBackInSidebar();
                 break;
         }
@@ -587,7 +844,7 @@ class Navigation {
         this.#route(route, true);
     }
 
-    // 🔒 完全保留原有路由系统
+    // 🔒 完全保留原有路由和内容加载系统
     #parseHash() {
         const hash = window.location.hash.substring(1);
         const { ROUTES, HASH_PREFIX } = Navigation.CONFIG;
@@ -605,7 +862,7 @@ class Navigation {
             return { type: ROUTES.CHAPTER, id: hash };
         }
 
-        const defaultSeriesId = this.navData[0]?.seriesId;
+        const defaultSeriesId = this.navData[0]?.seriesId || this.navData[0]?.id;
         return defaultSeriesId ? { type: ROUTES.SERIES, id: defaultSeriesId } : { type: ROUTES.ALL, id: null };
     }
 
@@ -652,7 +909,7 @@ class Navigation {
     }
 
     #loadDefaultRoute() {
-        const defaultSeriesId = this.navData[0]?.seriesId;
+        const defaultSeriesId = this.navData[0]?.seriesId || this.navData[0]?.id;
         if (defaultSeriesId) {
             this.#setActiveSeries(defaultSeriesId);
         } else {
@@ -660,7 +917,9 @@ class Navigation {
         }
     }
 
-    // 🔒 完全保留原有内容加载方法
+    // 🔒 完全保留所有原有内容加载方法...
+    // [这里省略大量原有方法以节省空间，实际代码中需要包含完整版本]
+    
     navigateToChapter(chapterId) {
         if (!this.state.chaptersMap.has(chapterId)) {
             this.#displayError('章节未找到');
@@ -722,20 +981,7 @@ class Navigation {
         
         if (url.startsWith('http')) {
             window.open(url, '_blank', 'noopener,noreferrer');
-            
-            this.contentArea.innerHTML = `
-                <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; margin: 20px 0;">
-                    <div style="font-size: 3rem; margin-bottom: 20px;">🚀</div>
-                    <h2 style="margin-bottom: 16px;">${title}</h2>
-                    <p style="margin-bottom: 24px; opacity: 0.9;">工具页面已在新窗口打开</p>
-                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 20px auto; max-width: 400px;">
-                        <small style="opacity: 0.8;">如果页面没有自动打开，请点击下方链接：</small><br>
-                        <a href="${url}" target="_blank" style="color: #fff; text-decoration: underline; font-weight: 500;">
-                            ${url}
-                        </a>
-                    </div>
-                </div>
-            `;
+            this.#displayExternalLinkMessage(chapterData);
         } else {
             window.location.href = url;
         }
@@ -766,9 +1012,9 @@ class Navigation {
     }
 
     #setActiveSeries(seriesId) {
-        const seriesData = this.navData.find(s => s.seriesId === seriesId);
+        const seriesData = this.navData.find(s => (s.seriesId || s.id) === seriesId);
         if (seriesData) {
-            this.#updateTitle(`Series: ${seriesData.series || seriesId}`);
+            this.#updateTitle(`Series: ${seriesData.series || seriesData.title || seriesId}`);
             this.#setActiveLink(seriesId);
             this.#dispatchEvent(Navigation.CONFIG.EVENTS.SERIES_SELECTED, { 
                 seriesId, 
@@ -861,7 +1107,7 @@ class Navigation {
         const chapterData = this.state.chaptersMap.get(chapterId);
         if (!chapterData) return { prevChapterId: null, nextChapterId: null };
 
-        const series = this.navData.find(s => s.seriesId === chapterData.seriesId);
+        const series = this.navData.find(s => (s.seriesId || s.id) === chapterData.seriesId);
         if (!series) return { prevChapterId: null, nextChapterId: null };
         
         const currentIndex = series.chapters.findIndex(c => c.id === chapterId);
@@ -874,7 +1120,7 @@ class Navigation {
         };
     }
 
-    // 🔒 完全保留原有预加载系统
+    // 🔒 完全保留原有预加载和其他所有方法...
     #startPreloading() {
         if (!this.config.enablePreloading) return;
         
@@ -921,6 +1167,11 @@ class Navigation {
         } finally {
             this.state.preloadQueue.delete(chapterId);
         }
+    }
+
+    // 工具方法
+    #generateId() {
+        return 'nav_' + Math.random().toString(36).substr(2, 9);
     }
 
     #updateTitle(text) {
@@ -987,6 +1238,7 @@ class Navigation {
             elementsMapSize: this.elements.size,
             linksMapSize: this.state.linksMap.size,
             chaptersMapSize: this.state.chaptersMap.size,
+            customNavigationItems: this.state.sidebar.flatItemsMap.size,
             isMobile: this.state.isMobile,
             sidebarOpen: this.state.sidebar.isOpen
         };
@@ -1056,6 +1308,7 @@ class Navigation {
         this.state.activeLink = null;
         this.state.chaptersMap.clear();
         this.state.preloadQueue.clear();
+        this.state.sidebar.flatItemsMap.clear();
         
         // 清理body样式
         document.body.style.overflow = '';
