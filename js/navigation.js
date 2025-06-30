@@ -7,6 +7,7 @@ window.EnglishSite = window.EnglishSite || {};
  * - 解决主页没有关联到所有文章页面的问题
  * - 确保页面初始化时有默认内容显示
  * - 优化事件派发和内容加载逻辑
+ * - 支持新JSON结构（children + chapters）
  * - 保持100%接口兼容性
  */
 class Navigation {
@@ -140,24 +141,15 @@ class Navigation {
         }
     }
 
-    // 🆕 新增方法：加载默认内容
+    // 🔑 修复：加载默认内容（恢复事件驱动）
     async loadDefaultContent() {
         if (this.config.defaultContentType === 'all-articles') {
-            // 优先显示从navigation.json配置的文章
-            const allChapters = this.getAllChapters();
-            
-            if (allChapters.length > 0) {
-                this.showAllArticles();
-            } else {
-                // 如果没有配置数据，尝试自动发现chapters文件夹中的文件
-                console.log('[Navigation] 🔍 未找到配置的章节，尝试自动发现chapters文件夹...');
-                await this.displayAutoDiscoveredChapters();
-            }
-            
+            // 🔑 不直接显示HTML，而是触发事件
+            this.showAllArticles();
             this.state.isMainPage = true;
             
             if (this.config.debug) {
-                console.log('[Navigation] 🏠 已加载默认内容：所有文章页面');
+                console.log('[Navigation] 🏠 触发默认内容事件：所有文章');
             }
         } else if (this.config.defaultContentType === 'welcome') {
             // 显示欢迎页面
@@ -382,14 +374,82 @@ class Navigation {
     // === 📊 数据处理方法 ===
     
     preprocessNavigationData() {
-        // 标准化数据格式，支持2级和3级混合
+        // 🔑 关键修复：支持新JSON结构（children + chapters）并保持原有事件机制
         this.state.processedData = this.normalizeNavigationData(this.navData);
         
-        // 构建章节映射
-        this.buildChaptersMap();
+        // 🔑 重要：按照新版本方式构建章节映射
+        this.buildChaptersMapV2();
         
         // 加载工具数据
         this.loadToolsData();
+        
+        if (this.config.debug) {
+            console.log('[Navigation] 📊 数据预处理完成');
+            console.log('[Navigation] 📚 章节映射大小:', this.state.chaptersMap.size);
+            console.log('[Navigation] 📚 示例章节:', Array.from(this.state.chaptersMap.values())[0]);
+        }
+    }
+
+    // 🔑 新增：兼容新JSON结构的章节映射构建
+    buildChaptersMapV2() {
+        this.state.chaptersMap.clear();
+        let totalChapters = 0;
+        
+        this.state.processedData.forEach(series => {
+            if (!series.id && !series.seriesId) return;
+            
+            const seriesId = series.seriesId || series.id;
+            
+            // 🔑 处理直接的chapters
+            if (series.chapters && Array.isArray(series.chapters)) {
+                series.chapters.forEach(chapter => {
+                    if (!chapter.id) return;
+                    
+                    const chapterWithSeriesInfo = {
+                        ...chapter, // 🔑 保持所有原始字段，包括thumbnail和audio
+                        seriesId: seriesId,
+                        seriesTitle: series.series || series.title
+                    };
+                    
+                    this.state.chaptersMap.set(chapter.id, chapterWithSeriesInfo);
+                    totalChapters++;
+                    
+                    if (this.config.debug && chapter.thumbnail) {
+                        console.log(`[Navigation] 🖼️ 章节 ${chapter.id} 缓存缩略图:`, chapter.thumbnail);
+                    }
+                });
+            }
+            
+            // 🔑 处理children结构（新增支持）
+            if (series.children && Array.isArray(series.children)) {
+                series.children.forEach(child => {
+                    if (child.chapters && Array.isArray(child.chapters)) {
+                        child.chapters.forEach(chapter => {
+                            if (!chapter.id) return;
+                            
+                            const chapterWithSeriesInfo = {
+                                ...chapter, // 🔑 保持所有原始字段
+                                seriesId: seriesId,
+                                seriesTitle: series.series || series.title,
+                                childId: child.id,
+                                childTitle: child.title
+                            };
+                            
+                            this.state.chaptersMap.set(chapter.id, chapterWithSeriesInfo);
+                            totalChapters++;
+                            
+                            if (this.config.debug && chapter.thumbnail) {
+                                console.log(`[Navigation] 🖼️ 子章节 ${chapter.id} 缓存缩略图:`, chapter.thumbnail);
+                            }
+                        });
+                    }
+                });
+            }
+        });
+        
+        if (this.config.debug) {
+            console.log(`[Navigation] 🗺️ 构建完成，总章节数: ${totalChapters}`);
+        }
     }
 
     normalizeNavigationData(data) {
@@ -418,20 +478,6 @@ class Navigation {
         }
         
         return normalized;
-    }
-
-    buildChaptersMap() {
-        this.state.chaptersMap.clear();
-        this.walkDataTree(this.state.processedData, (item) => {
-            if (item.chapters) {
-                item.chapters.forEach(chapter => {
-                    this.state.chaptersMap.set(chapter.id, {
-                        ...chapter,
-                        parentPath: this.getItemPath(item)
-                    });
-                });
-            }
-        });
     }
 
     walkDataTree(items, callback) {
@@ -1048,9 +1094,10 @@ class Navigation {
         this.updateTitle(chapterData.title);
         this.setActiveLink(chapterData.id);
 
-        // 🎯 增强的音频支持 - 使用JSON中的音频信息
+        // 🔑 修复：正确处理音频数据传递
         const hasAudio = chapterData.audio === true || 
                          !!chapterData.audioFile || 
+                         !!chapterData.audio || // 🔑 支持 "audio": "audio/chap1.mp3" 格式
                          !!chapterData.srtFile;
 
         this.dispatchEvent('chapterLoaded', { 
@@ -1058,11 +1105,11 @@ class Navigation {
             hasAudio: hasAudio, 
             chapterData: {
                 ...chapterData,
-                // 🎯 传递音频相关信息给音频同步模块
-                audioFile: chapterData.audioFile || `audio/${chapterId}.mp3`,
+                // 🔑 修复：正确传递音频文件路径
+                audioFile: chapterData.audioFile || chapterData.audio || `audio/${chapterId}.mp3`,
                 srtFile: chapterData.srtFile || `srt/${chapterId}.srt`,
                 duration: chapterData.duration,
-                // 🎯 传递其他有用信息
+                // 🔑 传递其他有用信息
                 difficulty: chapterData.difficulty,
                 tags: chapterData.tags,
                 publishDate: chapterData.publishDate,
@@ -1073,6 +1120,15 @@ class Navigation {
 
         const { prevChapterId, nextChapterId } = this.getChapterNav(chapterId);
         this.dispatchEvent('navigationUpdated', { prevChapterId, nextChapterId });
+        
+        if (this.config.debug) {
+            console.log('[Navigation] 🎵 章节加载完成，音频信息:', {
+                chapterId,
+                hasAudio,
+                audioFile: chapterData.audioFile || chapterData.audio,
+                thumbnail: chapterData.thumbnail
+            });
+        }
     }
 
     displayExternalLinkMessage(chapterData) {
@@ -1260,211 +1316,51 @@ class Navigation {
 
     // === 📊 增强的兼容性方法 ===
     
-    // 🆕 增强方法：获取所有章节（直接对应chapters文件夹）
+    // 🔑 修复：获取所有章节（支持新JSON结构）
     getAllChapters() {
-        const allChapters = [];
-        this.walkDataTree(this.state.processedData, (item) => {
-            if (item.chapters) {
-                allChapters.push(...item.chapters);
+        // 直接从章节映射中获取所有章节，确保包含完整数据
+        const allChapters = Array.from(this.state.chaptersMap.values());
+        
+        if (this.config.debug) {
+            console.log('[Navigation] 📚 获取所有章节，总数:', allChapters.length);
+            if (allChapters.length > 0) {
+                console.log('[Navigation] 📚 第一个章节示例:', allChapters[0]);
+                const withThumbnails = allChapters.filter(ch => ch.thumbnail);
+                const withAudio = allChapters.filter(ch => ch.audio);
+                console.log('[Navigation] 🖼️ 有缩略图的章节数:', withThumbnails.length);
+                console.log('[Navigation] 🎵 有音频的章节数:', withAudio.length);
             }
-        });
+        }
+        
         return allChapters;
     }
 
-    // 🆕 新增方法：从chapters文件夹自动发现文章（辅助工具）
-    async autoDiscoverChapters() {
-        // 由于浏览器安全限制，无法直接扫描文件夹
-        // 提供一个辅助方法，用户可以手动调用来测试chapters文件夹中的文件
-        const commonChapterIds = [
-            'introduction', 'getting-started', 'basics', 'intermediate', 'advanced',
-            'chapter1', 'chapter2', 'chapter3', 'chapter4', 'chapter5',
-            'lesson1', 'lesson2', 'lesson3', 'lesson4', 'lesson5'
-        ];
-        
-        const discoveredChapters = [];
-        
-        for (const id of commonChapterIds) {
-            try {
-                const response = await fetch(`chapters/${id}.html`);
-                if (response.ok) {
-                    const content = await response.text();
-                    // 尝试从HTML中提取标题
-                    const titleMatch = content.match(/<title>(.*?)<\/title>/i) || 
-                                     content.match(/<h1[^>]*>(.*?)<\/h1>/i);
-                    const title = titleMatch ? titleMatch[1].trim() : id.charAt(0).toUpperCase() + id.slice(1);
-                    
-                    discoveredChapters.push({
-                        id: id,
-                        title: title,
-                        description: `来自chapters/${id}.html`
-                    });
-                }
-            } catch (error) {
-                // 文件不存在，跳过
-            }
-        }
-        
-        if (this.config.debug) {
-            console.log('[Navigation] 🔍 自动发现的章节:', discoveredChapters);
-        }
-        
-        return discoveredChapters;
-    }
-
-    // 🆕 新增方法：使用自动发现的章节更新显示
-    async displayAutoDiscoveredChapters() {
-        const discoveredChapters = await this.autoDiscoverChapters();
-        
-        if (discoveredChapters.length === 0) {
-            this.contentArea.innerHTML = `
-                <div class="no-chapters-message">
-                    <h2>未找到章节文件</h2>
-                    <p>请确保chapters文件夹中有HTML文件，或在navigation.json中配置章节信息。</p>
-                    <p>支持的文件名格式：chapter1.html, lesson1.html, introduction.html 等</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // 生成简洁的文章列表卡片（保持原格式）
-        const chaptersHtml = discoveredChapters.map(chapter => `
-            <div class="chapter-card" onclick="window.app.navigation.navigateToChapter('${chapter.id}')">
-                <h3>${chapter.title}</h3>
-                <p>${chapter.description}</p>
-            </div>
-        `).join('');
-        
-        this.contentArea.innerHTML = `
-            <div class="chapters-list">
-                ${chaptersHtml}
-            </div>
-        `;
-    }
-
-    // 🆕 新增方法：手动设置chapters文件夹中的文件列表
-    setChaptersList(chapterFiles) {
-        // 用户可以手动提供chapters文件夹中的文件列表
-        // chapterFiles 格式: ['chapter1.html', 'lesson1.html', 'introduction.html']
-        const manualChapters = chapterFiles.map(filename => {
-            const id = filename.replace('.html', '');
-            const title = id.charAt(0).toUpperCase() + id.slice(1).replace(/[-_]/g, ' ');
-            return {
-                id: id,
-                title: title,
-                description: `来自chapters/${filename}`
-            };
-        });
-        
-        // 更新chapters映射
-        manualChapters.forEach(chapter => {
-            this.state.chaptersMap.set(chapter.id, chapter);
-        });
-        
-        // 显示文章列表（使用原有样式结构）
-        const chaptersHtml = manualChapters.map(chapter => `
-            <div class="chapter-overview-item">
-                <a href="#" onclick="window.app.navigation.navigateToChapter('${chapter.id}'); return false;">
-                    ${chapter.thumbnail ? `<img src="${chapter.thumbnail}" alt="${chapter.title}" class="chapter-thumbnail">` : ''}
-                    <div class="chapter-info">
-                        <h3>${chapter.title}</h3>
-                        <p>${chapter.description}</p>
-                    </div>
-                </a>
-            </div>
-        `).join('');
-        
-        this.contentArea.innerHTML = `
-            <div class="chapter-list-overview">
-                ${chaptersHtml}
-            </div>
-        `;
-        
-        this.state.hasInitialContent = true;
-        this.state.isMainPage = true;
-        
-        if (this.config.debug) {
-            console.log('[Navigation] 📁 手动设置的章节列表:', manualChapters);
-        }
-    }
-
-    // 🆕 新增方法：使用自动发现的章节更新显示（使用原有样式结构）
-    async displayAutoDiscoveredChapters() {
-        const discoveredChapters = await this.autoDiscoverChapters();
-        
-        if (discoveredChapters.length === 0) {
-            this.contentArea.innerHTML = `
-                <div class="no-chapters-message">
-                    <h2>未找到章节文件</h2>
-                    <p>请确保chapters文件夹中有HTML文件，或在navigation.json中配置章节信息。</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // 生成文章列表卡片（完全匹配原有CSS样式结构）
-        const chaptersHtml = discoveredChapters.map(chapter => `
-            <div class="chapter-overview-item">
-                <a href="#" onclick="window.app.navigation.navigateToChapter('${chapter.id}'); return false;">
-                    ${chapter.thumbnail ? `<img src="${chapter.thumbnail}" alt="${chapter.title}" class="chapter-thumbnail">` : ''}
-                    <div class="chapter-info">
-                        <h3>${chapter.title}</h3>
-                        <p>${chapter.description}</p>
-                    </div>
-                </a>
-            </div>
-        `).join('');
-        
-        this.contentArea.innerHTML = `
-            <div class="chapter-list-overview">
-                ${chaptersHtml}
-            </div>
-        `;
-    }
-
+    // 🔑 修复：确保事件监听器能接收到完整数据
     showAllArticles() {
         // 标记为主页状态
         this.state.isMainPage = true;
         
-        this.dispatchEvent('allArticlesRequested');
+        // 🔑 获取完整的章节数据，包含缩略图和音频信息
+        const allChapters = this.getAllChapters();
+        
+        // 🔑 触发事件，传递完整数据给监听器
+        this.dispatchEvent('allArticlesRequested', {
+            chapters: allChapters // 传递完整的章节数据
+        });
+        
         this.setActiveLink('all-articles');
         this.updateTitle('所有文章');
         
-        // 🆕 改进：如果没有外部监听器处理，直接显示所有文章
-        setTimeout(() => {
-            if (this.contentArea.innerHTML.trim() === '' || this.state.isMainPage) {
-                this.displayAllArticlesPage();
-            }
-        }, 100);
-    }
-
-    // 🆕 新增方法：显示所有文章页面（使用原有样式结构）
-    displayAllArticlesPage() {
-        const allChapters = this.getAllChapters();
-        
-        if (allChapters.length === 0) {
-            this.displayFallbackContent();
-            return;
+        if (this.config.debug) {
+            console.log('[Navigation] 🎯 触发 allArticlesRequested 事件');
+            console.log('[Navigation] 📊 传递章节数量:', allChapters.length);
+            console.log('[Navigation] 📊 章节数据示例:', allChapters[0]);
+            
+            const withThumbnails = allChapters.filter(ch => ch.thumbnail);
+            const withAudio = allChapters.filter(ch => ch.audio);
+            console.log('[Navigation] 🖼️ 有缩略图:', withThumbnails.length);
+            console.log('[Navigation] 🎵 有音频:', withAudio.length);
         }
-        
-        // 生成文章列表卡片（完全匹配原有CSS样式结构）
-        const chaptersHtml = allChapters.map(chapter => `
-            <div class="chapter-overview-item">
-                <a href="#" onclick="window.app.navigation.navigateToChapter('${chapter.id}'); return false;">
-                    ${chapter.thumbnail ? `<img src="${chapter.thumbnail}" alt="${chapter.title}" class="chapter-thumbnail">` : ''}
-                    <div class="chapter-info">
-                        <h3>${chapter.title}</h3>
-                        <p>${chapter.description || ''}</p>
-                    </div>
-                </a>
-            </div>
-        `).join('');
-        
-        // 使用原有的容器类名结构
-        this.contentArea.innerHTML = `
-            <div class="chapter-list-overview">
-                ${chaptersHtml}
-            </div>
-        `;
     }
 
     showToolsPage() {
@@ -1472,12 +1368,9 @@ class Navigation {
         this.setActiveLink('tools');
         this.updateTitle('学习工具');
         
-        // 🆕 改进：如果没有外部监听器处理，直接显示工具页面
-        setTimeout(() => {
-            if (this.contentArea.innerHTML.trim() === '' || this.state.isMainPage) {
-                this.displayToolsPageContent();
-            }
-        }, 100);
+        if (this.config.debug) {
+            console.log('[Navigation] 🛠️ 触发 toolsRequested 事件');
+        }
     }
 
     displayToolsPageContent() {
@@ -1623,20 +1516,83 @@ window.closeSidebarNavigation = function() {
     return false;
 };
 
-// 🆕 新增全局函数：设置chapters文件夹内容
-window.setChaptersFromFolder = function(chapterFiles) {
+// 🔍 调试函数：检查导航数据状态
+window.debugNavigationData = function() {
     if (window.app && window.app.navigation) {
-        window.app.navigation.setChaptersList(chapterFiles);
+        const nav = window.app.navigation;
+        console.log('=== 🔍 导航系统调试信息 ===');
+        console.log('📊 处理后的数据:', nav.state.processedData);
+        console.log('🗺️ 章节映射大小:', nav.state.chaptersMap.size);
+        console.log('📚 所有章节:', nav.getAllChapters());
+        
+        const allChapters = nav.getAllChapters();
+        const withThumbnails = allChapters.filter(ch => ch.thumbnail);
+        const withAudio = allChapters.filter(ch => ch.audio);
+        
+        console.log(`🖼️ 缩略图统计: ${withThumbnails.length}/${allChapters.length} 个章节有缩略图`);
+        console.log(`🎵 音频统计: ${withAudio.length}/${allChapters.length} 个章节有音频`);
+        
+        if (withThumbnails.length > 0) {
+            console.log('🖼️ 有缩略图的章节:', withThumbnails.map(ch => ({
+                id: ch.id,
+                title: ch.title,
+                thumbnail: ch.thumbnail
+            })));
+        }
+        
+        if (withAudio.length > 0) {
+            console.log('🎵 有音频的章节:', withAudio.map(ch => ({
+                id: ch.id,
+                title: ch.title,
+                audio: ch.audio
+            })));
+        }
+        
+        return {
+            processedData: nav.state.processedData,
+            chaptersMap: nav.state.chaptersMap,
+            allChapters: allChapters,
+            withThumbnails: withThumbnails,
+            withAudio: withAudio
+        };
+    }
+    return null;
+};
+
+// 🔍 调试函数：测试事件触发
+window.testAllArticlesEvent = function() {
+    if (window.app && window.app.navigation) {
+        console.log('🧪 测试触发 allArticlesRequested 事件...');
+        window.app.navigation.showAllArticles();
         return true;
     }
     return false;
 };
 
-// 🆕 新增全局函数：自动发现chapters文件夹内容
-window.autoDiscoverChapters = async function() {
+// 🔍 调试函数：检查事件监听器
+window.checkEventListeners = function() {
+    console.log('🔍 检查文档上的事件监听器...');
+    
+    // 临时添加一个测试监听器
+    const testHandler = function(event) {
+        console.log('✅ 接收到 allArticlesRequested 事件:', event.detail);
+        const chapters = event.detail.chapters;
+        if (chapters && chapters.length > 0) {
+            console.log('📊 事件包含章节数量:', chapters.length);
+            console.log('📊 第一个章节数据:', chapters[0]);
+            const withThumbnails = chapters.filter(ch => ch.thumbnail);
+            console.log('🖼️ 事件中有缩略图的章节:', withThumbnails.length);
+        }
+    };
+    
+    document.addEventListener('allArticlesRequested', testHandler, { once: true });
+    
+    // 触发事件进行测试
     if (window.app && window.app.navigation) {
-        await window.app.navigation.displayAutoDiscoveredChapters();
-        return true;
+        setTimeout(() => {
+            window.app.navigation.showAllArticles();
+        }, 100);
     }
-    return false;
+    
+    return '测试监听器已添加，即将触发事件...';
 };
