@@ -3,16 +3,14 @@
         "id": "quick-start",
         "title": "🚀 快速开始",
         "type": "custom",
-        "behavior": "direct",
+        "customAction": "show-quick-start",  // ✅ 改为 customAction
         "description": "新手入门指南",
-        "action": "show-quick-start",
         "icon": "🚀"
     },
     {
         "id": "bbc-english",
-        "title": "📺 BBC English",
+        "title": "📺 BBC English", 
         "type": "series",
-        "behavior": "expand",
         "description": "BBC英语学习系列",
         "icon": "📺",
         "chapters": [
@@ -21,16 +19,14 @@
                 "title": "What's your favourite kind of noodle?",
                 "description": "Learn about food preferences",
                 "audio": "audio/chap1.mp3",
-                "thumbnail": "https://img.youtube.com/vi/aOiuSsnWEik/maxresdefault.jpg",
-                "type": "chapter"
+                "thumbnail": "https://img.youtube.com/vi/aOiuSsnWEik/maxresdefault.jpg"
             },
             {
-                "id": "chap2",
+                "id": "chap2", 
                 "title": "How important is politeness?",
                 "description": "Explore the role of politeness",
                 "audio": "audio/chap2.mp3",
-                "thumbnail": "https://img.youtube.com/vi/5wynL5ttotw/maxresdefault.jpg",
-                "type": "chapter"
+                "thumbnail": "https://img.youtube.com/vi/5wynL5ttotw/maxresdefault.jpg"
             }
         ]
     }
