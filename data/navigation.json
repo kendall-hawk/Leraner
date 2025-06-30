@@ -1,25 +1,44 @@
+// navigation.json - 自定义多级导航配置示例
 [
   {
-    "series": "BBC English",
-    "seriesId": "beginner", 
-    "description": "BBC English learning series for beginners",
+    "id": "quick-start",
+    "title": "🚀 快速开始",
+    "type": "custom",
+    "behavior": "direct",
+    "description": "新手入门指南",
+    "action": "show-quick-start",
+    "icon": "🚀"
+  },
+  
+  {
+    "id": "bbc-english",
+    "title": "📺 BBC English",
+    "type": "series",
+    "behavior": "expand",
+    "description": "BBC英语学习系列",
+    "icon": "📺",
     "chapters": [
       {
         "id": "chap1",
         "title": "What's your favourite kind of noodle?",
-        "description": "Learn about food preferences and cultural differences",
+        "description": "Learn about food preferences",
         "audio": "audio/chap1.mp3",
         "thumbnail": "https://img.youtube.com/vi/aOiuSsnWEik/maxresdefault.jpg",
         "type": "chapter"
       },
       {
-        "id": "chap2",
-        "title": "How important is politeness?", 
-        "description": "Explore the role of politeness in communication",
+        "id": "chap2", 
+        "title": "How important is politeness?",
+        "description": "Explore the role of politeness",
         "audio": "audio/chap2.mp3",
         "thumbnail": "https://img.youtube.com/vi/5wynL5ttotw/maxresdefault.jpg",
         "type": "chapter"
       }
     ]
-  }
-]
+  },
+
+  {
+    "id": "advanced-learning",
+    "title": "🎓 高级学习",
+    "type": "category",
+    "behavior": "expan
