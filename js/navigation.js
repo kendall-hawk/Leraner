@@ -228,11 +228,11 @@ class SidebarManager {
         `);
         header.insertBefore(hamburger, header.firstChild);
 
-        // 创建侧边栏容器
+        // 🚨 修复：创建侧边栏容器，确保子菜单完全隐藏
         const sidebarContainer = this.dom.create(`
             <div class="sidebar-container" data-state="closed">
                 <nav class="sidebar-main"></nav>
-                <div class="sidebar-submenu"></div>
+                <div class="sidebar-submenu" style="opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(150%) translateZ(0);"></div>
             </div>
         `);
 
@@ -253,6 +253,9 @@ class SidebarManager {
             submenuPanel: sidebarContainer.querySelector('.sidebar-submenu'),
             overlay
         };
+
+        // 🚨 新增：确保子菜单初始状态完全隐藏
+        this.ensureSubmenuHidden();
     }
 
     createSiteHeader() {
@@ -298,6 +301,26 @@ class SidebarManager {
         }
     }
 
+    // 🚨 新增：确保子菜单完全隐藏
+    ensureSubmenuHidden() {
+        const submenu = this.elements.submenuPanel;
+        if (!submenu) return;
+        
+        // 强制隐藏所有可见属性
+        submenu.style.opacity = '0';
+        submenu.style.visibility = 'hidden';
+        submenu.style.pointerEvents = 'none';
+        submenu.style.transform = 'translateX(150%) translateZ(0)';
+        submenu.style.background = 'transparent';
+        submenu.style.borderLeft = 'none';
+        
+        // 移除展开类
+        submenu.classList.remove('expanded');
+        
+        // 清空内容
+        submenu.innerHTML = '';
+    }
+
     // 🚨 新增：强制正确的初始状态
     forceCorrectInitialState() {
         requestAnimationFrame(() => {
@@ -306,6 +329,9 @@ class SidebarManager {
             document.body.style.overflow = '';
             document.body.classList.remove('sidebar-open'); // 添加body类管理
             this.state.setState('isOpen', false);
+            
+            // 🚨 确保子菜单完全隐藏
+            this.ensureSubmenuHidden();
             
             // 🚨 确保内容区域不被遮挡
             this.ensureContentAreaNotBlocked();
@@ -426,7 +452,10 @@ class SidebarManager {
             this.elements.overlay.classList.remove('visible');
             document.body.style.overflow = '';
             document.body.classList.remove('sidebar-open'); // 移除body类
+            
+            // 🚨 修复：关闭时立即隐藏子菜单
             this.collapseSubmenu();
+            
             this.state.setState('isOpen', false);
             
             // 🚨 确保关闭后内容不被遮挡
@@ -456,22 +485,55 @@ class SidebarManager {
     }
 
     expandSubmenu(seriesData) {
+        // 🚨 修复：先确保完全隐藏
         this.collapseSubmenu();
+        
+        // 渲染内容
         this.renderSubmenu(seriesData);
         
+        // 🚨 修复：强制显示子菜单
         requestAnimationFrame(() => {
-            this.elements.submenuPanel.classList.add('expanded');
-            this.state.setState('expandedSubmenu', seriesData.seriesId);
+            const submenu = this.elements.submenuPanel;
+            if (submenu) {
+                // 恢复相对定位
+                submenu.style.position = 'relative';
+                
+                // 显示背景和边框
+                submenu.style.background = 'var(--sidebar-bg-secondary)';
+                submenu.style.borderLeft = '1px solid rgba(0, 0, 0, 0.04)';
+                
+                // 显示可见性
+                submenu.style.opacity = '1';
+                submenu.style.visibility = 'visible';
+                submenu.style.pointerEvents = 'auto';
+                
+                // 移动到位置
+                submenu.style.transform = 'translateX(0) translateZ(0)';
+                
+                // 添加展开类
+                submenu.classList.add('expanded');
+                
+                this.state.setState('expandedSubmenu', seriesData.seriesId);
+            }
         });
     }
 
     collapseSubmenu() {
-        this.elements.submenuPanel.classList.remove('expanded');
+        const submenu = this.elements.submenuPanel;
+        if (!submenu) return;
+        
+        // 🚨 修复：立即开始隐藏动画
+        submenu.style.transform = 'translateX(150%) translateZ(0)';
+        submenu.style.opacity = '0';
+        
+        // 移除展开类
+        submenu.classList.remove('expanded');
         this.state.setState('expandedSubmenu', null);
         
+        // 🚨 修复：延迟完全隐藏和清理
         setTimeout(() => {
             if (!this.state.getState('expandedSubmenu')) {
-                this.elements.submenuPanel.innerHTML = '';
+                this.ensureSubmenuHidden();
             }
         }, 250);
     }
