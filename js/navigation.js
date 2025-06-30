@@ -1218,5 +1218,5 @@ window.closeSidebarNavigation = function() {
             
             console.log('🚀 [Navigation] Overlap fix applied');
         }, 50);
-    }*/
-})();
+    
+})();}*/
