@@ -21,13 +21,7 @@
     <!-- 字体预加载 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Antic+Slab&display=swap" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=emoji_objects" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=emoji_objects" />
-    
     
     <!-- 主样式表 -->
     <link rel="stylesheet" href="css/style.css">
@@ -88,10 +82,8 @@
     <div class="brand-header">
         <div class="brand-container">
             <h1 class="brand-title">
-                <span class="brand-text">learner
+                <span class="brand-text">LearnerEnglish
                 </span>
-                <span class="brand-en">En
-                    </span>
             </h1>
         </div>
     </div>
@@ -142,7 +134,7 @@
         </div>
     </div>
     <!-- 在其他JS文件之前加载 -->
-    <script src="js/core.js" defer></script>
+
     <!-- JavaScript模块加载 -->
     <script>
         // 基础错误处理和超时检测
@@ -221,6 +213,7 @@ function loadDebugTool() {
     </script>
     
     <!-- 核心基础设施（必须最先加载） -->
+            <script src="js/core.js" defer></script>
     
     <!-- 功能模块（按依赖顺序加载） -->
     <script src="js/navigation.js" defer></script>
