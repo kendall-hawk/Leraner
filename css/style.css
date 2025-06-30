@@ -1,17 +1,15 @@
 /* ==========================================================================
-   整合版CSS - 侧边导航 + 原有功能 (性能优化版 v2.0)
-   完全兼容现有功能，零破坏性修改
-   🚀 性能提升：15-20% 渲染性能，25% 动画流畅度
+   完整CSS - 侧边导航 + 遮挡问题修复版 v3.0
    ========================================================================== */
 
-/* === 1. 🚀 CSS变量（性能优化）=== */
+/* === 1. CSS变量（性能优化）=== */
 :root {
     /* 字体 */
     --font-sans: "Work Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --font-serif: "EB Garamond", Georgia, "Times New Roman", serif;
     --font-base: 'Antic Slab', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Open Sans', sans-serif;
 
-    /* 🚀 优化：颜色系统（简化变量，提高解析性能）*/
+    /* 颜色系统 */
     --primary: #007bff;
     --primary-hover: #0056b3;
     --success: #28a745;
@@ -22,7 +20,7 @@
     --border: #e0e0e0;
     --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     
-    /* 🚀 优化：统一过渡时长（减少重绘） */
+    /* 过渡时长 */
     --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -32,18 +30,18 @@
     --radius: 8px;
     --audio-height: 35px;
     
-    /* 🚀 优化：高亮系统（GPU加速） */
+    /* 高亮系统 */
     --highlight-bg: rgba(255, 134, 72, 0.5);
     --highlight-duration: var(--transition-fast);
 
-    /* 🚀 侧边栏配置变量 */
+    /* 🚨 侧边栏配置变量（带默认值） */
     --sidebar-width: 70%;
     --sidebar-min-width: 320px;
     --sidebar-max-width: 90vw;
     --main-panel-ratio: 60%;
     --submenu-panel-ratio: 40%;
     
-    /* 🚀 优化：侧边栏颜色主题（减少计算） */
+    /* 侧边栏颜色主题 */
     --sidebar-primary: #667eea;
     --sidebar-primary-rgb: 103, 126, 234;
     --sidebar-primary-light: rgba(var(--sidebar-primary-rgb), 0.1);
@@ -56,12 +54,12 @@
     --sidebar-border: rgba(0, 0, 0, 0.08);
     --sidebar-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     
-    /* 🚀 优化：侧边栏动画（硬件加速） */
+    /* 侧边栏动画 */
     --sidebar-transition: var(--transition-slow);
     --submenu-transition: var(--transition-normal);
 }
 
-/* 🚀 优化：暗色模式（变量复用） */
+/* 暗色模式 */
 .dark-mode {
     --primary: #269fff;
     --primary-hover: #57baff;
@@ -84,7 +82,7 @@
     --sidebar-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
-/* === 2. 🚀 基础重置（性能优化）=== */
+/* === 2. 基础重置 === */
 *, *::before, *::after { 
     box-sizing: border-box; 
 }
@@ -104,12 +102,11 @@ body {
     height: 100vh;
     overflow-x: hidden;
     transition: background-color var(--transition-normal), color var(--transition-normal);
-    /* 🚀 性能优化：开启硬件加速 */
     transform: translateZ(0);
     will-change: background-color, color;
 }
 
-/* === 3. 🚀 全宽顶部栏（GPU加速优化）=== */
+/* === 3. 🚨 全宽顶部栏（确保正确层级）=== */
 .site-header {
     position: fixed;
     top: 0;
@@ -120,11 +117,11 @@ body {
     background: var(--sidebar-bg);
     border-bottom: 1px solid var(--sidebar-border);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    z-index: 1000;
+    /* 🚨 修复：确保头部在最上层 */
+    z-index: 1001;
     display: flex;
     align-items: center;
     padding: 0 20px;
-    /* 🚀 性能优化：GPU加速 + contain */
     contain: layout style;
     transform: translateZ(0);
     will-change: box-shadow;
@@ -132,7 +129,7 @@ body {
     overflow: visible;
 }
 
-/* 🚀 汉堡菜单按钮（触摸优化） */
+/* 🚨 汉堡菜单按钮（确保可见和可交互）*/
 .nav-toggle {
     position: absolute;
     left: 20px;
@@ -145,11 +142,13 @@ body {
     align-items: center;
     justify-content: center;
     border-radius: 8px;
-    /* 🚀 性能优化：GPU加速 + 减少重绘 */
     transition: background-color var(--transition-fast), transform var(--transition-fast);
     transform: translateZ(0);
     -webkit-tap-highlight-color: transparent;
     contain: layout style;
+    /* 🚨 修复：确保按钮在顶层且可交互 */
+    z-index: 1002;
+    pointer-events: auto;
 }
 
 .nav-toggle:hover {
@@ -161,7 +160,7 @@ body {
     transform: scale(0.95) translateZ(0);
 }
 
-/* 🚀 汉堡图标（优化动画） */
+/* 汉堡图标 */
 .hamburger-icon {
     width: 20px;
     height: 16px;
@@ -169,7 +168,6 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    /* 🚀 性能优化 */
     contain: layout;
 }
 
@@ -178,7 +176,6 @@ body {
     height: 2px;
     background: var(--sidebar-text);
     border-radius: 1px;
-    /* 🚀 优化：减少属性数量，提升性能 */
     transition: background var(--transition-fast), transform var(--transition-fast);
     transform: translateZ(0);
 }
@@ -187,7 +184,7 @@ body {
     background: var(--sidebar-primary);
 }
 
-/* 🚀 Logo居中（性能优化） */
+/* Logo居中 */
 .brand-logo {
     position: absolute;
     left: 50%;
@@ -196,11 +193,10 @@ body {
     font-weight: 700;
     color: var(--sidebar-text);
     white-space: nowrap;
-    /* 🚀 性能优化 */
     contain: layout style;
 }
 
-/* 🚀 其他功能右侧 */
+/* 其他功能右侧 */
 .header-actions {
     position: absolute;
     right: 20px;
@@ -210,7 +206,7 @@ body {
     contain: layout;
 }
 
-/* === 4. 🚀 侧边栏容器（GPU加速）=== */
+/* === 4. 🚨 侧边栏容器（完全修复遮挡问题）=== */
 .sidebar-container {
     position: fixed;
     top: 60px;
@@ -219,23 +215,39 @@ body {
     width: var(--sidebar-width);
     min-width: var(--sidebar-min-width);
     max-width: var(--sidebar-max-width);
-    /* 🚀 性能优化：GPU加速 + 硬件层 */
-    transform: translateX(-100%) translateZ(0);
+    /* 🚨 修复：确保完全隐藏，添加额外偏移 */
+    transform: translateX(-100%) translateX(-20px) translateZ(0);
     transition: transform var(--sidebar-transition);
     z-index: 999;
     display: flex;
-    /* 🚀 优化：contain + will-change */
+    /* 🚨 修复：关闭状态下禁用交互 */
+    pointer-events: none;
+    visibility: hidden;
+    opacity: 0;
     contain: layout style;
     will-change: transform;
     backface-visibility: hidden;
     perspective: 1000px;
 }
 
-.sidebar-container.open {
+/* 🚨 修复：打开状态正确显示 */
+.sidebar-container.open,
+.sidebar-container[data-state="open"] {
     transform: translateX(0) translateZ(0);
+    pointer-events: auto;
+    visibility: visible;
+    opacity: 1;
 }
 
-/* === 5. 🚀 主导航面板（滚动优化）=== */
+/* 🚨 修复：强制隐藏状态（多重保险）*/
+.sidebar-container:not(.open):not([data-state="open"]) {
+    transform: translateX(-100%) translateX(-20px) translateZ(0) !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* === 5. 主导航面板 === */
 .sidebar-main {
     width: var(--main-panel-ratio);
     background: var(--sidebar-bg);
@@ -243,33 +255,28 @@ body {
     overflow-y: auto;
     overflow-x: hidden;
     flex-shrink: 0;
-    /* 🚀 性能优化：滚动优化 */
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     transform: translateZ(0);
     contain: layout style;
 }
 
-/* 导航内容容器 */
 .sidebar-nav-content {
     padding: 0;
     height: 100%;
-    /* 🚀 性能优化 */
     contain: layout;
 }
 
-/* === 6. 🚀 子菜单面板（滑动优化）=== */
+/* === 6. 子菜单面板 === */
 .sidebar-submenu {
     width: var(--submenu-panel-ratio);
     background: var(--sidebar-bg-secondary);
     border-left: 1px solid var(--sidebar-border);
-    /* 🚀 性能优化：GPU加速 */
     transform: translateX(100%) translateZ(0);
     transition: transform var(--submenu-transition);
     overflow-y: auto;
     overflow-x: hidden;
     flex-shrink: 0;
-    /* 🚀 滚动优化 */
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     contain: layout style;
@@ -280,7 +287,6 @@ body {
     transform: translateX(0) translateZ(0);
 }
 
-/* 子菜单头部 */
 .submenu-header {
     padding: 16px 20px;
     border-bottom: 1px solid var(--sidebar-border);
@@ -288,7 +294,6 @@ body {
     position: sticky;
     top: 0;
     z-index: 10;
-    /* 🚀 性能优化 */
     transform: translateZ(0);
     contain: layout style;
 }
@@ -305,11 +310,9 @@ body {
     gap: 8px;
     padding: 8px 12px;
     border-radius: 6px;
-    /* 🚀 优化：减少过渡属性 */
     transition: background var(--transition-fast), color var(--transition-fast);
     margin: -8px -12px;
     -webkit-tap-highlight-color: transparent;
-    /* 🚀 性能优化 */
     transform: translateZ(0);
     contain: layout style;
 }
@@ -322,18 +325,15 @@ body {
 .back-arrow {
     font-size: 18px;
     font-weight: bold;
-    /* 🚀 优化：防止重排 */
     contain: layout;
 }
 
-/* 子菜单内容 */
 .submenu-content {
     padding: 8px 0;
-    /* 🚀 性能优化 */
     contain: layout;
 }
 
-/* === 7. 🚀 背景遮罩（模糊优化）=== */
+/* === 7. 🚨 背景遮罩（正确控制）=== */
 .sidebar-overlay {
     position: fixed;
     top: 60px;
@@ -343,24 +343,25 @@ body {
     background: rgba(0, 0, 0, 0.4);
     opacity: 0;
     visibility: hidden;
-    /* 🚀 性能优化：减少属性，提升性能 */
     transition: opacity var(--transition-slow), visibility var(--transition-slow);
     z-index: 998;
-    /* 🚀 条件性模糊（性能考虑） */
     backdrop-filter: blur(2px);
-    /* 🚀 GPU加速 */
     transform: translateZ(0);
     will-change: opacity;
+    /* 🚨 修复：默认不可交互 */
+    pointer-events: none;
 }
 
 .sidebar-overlay.visible {
     opacity: 1;
     visibility: visible;
+    /* 🚨 修复：可见时可交互 */
+    pointer-events: auto;
 }
 
-/* === 8. 🚀 导航项样式（性能优化）=== */
+/* === 8. 导航项样式 === */
 
-/* 🚀 优化：分类标题（减少重绘） */
+/* 分类标题 */
 .nav-category-header {
     padding: 20px 24px 8px 24px;
     font-size: 13px;
@@ -372,7 +373,6 @@ body {
     user-select: none;
     border-bottom: 1px solid var(--sidebar-border);
     margin-bottom: 4px;
-    /* 🚀 性能优化 */
     contain: layout style;
 }
 
@@ -380,7 +380,7 @@ body {
     padding-top: 16px;
 }
 
-/* 🚀 基础导航项（GPU加速优化） */
+/* 基础导航项 */
 .nav-item {
     padding: 14px 24px;
     font-size: 15px;
@@ -394,7 +394,6 @@ body {
     cursor: pointer;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
-    /* 🚀 性能优化：GPU加速 + contain */
     transition: background var(--transition-fast), 
                 color var(--transition-fast), 
                 transform var(--transition-fast);
@@ -403,12 +402,10 @@ body {
     will-change: background-color, transform;
 }
 
-/* Level 1 导航项 */
 .nav-item.level-1 {
     font-weight: 500;
 }
 
-/* 🚀 Level 2 导航项（动画优化） */
 .nav-item.level-2 {
     padding: 12px 24px;
     font-size: 14px;
@@ -416,7 +413,6 @@ body {
     color: var(--sidebar-text-light);
     margin: 1px 12px;
     border-radius: 6px;
-    /* 🚀 优化：初始状态设置，减少layout thrashing */
     opacity: 1;
     transform: translateY(0) translateZ(0);
     transition: background var(--transition-fast), 
@@ -424,7 +420,7 @@ body {
                 transform var(--transition-fast);
 }
 
-/* 🚀 悬停效果（性能优化） */
+/* 悬停效果 */
 .nav-item.clickable:hover {
     background: var(--sidebar-primary-light);
     transform: translateX(6px) translateZ(0);
@@ -436,6 +432,12 @@ body {
     color: var(--sidebar-text-light);
 }
 
+.nav-item.level-2:hover {
+    background: var(--sidebar-primary-light);
+    color: var(--sidebar-primary);
+    transform: translateX(4px) translateZ(0);
+}
+
 /* 展开状态样式 */
 .nav-item.expandable.expanded {
     background: var(--sidebar-primary-lighter);
@@ -445,23 +447,6 @@ body {
 .nav-item.expandable.expanded .expand-arrow {
     transform: rotate(90deg) translateZ(0);
     color: var(--sidebar-primary);
-}
-
-/* 🚀 Level 2 展开动画（优化） */
-.submenu-content .nav-item.level-2 {
-    opacity: 1;
-    transform: translateY(0) translateZ(0);
-}
-
-/* 🚀 优化：使用transform代替多个属性 */
-.submenu-content .nav-item.level-2:nth-child(n+1) { 
-    transition-delay: calc(var(--i, 0) * 50ms); 
-}
-
-.nav-item.level-2:hover {
-    background: var(--sidebar-primary-light);
-    color: var(--sidebar-primary);
-    transform: translateX(4px) translateZ(0);
 }
 
 /* 激活状态 */
@@ -477,25 +462,23 @@ body {
     font-weight: 500;
 }
 
-/* 🚀 箭头样式（减少重绘） */
+/* 箭头样式 */
 .expand-arrow,
 .nav-arrow {
     font-size: 12px;
     color: var(--sidebar-text-muted);
     transition: color var(--transition-fast), transform var(--transition-fast);
     flex-shrink: 0;
-    /* 🚀 性能优化 */
     transform: translateZ(0);
     contain: layout;
 }
 
-/* 🚀 Tools项特殊样式（优化） */
+/* Tools项特殊样式 */
 .nav-item.tools-item {
     margin-bottom: 8px;
     font-weight: 600;
     color: var(--sidebar-primary);
     border: 1px solid var(--sidebar-primary-light);
-    /* 🚀 优化：预设变换 */
     transition: background var(--transition-fast), 
                 color var(--transition-fast), 
                 transform var(--transition-fast), 
@@ -518,11 +501,10 @@ body {
     height: 1px;
     background: var(--sidebar-border);
     margin: 12px 24px;
-    /* 🚀 性能优化 */
     contain: layout;
 }
 
-/* === 9. 🚀 滚动条样式（简化）=== */
+/* === 9. 滚动条样式 === */
 .sidebar-main::-webkit-scrollbar,
 .sidebar-submenu::-webkit-scrollbar {
     width: 6px;
@@ -537,7 +519,6 @@ body {
 .sidebar-submenu::-webkit-scrollbar-thumb {
     background: var(--sidebar-border);
     border-radius: 3px;
-    /* 🚀 优化：减少过渡 */
     transition: background var(--transition-fast);
 }
 
@@ -546,19 +527,16 @@ body {
     background: var(--sidebar-text-muted);
 }
 
-/* Firefox滚动条 */
 .sidebar-main,
 .sidebar-submenu {
     scrollbar-width: thin;
     scrollbar-color: var(--sidebar-border) transparent;
 }
 
-/* === 10. 保留原有导航系统（向后兼容）=== */
-.main-navigation {
-    position: relative;
-    z-index: 100;
-    overflow: visible;
-    display: none; /* 默认隐藏，使用侧边栏 */
+/* === 10. 🚨 保留原有导航系统（完全隐藏）=== */
+.main-navigation,
+.nav-item:not(.sidebar-container .nav-item) {
+    display: none !important;
 }
 
 .keep-original-nav .main-navigation {
@@ -566,66 +544,10 @@ body {
 }
 
 .main-nav-list {
-    display: flex;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    align-items: stretch;
-    height: 60px;
-    white-space: nowrap;
-    overflow: visible;
-    width: 100%;
+    display: none !important;
 }
 
-.main-nav-list .nav-item {
-    position: relative;
-    display: flex;
-    flex: 1 1 0;
-    min-width: 0;
-    overflow: visible;
-}
-
-.main-nav-list .nav-item > a,
-.main-nav-list .nav-item > .dropdown-trigger {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    padding: 0 8px;
-    text-decoration: none;
-    color: #333;
-    font-weight: 500;
-    font-size: 15px;
-    border-bottom: 3px solid transparent;
-    cursor: pointer;
-    white-space: nowrap;
-    background: none;
-    border-top: none;
-    border-left: none;
-    border-right: none;
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    /* 🚀 优化：减少过渡属性 */
-    transition: color var(--transition-fast), 
-                background var(--transition-fast), 
-                border-bottom-color var(--transition-fast);
-}
-
-.main-nav-list .nav-item > a:hover,
-.main-nav-list .nav-item > .dropdown-trigger:hover {
-    color: var(--primary);
-    background: #f8f9fa;
-}
-
-.main-nav-list .nav-item > a.active,
-.main-nav-list .nav-item > .dropdown-trigger.active {
-    color: var(--primary);
-    border-bottom-color: var(--primary);
-}
-
-/* === 11. 🚀 内容区域（适配优化）=== */
+/* === 11. 🚨 内容区域（确保不被遮挡）=== */
 .content-area {
     flex: 1;
     overflow-y: auto;
@@ -635,7 +557,11 @@ body {
     font-family: var(--font-serif);
     padding-bottom: calc(var(--audio-height) + var(--space) * 2);
     margin-top: 60px;
-    /* 🚀 性能优化：滚动优化 */
+    /* 🚨 修复：确保内容从左边开始，不被遮挡 */
+    margin-left: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    z-index: 1 !important;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     contain: layout;
@@ -646,7 +572,6 @@ body {
     margin-bottom: calc(var(--space) * 1.5);
     color: var(--text);
     font-family: var(--font-sans);
-    /* 🚀 性能优化 */
     contain: layout;
 }
 
@@ -660,7 +585,6 @@ body {
     padding: 0.25rem 0;
     border-radius: 4px;
     transition: background-color var(--transition-fast);
-    /* 🚀 性能优化 */
     contain: layout style;
 }
 
@@ -690,14 +614,13 @@ body {
     contain: layout;
 }
 
-/* === 12. 🚀 章节网格（GPU加速）=== */
+/* === 12. 章节网格 === */
 .chapter-list-overview {
     display: grid;
     grid-template-columns: 1fr;
     gap: 20px;
     max-width: 600px;
     margin: 0 auto;
-    /* 🚀 性能优化 */
     contain: layout;
 }
 
@@ -710,7 +633,6 @@ body {
     flex-direction: column;
     height: 260px;
     border: 1px solid var(--border);
-    /* 🚀 性能优化：GPU加速 */
     transition: transform var(--transition-fast), 
                 box-shadow var(--transition-fast), 
                 border-color var(--transition-fast);
@@ -738,7 +660,6 @@ body {
     height: 140px;
     object-fit: cover;
     display: block;
-    /* 🚀 性能优化：GPU加速 */
     transition: transform var(--transition-slow);
     transform: translateZ(0);
     will-change: transform;
@@ -786,13 +707,12 @@ body {
     contain: layout;
 }
 
-/* === 13. 🚀 高亮系统（GPU加速优化）=== */
+/* === 13. 高亮系统 === */
 .highlighted-minimal,
 .highlighted-medium,
 .highlighted-standard,
 .highlighted-advanced {
     background: var(--highlight-bg);
-    /* 🚀 性能优化：GPU加速 + contain */
     transition: background-color var(--highlight-duration);
     transform: translateZ(0);
     contain: layout style;
@@ -820,13 +740,11 @@ body {
     z-index: -1;
     pointer-events: none;
     box-shadow: 0 0 0 1px rgba(255, 134, 72, 0.6);
-    /* 🚀 性能优化：减少过渡属性 */
     transition: opacity var(--highlight-duration);
     transform: translateZ(0);
     contain: layout;
 }
 
-/* 🚀 高亮动画（优化） */
 .highlight-fade-in { 
     animation: highlightIn var(--highlight-duration) ease-out; 
 }
@@ -856,17 +774,15 @@ body {
     }
 }
 
-/* === 14. 🚀 词汇表系统（GPU加速）=== */
+/* === 14. 词汇表系统 === */
 .glossary-term {
     color: var(--primary);
     font-weight: 300;
     cursor: pointer;
     border-bottom: 1px dotted;
-    /* 🚀 优化：减少过渡属性 */
     transition: background var(--transition-fast), 
                 color var(--transition-fast), 
                 border-bottom-color var(--transition-fast);
-    /* 🚀 性能优化 */
     transform: translateZ(0);
     contain: layout style;
 }
@@ -883,7 +799,6 @@ body {
     pointer-events: none;
 }
 
-/* 🚀 词汇表弹窗（GPU加速） */
 #glossary-popup {
     position: fixed;
     background: var(--bg-content);
@@ -900,7 +815,6 @@ body {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    /* 🚀 性能优化：GPU加速 */
     transform: scale(0.9) translateZ(0);
     transition: opacity var(--transition-normal), 
                 transform var(--transition-normal), 
@@ -954,7 +868,6 @@ body {
     contain: layout;
 }
 
-/* 🚀 词汇表内容样式（优化） */
 .glossary-main-definition-container {
     margin-bottom: 16px;
     padding: 12px 0;
@@ -1011,11 +924,10 @@ body {
     contain: layout;
 }
 
-/* 工具类 */
 .element-visible { display: block; }
 .element-hidden { display: none; }
 
-/* === 15. 🚀 音频播放器（GPU加速）=== */
+/* === 15. 音频播放器 === */
 #player-section {
     position: fixed;
     bottom: 0;
@@ -1030,7 +942,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    /* 🚀 性能优化 */
     transform: translateZ(0);
     contain: layout style;
 }
@@ -1043,7 +954,7 @@ body {
     outline: none;
 }
 
-/* === 16. 🚀 组件（GPU加速优化）=== */
+/* === 16. 组件 === */
 #back-to-top {
     position: fixed;
     bottom: calc(var(--audio-height) + 15px);
@@ -1060,7 +971,6 @@ body {
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
-    /* 🚀 性能优化：GPU加速 */
     transform: translateY(20px) translateZ(0);
     transition: opacity var(--transition-normal), 
                 visibility var(--transition-normal), 
@@ -1095,7 +1005,6 @@ body {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     border: 1px solid var(--border);
     min-height: 44px;
-    /* 🚀 性能优化 */
     transition: opacity var(--transition-normal);
     contain: layout;
 }
@@ -1121,7 +1030,6 @@ body {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     cursor: pointer;
     user-select: none;
-    /* 🚀 性能优化：GPU加速 */
     transition: background var(--transition-fast), 
                 transform var(--transition-fast), 
                 box-shadow var(--transition-fast);
@@ -1136,9 +1044,7 @@ body {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
-/* === 17. 🚀 侧边栏动画（GPU加速优化）=== */
-
-/* 🚀 侧边栏进入动画（优化） */
+/* === 17. 侧边栏动画 === */
 @keyframes slideInFromLeft {
     from {
         transform: translateX(-100%) translateZ(0);
@@ -1154,7 +1060,6 @@ body {
     animation: slideInFromLeft var(--sidebar-transition) ease-out;
 }
 
-/* 🚀 子菜单展开动画（优化） */
 @keyframes slideInFromRight {
     from {
         transform: translateX(100%) translateZ(0);
@@ -1170,7 +1075,6 @@ body {
     animation: slideInFromRight var(--submenu-transition) ease-out;
 }
 
-/* 🚀 导航项出现动画（简化） */
 @keyframes fadeInUp {
     from {
         opacity: 0;
@@ -1186,7 +1090,7 @@ body {
     animation: fadeInUp var(--transition-slow) ease-out;
 }
 
-/* === 18. 🚀 响应式设计（整合优化）=== */
+/* === 18. 响应式设计 === */
 
 /* 大屏幕 1200px+ */
 @media (min-width: 1200px) {
@@ -1221,11 +1125,10 @@ body {
     .chapter-info p { font-size: 17px; }
 }
 
-/* 🚀 移动端（触摸优化） */
+/* 🚨 移动端（触摸优化 + 遮挡修复）*/
 @media (max-width: 768px) {
     body { 
         overflow-x: hidden; 
-        /* 🚀 移动端优化 */
         -webkit-user-select: none;
         user-select: none;
     }
@@ -1238,7 +1141,6 @@ body {
         left: 16px;
         width: 40px;
         height: 40px;
-        /* 🚀 触摸优化 */
         -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
     }
     
@@ -1249,12 +1151,18 @@ body {
     .sidebar-container {
         --sidebar-width: 90%;
         --sidebar-min-width: 280px;
+        /* 🚨 移动端额外修复 */
+        transform: translateX(-100vw) translateZ(0);
+    }
+    
+    .sidebar-container.open,
+    .sidebar-container[data-state="open"] {
+        transform: translateX(0) translateZ(0);
     }
     
     .nav-item {
         padding: 16px 20px;
-        min-height: 44px; /* 触摸友好 */
-        /* 🚀 触摸优化 */
+        min-height: 44px;
         -webkit-tap-highlight-color: rgba(103, 126, 234, 0.1);
     }
     
@@ -1280,6 +1188,11 @@ body {
     .content-area { 
         padding-bottom: calc(var(--audio-height) + 140px); 
         margin-top: 60px;
+        /* 🚨 移动端内容完全占满 */
+        width: 100vw !important;
+        margin-left: 0 !important;
+        padding-left: 16px !important;
+        padding-right: 16px !important;
     }
     
     .chapter-overview-item { height: 220px; }
@@ -1340,7 +1253,7 @@ body {
     }
 }
 
-/* === 19. 🚀 特殊状态和无障碍（优化）=== */
+/* === 19. 特殊状态和无障碍 === */
 
 /* 加载状态 */
 .sidebar-container.loading {
@@ -1349,7 +1262,6 @@ body {
 
 .sidebar-container.loading .nav-item {
     opacity: 0.6;
-    /* 🚀 性能优化 */
     transition: opacity var(--transition-fast);
 }
 
@@ -1360,12 +1272,11 @@ body {
     cursor: not-allowed;
 }
 
-/* 🚀 焦点状态（键盘导航优化） */
+/* 焦点状态 */
 .nav-item:focus {
     outline: 2px solid var(--sidebar-primary);
     outline-offset: -2px;
     background: var(--sidebar-primary-lighter);
-    /* 🚀 性能优化 */
     transition: outline var(--transition-fast), background var(--transition-fast);
 }
 
@@ -1373,7 +1284,7 @@ body {
     outline: none;
 }
 
-/* 🚀 高对比度模式支持（优化） */
+/* 高对比度模式支持 */
 @media (prefers-contrast: high) {
     :root {
         --sidebar-border: #000000;
@@ -1401,7 +1312,7 @@ body {
     }
 }
 
-/* 🚀 减少动画模式（性能优化） */
+/* 减少动画模式 */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;
@@ -1425,7 +1336,7 @@ body {
     }
 }
 
-/* 🚀 暗色主题高亮适配（优化） */
+/* 暗色主题高亮适配 */
 @media (prefers-color-scheme: dark) {
     .highlighted-minimal, .highlighted-medium {
         background-color: rgba(255, 154, 102, 0.3) !important;
@@ -1442,111 +1353,6 @@ body {
     .hamburger-icon span {
         background: var(--sidebar-text);
     }
-}
-
-/* === 20. 🚀 工具提示样式（优化）=== */
-.nav-item[data-tooltip] {
-    position: relative;
-}
-
-.nav-item[data-tooltip]:hover::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    left: 100%;
-    top: 50%;
-    transform: translateY(-50%) translateZ(0);
-    background: var(--sidebar-text);
-    color: var(--sidebar-bg);
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-    z-index: 1000;
-    margin-left: 8px;
-    pointer-events: none;
-    opacity: 0;
-    /* 🚀 性能优化 */
-    animation: tooltipFadeIn var(--transition-fast) ease-out 0.5s forwards;
-    contain: layout;
-}
-
-@keyframes tooltipFadeIn {
-    to {
-        opacity: 1;
-        transform: translateY(-50%) translateZ(0);
-    }
-}
-
-/* === 21. 🚀 兼容性修复（优化）=== */
-
-/* Safari特殊处理 */
-@supports (-webkit-touch-callout: none) {
-    .sidebar-container {
-        -webkit-transform: translateX(-100%) translateZ(0);
-    }
-    
-    .sidebar-container.open {
-        -webkit-transform: translateX(0) translateZ(0);
-    }
-    
-    .sidebar-submenu {
-        -webkit-transform: translateX(100%) translateZ(0);
-    }
-    
-    .sidebar-submenu.expanded {
-        -webkit-transform: translateX(0) translateZ(0);
-    }
-}
-
-/* IE11 降级处理 */
-@media screen and (-ms-high-contrast: active), (-ms-high-contrast: none) {
-    .sidebar-container {
-        display: block;
-        width: 70%;
-    }
-    
-    .sidebar-main {
-        float: left;
-        width: 60%;
-    }
-    
-    .sidebar-submenu {
-        float: right;
-        width: 40%;
-    }
-}
-
-/* === 22. 🚀 性能优化类（增强）=== */
-.sidebar-container,
-.sidebar-submenu,
-.nav-item {
-    contain: layout style;
-}
-
-/* 🚀 动态will-change管理 */
-.sidebar-container.animating,
-.sidebar-submenu.animating {
-    will-change: transform;
-}
-
-.sidebar-container:not(.animating),
-.sidebar-submenu:not(.animating) {
-    will-change: auto;
-}
-
-/* 🚀 高亮性能优化 */
-.highlighted-minimal, 
-.highlighted-medium, 
-.highlighted-advanced {
-    will-change: background-color;
-    transform: translateZ(0);
-    contain: layout style;
-}
-
-.highlighted-minimal:not(.animating),
-.highlighted-medium:not(.animating),
-.highlighted-advanced:not(.animating) {
-    will-change: auto;
 }
 
 /* === 23. 🚀 触摸设备优化（增强）=== */
