@@ -34,6 +34,10 @@ class Navigation {
             linksMap: new Map(),
             chaptersMap: new Map(),
             
+            // 数据缓存
+            processedData: [],         // 处理后的导航数据
+            availableTools: [],        // 可用的工具数据
+            
             // 性能优化
             lastUpdate: 0,
             renderQueue: [],
@@ -259,22 +263,25 @@ class Navigation {
     }
 
     async loadToolsData() {
+        // 🎯 可选的工具数据加载 - 不自动添加到导航
+        // 用户可以在JSON中自主决定是否包含工具导航
         try {
             const response = await fetch('./data/tools.json');
             if (response.ok) {
                 const toolsData = await response.json();
-                const toolsCategory = {
-                    id: 'tools',
-                    title: '学习工具',
-                    level: 1,
-                    type: 'tools',
-                    children: [],
-                    chapters: toolsData.map(tool => ({
-                        ...tool,
-                        type: 'tool'
-                    }))
-                };
-                this.state.processedData.unshift(toolsCategory);
+                
+                // 将工具数据存储起来，供后续使用
+                this.state.availableTools = toolsData.map(tool => ({
+                    ...tool,
+                    type: 'tool'
+                }));
+                
+                // 🎯 不再自动添加到导航数据
+                // 完全由navigation.json决定是否显示工具导航
+                
+                if (this.config.debug) {
+                    console.log('[Navigation] 工具数据已加载:', this.state.availableTools.length);
+                }
             }
         } catch (error) {
             console.warn('[Navigation] 工具数据加载失败:', error);
@@ -311,14 +318,14 @@ class Navigation {
                 if (isLast) {
                     return `<span class="breadcrumb-current">${item.title}</span>`;
                 } else {
-                    return `<a href="#" class="breadcrumb-link" data-level="${item.level}" data-id="${item.id}">${item.title}</a>`;
+                    return `<a href="#" class="breadcrumb-link" data-action="breadcrumb-link" data-level="${item.level}" data-id="${item.id}">${item.title}</a>`;
                 }
             })
-            .join('<span class="breadcrumb-separator">></span>');
+            .join('<span class="breadcrumb-separator"> > </span>');
         
         breadcrumbEl.innerHTML = `
             <div class="breadcrumb-container">
-                <button class="breadcrumb-back" aria-label="返回上级">‹</button>
+                <button class="breadcrumb-back" data-action="breadcrumb-back" aria-label="返回上级">‹</button>
                 <div class="breadcrumb-path">${pathHtml}</div>
             </div>
         `;
@@ -382,29 +389,75 @@ class Navigation {
         return classes.join(' ');
     }
 
-    // === 🎯 3级导航核心逻辑 ===
+    // === 🎯 灵活数据驱动导航核心逻辑 ===
     
-    expandNavItem(itemId) {
+    handleNavItemClick(itemId) {
         const item = this.findItemById(itemId);
         if (!item) return;
         
+        // 🎯 完全基于数据结构决定行为
+        if (item.children && item.children.length > 0) {
+            // 有子分类 → 展开子菜单（任意层级）
+            this.expandSubmenu(item);
+        } else if (item.chapters && item.chapters.length > 0) {
+            // 有文章列表 → 展开文章列表  
+            this.expandSubmenu(item);
+        } else {
+            // 无子项 → 直接导航，关闭侧边栏
+            this.handleDirectNavigation(item);
+        }
+    }
+    
+    expandSubmenu(item) {
         // 更新导航路径
         this.updateNavigationPath(item);
         
         // 渲染面包屑
         this.renderBreadcrumb();
         
-        // 决定展开内容
+        // 根据数据类型渲染内容
         if (item.children && item.children.length > 0) {
-            // 有子分类，显示子分类
-            this.showSubmenuWithContent(item.children, item);
+            // 渲染子分类
+            this.renderNavigationLevel(item.children, this.state.elements.submenuContent);
         } else if (item.chapters && item.chapters.length > 0) {
-            // 有文章，显示文章列表
-            this.showSubmenuWithChapters(item.chapters, item);
+            // 渲染文章列表
+            this.renderChaptersList(item.chapters, this.state.elements.submenuContent);
         }
         
+        // 显示子菜单
+        this.showSubmenu();
+        
         // 更新主面板选中状态
-        this.updateActiveState(itemId);
+        this.updateActiveState(item.id);
+    }
+    
+    handleDirectNavigation(item) {
+        // 🎯 直接导航：关闭侧边栏，触发相应事件
+        this.close();
+        
+        // 🎯 完全基于item的属性决定行为，不硬编码特定ID
+        if (item.action) {
+            // 自定义action
+            this.dispatchEvent('customNavigation', { item });
+        } else if (item.seriesId === 'all-articles' || item.type === 'all-articles') {
+            // 显示所有文章
+            this.dispatchEvent('allArticlesRequested');
+        } else if (item.seriesId === 'tools' || item.type === 'tools') {
+            // 显示工具页面
+            this.dispatchEvent('toolsRequested');
+        } else if (item.chapters && item.chapters.length > 0) {
+            // 有文章的分类
+            this.dispatchEvent('seriesSelected', { 
+                seriesId: item.id, 
+                chapters: item.chapters,
+                item: item
+            });
+        } else {
+            // 默认：自定义导航事件
+            this.dispatchEvent('navigationItemSelected', { item });
+        }
+        
+        this.setActiveLink(item.id);
     }
 
     findItemById(id, items = null) {
@@ -432,22 +485,53 @@ class Navigation {
         this.state.currentLevel = item.level + 1;
     }
 
+    renderChaptersList(chapters, container) {
+        if (!container || !chapters) return;
+        
+        const fragment = document.createDocumentFragment();
+        
+        chapters.forEach(chapter => {
+            const element = document.createElement('div');
+            element.className = `nav-item level-${this.state.currentLevel} clickable chapter-item`;
+            element.setAttribute('data-id', chapter.id);
+            element.setAttribute('data-action', 'navigate-chapter');
+            element.innerHTML = `<span class="nav-title">${chapter.title}</span>`;
+            
+            fragment.appendChild(element);
+        });
+        
+        container.innerHTML = '';
+        container.appendChild(fragment);
+    }
+
     showSubmenuWithContent(children, parentItem) {
         this.renderNavigationLevel(children, this.state.elements.submenuContent);
         this.showSubmenu();
     }
 
     showSubmenuWithChapters(chapters, parentItem) {
-        const chaptersHtml = chapters.map(chapter => `
-            <div class="nav-item level-${parentItem.level + 1} clickable chapter-item" 
-                 data-id="${chapter.id}" 
-                 data-action="navigate-chapter">
-                <span class="nav-title">${chapter.title}</span>
-            </div>
-        `).join('');
-        
-        this.state.elements.submenuContent.innerHTML = chaptersHtml;
+        this.renderChaptersList(chapters, this.state.elements.submenuContent);
         this.showSubmenu();
+    }
+
+    navigateToLevel(level, itemId) {
+        // 面包屑导航：返回到指定层级
+        const targetLevel = parseInt(level);
+        
+        // 移除当前层级之后的路径
+        this.state.navigationPath = this.state.navigationPath.filter(p => p.level <= targetLevel);
+        this.state.currentLevel = targetLevel + 1;
+        
+        if (this.state.navigationPath.length === 0) {
+            // 返回主菜单
+            this.renderMainNavigation();
+        } else {
+            // 重新渲染指定层级
+            const targetItem = this.findItemById(itemId);
+            if (targetItem) {
+                this.expandSubmenu(targetItem);
+            }
+        }
     }
 
     // === 🎭 子菜单显示/隐藏逻辑 ===
@@ -521,11 +605,9 @@ class Navigation {
             case 'close-sidebar':
                 this.close();
                 break;
-            case 'expand':
-                this.expandNavItem(id);
-                break;
-            case 'navigate':
-                this.handleDirectNavigation(id);
+            case 'nav-item':
+                // 🎯 统一的导航项处理 - 完全数据驱动
+                this.handleNavItemClick(id);
                 break;
             case 'navigate-chapter':
                 this.navigateToChapter(id);
@@ -533,6 +615,9 @@ class Navigation {
                 break;
             case 'breadcrumb-back':
                 this.navigateBack();
+                break;
+            case 'breadcrumb-link':
+                this.navigateToLevel(actionElement.dataset.level, id);
                 break;
         }
     }
@@ -580,11 +665,26 @@ class Navigation {
             // 回到主菜单
             this.renderMainNavigation();
         } else {
-            // 回到上一级
-            const parent = this.state.navigationPath[this.state.navigationPath.length - 1];
-            this.renderBreadcrumb();
-            // 重新渲染上级内容
-            // 这里需要根据实际需求实现
+            // 回到上一级 - 重新渲染父级的内容
+            const parentItem = this.state.navigationPath[this.state.navigationPath.length - 1];
+            const parent = this.findItemById(parentItem.id);
+            
+            if (parent) {
+                // 重新渲染面包屑
+                this.renderBreadcrumb();
+                
+                // 重新渲染父级内容
+                if (parent.children && parent.children.length > 0) {
+                    this.renderNavigationLevel(parent.children, this.state.elements.submenuContent);
+                } else if (parent.chapters && parent.chapters.length > 0) {
+                    this.renderChaptersList(parent.chapters, this.state.elements.submenuContent);
+                }
+                
+                this.showSubmenu();
+            } else {
+                // 找不到父级，回到主菜单
+                this.renderMainNavigation();
+            }
         }
     }
 
@@ -929,6 +1029,13 @@ class Navigation {
     
     getToolsList() {
         const tools = [];
+        
+        // 从可用工具数据中获取
+        if (this.state.availableTools) {
+            tools.push(...this.state.availableTools);
+        }
+        
+        // 也从章节映射中查找工具类型
         this.state.chaptersMap.forEach((chapter, id) => {
             if (chapter.type === 'tool') {
                 tools.push({
@@ -940,6 +1047,7 @@ class Navigation {
                 });
             }
         });
+        
         return tools;
     }
 
