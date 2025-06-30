@@ -387,26 +387,34 @@ class Navigation {
         return classes.join(' ');
     }
 
-    renderChaptersList(chapters, container) {
-        if (!container || !chapters) return;
-        
-        const fragment = document.createDocumentFragment();
-        
+renderChaptersList(chapters, container) {
+    if (!container) return;
+    
+    // 🔑 最简单的测试版本
+    let html = '<div style="padding: 10px; background: yellow; margin: 10px;">测试：章节列表</div>';
+    
+    if (chapters && chapters.length > 0) {
         chapters.forEach(chapter => {
-            const element = document.createElement('div');
-            element.className = `nav-item level-${this.state.currentLevel + 1} clickable chapter-item`;
-            element.setAttribute('data-id', chapter.id);
-            element.setAttribute('data-action', 'navigate-chapter');
-            
-            const iconHtml = chapter.icon ? `<span class="nav-icon">${chapter.icon}</span>` : '';
-            element.innerHTML = `${iconHtml}<span class="nav-title">${chapter.title}</span>`;
-            
-            fragment.appendChild(element);
+            html += `
+                <div style="
+                    padding: 15px; 
+                    margin: 10px; 
+                    background: white; 
+                    border: 2px solid red;
+                    font-size: 16px;
+                    cursor: pointer;
+                " 
+                onclick="alert('点击了: ${chapter.title}')"
+                data-id="${chapter.id}"
+                data-action="navigate-chapter">
+                    📚 ${chapter.title}
+                </div>
+            `;
         });
-        
-        container.innerHTML = '';
-        container.appendChild(fragment);
     }
+    
+    container.innerHTML = html;
+}
 
     // === 🎯 自定义导航核心逻辑 ===
     
