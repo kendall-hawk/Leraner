@@ -364,6 +364,9 @@ body.sidebar-open .brand-header {
     will-change: transform;
     backface-visibility: hidden;
     perspective: 1000px;
+    /* ✅ 确保侧边栏容器本身没有边框 */
+    border: none;
+    box-shadow: var(--sidebar-shadow);
 }
 
 /* 🚨 修复：打开状态正确显示 */
@@ -387,7 +390,8 @@ body.sidebar-open .brand-header {
 .sidebar-main {
     width: var(--main-panel-ratio);
     background: var(--sidebar-bg);
-    border-right: 1px solid var(--sidebar-border);
+    /* ✅ 确保主导航面板右边缘没有边框 */
+    border-right: none;
     overflow-y: auto;
     overflow-x: hidden;
     flex-shrink: 0;
@@ -407,7 +411,10 @@ body.sidebar-open .brand-header {
 .sidebar-submenu {
     width: var(--submenu-panel-ratio);
     background: var(--sidebar-bg-secondary);
+    /* ✅ 保留左边框作为与主面板的分割线 */
     border-left: 1px solid var(--sidebar-border);
+    /* ✅ 确保右边缘没有边框，让侧边栏右侧完全透明 */
+    border-right: none;
     transform: translateX(100%) translateZ(0);
     transition: transform var(--submenu-transition);
     overflow-y: auto;
