@@ -482,6 +482,7 @@ handleNavItemClick(itemId) {
 
     // 🔑 显示章节列表
     showChaptersList(node) {
+        alert('showChaptersList被调用: ' + node.title); // 🔍 测试此方法是否被调用
         // 添加到导航路径
         this.state.currentPath.push({
             id: node.id,
