@@ -1,4 +1,34 @@
-// js/navigation.js - 重构版导航系统 (简化架构 + 3级支持)
+displayChapterContent(chapterId, content, chapterData) {
+        this.contentArea.innerHTML = content;
+        this.updateTitle(chapterData.title);
+        this.setActiveLink(chapterData.id);
+
+        // 🎯 增强的音频支持 - 使用JSON中的音频信息
+        const hasAudio = chapterData.audio === true || 
+                         !!chapterData.audioFile || 
+                         !!chapterData.srtFile;
+
+        this.dispatchEvent('chapterLoaded', { 
+            chapterId, 
+            hasAudio: hasAudio, 
+            chapterData: {
+                ...chapterData,
+                // 🎯 传递音频相关信息给音频同步模块
+                audioFile: chapterData.audioFile || `audio/${chapterId}.mp3`,
+                srtFile: chapterData.srtFile || `srt/${chapterId}.srt`,
+                duration: chapterData.duration,
+                // 🎯 传递其他有用信息
+                difficulty: chapterData.difficulty,
+                tags: chapterData.tags,
+                publishDate: chapterData.publishDate,
+                description: chapterData.description,
+                thumbnail: chapterData.thumbnail
+            }
+        });
+
+        const { prevChapterId, nextChapterId } = this.getChapterNav(chapterId);
+        this.dispatchEvent('navigationUpdated', { prevChapterId, nextChapterId });
+    }// js/navigation.js - 重构版导航系统 (简化架构 + 3级支持)
 window.EnglishSite = window.EnglishSite || {};
 
 /**
@@ -126,17 +156,22 @@ class Navigation {
             document.body.insertBefore(header, document.body.firstChild);
         }
         
-        // 创建汉堡按钮
+        // 创建汉堡按钮（如果不存在）
         if (!header.querySelector('.nav-toggle')) {
             const hamburger = document.createElement('button');
             hamburger.className = 'nav-toggle';
             hamburger.setAttribute('aria-label', '打开导航菜单');
+            hamburger.setAttribute('data-action', 'toggle-sidebar');
             hamburger.innerHTML = `
                 <span class="hamburger-icon">
                     <span></span><span></span><span></span>
                 </span>
             `;
             header.insertBefore(hamburger, header.firstChild);
+        } else {
+            // 更新现有按钮的action
+            const existingHamburger = header.querySelector('.nav-toggle');
+            existingHamburger.setAttribute('data-action', 'toggle-sidebar');
         }
     }
 
@@ -435,6 +470,22 @@ class Navigation {
         // 🎯 直接导航：关闭侧边栏，触发相应事件
         this.close();
         
+        // 🎯 处理外部链接类型
+        if (item.type === 'external' && item.url) {
+            const openInNew = item.openInNewTab !== false;
+            if (openInNew) {
+                window.open(item.url, '_blank', 'noopener,noreferrer');
+                this.displayExternalLinkMessage({
+                    title: item.title || item.series,
+                    description: item.description,
+                    externalUrl: item.url
+                });
+            } else {
+                window.location.href = item.url;
+            }
+            return;
+        }
+        
         // 🎯 完全基于item的属性决定行为，不硬编码特定ID
         if (item.action) {
             // 自定义action
@@ -445,6 +496,10 @@ class Navigation {
         } else if (item.seriesId === 'tools' || item.type === 'tools') {
             // 显示工具页面
             this.dispatchEvent('toolsRequested');
+        } else if (item.type === 'tools-category' && item.chapters) {
+            // 工具分类，展开显示工具列表
+            this.expandSubmenu(item);
+            return; // 不关闭侧边栏
         } else if (item.chapters && item.chapters.length > 0) {
             // 有文章的分类
             this.dispatchEvent('seriesSelected', { 
@@ -979,6 +1034,55 @@ class Navigation {
                 <button onclick="location.reload()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 0 5px;">
                     重新加载
                 </button>
+            </div>
+        `;
+    }
+
+    // === 📊 增强的兼容性方法 ===
+    
+    showAllArticles() {
+        this.dispatchEvent('allArticlesRequested');
+        this.setActiveLink('all-articles');
+        this.updateTitle('所有文章');
+    }
+
+    showToolsPage() {
+        this.dispatchEvent('toolsRequested');
+        this.setActiveLink('tools');
+        this.updateTitle('学习工具');
+        
+        // 如果有工具数据，显示工具页面
+        if (this.state.availableTools && this.state.availableTools.length > 0) {
+            this.displayToolsPageContent();
+        }
+    }
+
+    displayToolsPageContent() {
+        const toolsHtml = this.state.availableTools.map(tool => `
+            <div class="tool-card" onclick="window.location.href='${tool.url || 'word-frequency.html'}'" 
+                 style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); cursor: pointer; transition: all 0.3s ease; border: 2px solid transparent; margin-bottom: 20px;"
+                 onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 20px rgba(0, 0, 0, 0.15)'; this.style.borderColor='#667eea';" 
+                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0, 0, 0, 0.1)'; this.style.borderColor='transparent';">
+                <div class="tool-icon" style="font-size: 2.5rem; text-align: center; margin-bottom: 16px;">${tool.icon || '🔧'}</div>
+                <h3 style="margin-bottom: 12px; color: #333; font-size: 1.3rem; text-align: center;">${tool.title}</h3>
+                <p style="color: #666; margin-bottom: 20px; line-height: 1.5; text-align: center; min-height: 48px;">${tool.description || ''}</p>
+                <div class="tool-footer" style="text-align: center;">
+                    <button style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.2s ease; pointer-events: none;">使用工具 →</button>
+                </div>
+            </div>
+        `).join('');
+
+        this.contentArea.innerHTML = `
+            <div class="tools-page">
+                <div class="tools-header" style="text-align: center; margin-bottom: 40px; padding: 40px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">🛠️</div>
+                    <h1 style="margin-bottom: 16px; font-size: 2.5rem;">学习工具箱</h1>
+                    <p style="opacity: 0.9; font-size: 1.1rem;">提升英语学习效率的实用工具集合</p>
+                </div>
+                
+                <div class="tools-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; padding: 0 20px;">
+                    ${toolsHtml}
+                </div>
             </div>
         `;
     }
