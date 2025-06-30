@@ -55,7 +55,7 @@ class Navigation {
         // 配置管理
         this.config = window.EnglishSite.ConfigManager?.createModuleConfig('navigation', {
             siteTitle: options.siteTitle || '互动学习平台',
-            debug: options.debug || false,
+            debug: options.debug || true, // 🔍 临时开启调试模式
             animationDuration: 250,
             maxLevels: 4,
             // 🆕 新增配置：内容管理
@@ -462,7 +462,7 @@ class Navigation {
             title: item.series || item.title,
             level: level,
             type: item.type || 'category',
-            children: [],
+            children: [], // 先初始化为空数组
             chapters: item.chapters || [],
             url: item.url,
             description: item.description,
@@ -470,11 +470,15 @@ class Navigation {
             openInNewTab: item.openInNewTab
         };
         
-        // 处理子项（支持3级结构）
+        // 🔑 修复：正确处理子项（支持3级结构）
         if (item.children && Array.isArray(item.children)) {
             normalized.children = item.children.map(child => 
                 this.normalizeNavItem(child, level + 1)
             );
+            
+            if (this.config.debug) {
+                console.log(`[Navigation] 📂 项目 "${normalized.title}" 有 ${normalized.children.length} 个子项`);
+            }
         }
         
         return normalized;
@@ -637,34 +641,55 @@ class Navigation {
     
     handleNavItemClick(itemId) {
         const item = this.findItemById(itemId);
-        if (!item) return;
+        if (!item) {
+            console.error('[Navigation] 找不到项目:', itemId);
+            return;
+        }
+        
+        if (this.config.debug) {
+            console.log('[Navigation] 🎯 点击项目:', item.title);
+            console.log('[Navigation] 📊 项目数据:', item);
+            console.log('[Navigation] 📂 子项数量:', item.children ? item.children.length : 0);
+            console.log('[Navigation] 📚 章节数量:', item.chapters ? item.chapters.length : 0);
+        }
         
         // 🎯 完全基于数据结构决定行为
         if (item.children && item.children.length > 0) {
             // 有子分类 → 展开子菜单（任意层级）
+            console.log('[Navigation] 🔄 展开子菜单，子项:', item.children);
             this.expandSubmenu(item);
         } else if (item.chapters && item.chapters.length > 0) {
             // 有文章列表 → 展开文章列表  
+            console.log('[Navigation] 📚 展开文章列表');
             this.expandSubmenu(item);
         } else {
             // 无子项 → 直接导航，关闭侧边栏
+            console.log('[Navigation] 🎯 直接导航');
             this.handleDirectNavigation(item);
         }
     }
     
     expandSubmenu(item) {
+        if (this.config.debug) {
+            console.log('[Navigation] 🔄 展开子菜单，项目:', item.title);
+            console.log('[Navigation] 📂 子项:', item.children);
+            console.log('[Navigation] 📚 章节:', item.chapters);
+        }
+        
         // 更新导航路径
         this.updateNavigationPath(item);
         
         // 渲染面包屑
         this.renderBreadcrumb();
         
-        // 根据数据类型渲染内容
+        // 🔑 修复：根据数据类型渲染内容
         if (item.children && item.children.length > 0) {
             // 渲染子分类
+            console.log('[Navigation] 🎯 渲染子分类列表');
             this.renderNavigationLevel(item.children, this.state.elements.submenuContent);
         } else if (item.chapters && item.chapters.length > 0) {
             // 渲染文章列表
+            console.log('[Navigation] 🎯 渲染文章列表');
             this.renderChaptersList(item.chapters, this.state.elements.submenuContent);
         }
         
@@ -807,23 +832,31 @@ class Navigation {
         }
     }
 
-    // === 🎭 子菜单显示/隐藏逻辑 ===
+    // === 🎭 子菜单显示/隐藏逻辑（修复动画方向）===
     
     showSubmenu() {
         const submenu = this.state.elements.submenuPanel;
         if (!submenu) return;
         
-        // 移除隐藏类，添加显示类
+        if (this.config.debug) {
+            console.log('[Navigation] 🎭 显示子菜单');
+        }
+        
+        // 🔑 修复：确保子菜单从右侧滑入
         submenu.classList.remove('hidden');
         submenu.classList.add('expanded');
         submenu.style.display = 'block';
         
+        // 🔑 关键修复：设置正确的初始位置和动画
+        submenu.style.transform = 'translateX(100%)'; // 初始位置在右侧
+        submenu.style.opacity = '0';
+        submenu.style.visibility = 'visible';
+        submenu.style.pointerEvents = 'auto';
+        
         // 强制重绘后应用显示样式
         requestAnimationFrame(() => {
-            submenu.style.transform = 'translateX(0)';
+            submenu.style.transform = 'translateX(0)'; // 滑入到正常位置
             submenu.style.opacity = '1';
-            submenu.style.visibility = 'visible';
-            submenu.style.pointerEvents = 'auto';
         });
     }
 
@@ -831,8 +864,12 @@ class Navigation {
         const submenu = this.state.elements.submenuPanel;
         if (!submenu) return;
         
-        // 立即开始隐藏动画
-        submenu.style.transform = 'translateX(100%)';
+        if (this.config.debug) {
+            console.log('[Navigation] 🎭 隐藏子菜单');
+        }
+        
+        // 🔑 修复：确保子菜单向右侧滑出
+        submenu.style.transform = 'translateX(100%)'; // 滑出到右侧
         submenu.style.opacity = '0';
         
         // 动画完成后完全隐藏
@@ -1595,4 +1632,60 @@ window.checkEventListeners = function() {
     }
     
     return '测试监听器已添加，即将触发事件...';
+};
+
+// 🔍 新增调试函数：检查导航结构
+window.debugNavigationStructure = function() {
+    if (window.app && window.app.navigation) {
+        const nav = window.app.navigation;
+        console.log('=== 🏗️ 导航结构调试 ===');
+        
+        nav.state.processedData.forEach((item, index) => {
+            console.log(`${index + 1}. ${item.title} (ID: ${item.id})`);
+            console.log(`   - 类型: ${item.type}`);
+            console.log(`   - 子项数量: ${item.children ? item.children.length : 0}`);
+            console.log(`   - 章节数量: ${item.chapters ? item.chapters.length : 0}`);
+            
+            if (item.children && item.children.length > 0) {
+                item.children.forEach((child, childIndex) => {
+                    console.log(`   └─ ${childIndex + 1}. ${child.title} (ID: ${child.id})`);
+                    console.log(`      - 章节数量: ${child.chapters ? child.chapters.length : 0}`);
+                    if (child.chapters && child.chapters.length > 0) {
+                        child.chapters.forEach((chapter, chapterIndex) => {
+                            console.log(`         └─ ${chapterIndex + 1}. ${chapter.title} (ID: ${chapter.id})`);
+                        });
+                    }
+                });
+            }
+            
+            if (item.chapters && item.chapters.length > 0) {
+                item.chapters.forEach((chapter, chapterIndex) => {
+                    console.log(`   └─ ${chapterIndex + 1}. ${chapter.title} (ID: ${chapter.id})`);
+                });
+            }
+        });
+        
+        return nav.state.processedData;
+    }
+    return null;
+};
+
+// 🔍 新增调试函数：测试BBC English点击
+window.testBBCEnglishClick = function() {
+    if (window.app && window.app.navigation) {
+        console.log('🧪 模拟点击 BBC English...');
+        const nav = window.app.navigation;
+        
+        // 查找BBC English项目
+        const bbcItem = nav.findItemById('bbc-english');
+        if (bbcItem) {
+            console.log('✅ 找到 BBC English:', bbcItem);
+            nav.handleNavItemClick('bbc-english');
+        } else {
+            console.error('❌ 找不到 BBC English 项目');
+        }
+        
+        return bbcItem;
+    }
+    return null;
 };
