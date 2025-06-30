@@ -387,11 +387,11 @@ body.sidebar-open {
 .sidebar-submenu {
     width: var(--submenu-panel-ratio);
     /* 🚨 修复：默认状态完全透明，无背景 */
-    background: transparent;
+    background: transparent !important;
     /* 🚨 修复：默认状态无边框 */
-    border-left: none;
+    border-left: none !important;
     /* 🚨 修复：完全隐藏 - 移出视野更远 */
-    transform: translateX(150%) translateZ(0);
+    transform: translateX(150%) translateZ(0) !important;
     transition: transform var(--submenu-transition), 
                 background var(--submenu-transition),
                 border var(--submenu-transition),
@@ -404,31 +404,31 @@ body.sidebar-open {
     contain: layout style;
     will-change: transform;
     /* 🚨 修复：默认状态完全不可见 */
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
     /* 🚨 修复：确保不占用空间 */
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
+    position: absolute !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
 }
 
 /* 🚨 修复：只有展开时才显示所有样式 */
 .sidebar-submenu.expanded {
     /* 显示位置 */
-    transform: translateX(0) translateZ(0);
+    transform: translateX(0) translateZ(0) !important;
     /* 显示背景和边框 */
-    background: var(--sidebar-bg-secondary);
-    border-left: 1px solid rgba(0, 0, 0, 0.04);
+    background: var(--sidebar-bg-secondary) !important;
+    border-left: 1px solid rgba(0, 0, 0, 0.04) !important;
     /* 显示可见性 */
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
     /* 恢复相对位置 */
-    position: relative;
+    position: relative !important;
     /* 添加圆角 */
-    border-radius: 0 16px 16px 0;
+    border-radius: 0 16px 16px 0 !important;
 }
 
 .submenu-header {
