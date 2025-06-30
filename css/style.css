@@ -1,5 +1,5 @@
 /* ==========================================================================
-   完整CSS - 侧边导航 + 遮挡问题修复版 v3.0 + 品牌头部居中优化
+   完整CSS - 侧边导航 + 边框修复 + 点击关闭优化版 v3.1
    ========================================================================== */
 
 /* === 1. CSS变量（性能优化）=== */
@@ -104,6 +104,11 @@ body {
     transition: background-color var(--transition-normal), color var(--transition-normal);
     transform: translateZ(0);
     will-change: background-color, color;
+}
+
+/* 🚨 新增：body状态管理 */
+body.sidebar-open {
+    overflow: hidden;
 }
 
 /* === 3. 🚨 全宽顶部栏（确保正确层级）=== */
@@ -227,44 +232,6 @@ body {
     color: var(--text-light);
 }
 
-/* 与侧边栏导航的兼容性 */
-.sidebar-container.open ~ .site-header .brand-header {
-    /* 确保在侧边栏打开时品牌头部仍然正常显示 */
-    position: relative;
-    z-index: 100;
-}
-
-/* 确保品牌头部在固定头部设置下正常工作 */
-.site-header.smart-header .brand-header {
-    position: relative;
-    width: 100%;
-}
-
-/* 如果品牌标题需要被键盘导航 */
-.brand-title:focus {
-    outline: 2px solid var(--primary, #007bff);
-    outline-offset: 4px;
-    border-radius: 4px;
-}
-
-/* 确保品牌头部不被其他浮动元素覆盖 */
-.brand-header {
-    clear: both;
-    position: relative;
-    overflow: visible;
-    contain: layout style;
-}
-
-/* 在有侧边栏的页面中确保正确显示 */
-body.sidebar-open .brand-header {
-    position: relative;
-    z-index: 100;
-}
-
-.brand-container {
-    contain: layout;
-}
-
 /* 🚨 汉堡菜单按钮（确保可见和可交互）*/
 .nav-toggle {
     position: absolute;
@@ -342,7 +309,7 @@ body.sidebar-open .brand-header {
     contain: layout;
 }
 
-/* === 4. 🚨 侧边栏容器（完全修复遮挡问题）=== */
+/* === 4. 🚨 侧边栏容器（完全修复遮挡问题 + 边框优化）=== */
 .sidebar-container {
     position: fixed;
     top: 60px;
@@ -364,6 +331,10 @@ body.sidebar-open .brand-header {
     will-change: transform;
     backface-visibility: hidden;
     perspective: 1000px;
+    /* 🚨 边框修复：添加圆角和优化阴影 */
+    border-radius: 0 16px 16px 0;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+    overflow: hidden; /* 确保圆角生效并隐藏内部边框 */
 }
 
 /* 🚨 修复：打开状态正确显示 */
@@ -383,11 +354,13 @@ body.sidebar-open .brand-header {
     pointer-events: none !important;
 }
 
-/* === 5. 主导航面板 === */
+/* === 5. 🚨 主导航面板（边框修复）=== */
 .sidebar-main {
     width: var(--main-panel-ratio);
     background: var(--sidebar-bg);
-    border-right: 1px solid var(--sidebar-border);
+    /* 🚨 边框修复：移除右边框，使用内阴影替代 */
+    border-right: none;
+    box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.05);
     overflow-y: auto;
     overflow-x: hidden;
     flex-shrink: 0;
@@ -395,6 +368,13 @@ body.sidebar-open .brand-header {
     overscroll-behavior: contain;
     transform: translateZ(0);
     contain: layout style;
+    /* 🚨 添加：圆角适配 */
+    border-radius: 0 0 0 0;
+}
+
+/* 🚨 边框修复：只在子菜单展开时显示分割效果 */
+.sidebar-container:has(.sidebar-submenu.expanded) .sidebar-main {
+    box-shadow: inset -2px 0 4px rgba(0, 0, 0, 0.08);
 }
 
 .sidebar-nav-content {
@@ -403,11 +383,12 @@ body.sidebar-open .brand-header {
     contain: layout;
 }
 
-/* === 6. 子菜单面板 === */
+/* === 6. 🚨 子菜单面板（边框优化）=== */
 .sidebar-submenu {
     width: var(--submenu-panel-ratio);
     background: var(--sidebar-bg-secondary);
-    border-left: 1px solid var(--sidebar-border);
+    /* 🚨 边框修复：使用更柔和的左边框 */
+    border-left: 1px solid rgba(0, 0, 0, 0.04);
     transform: translateX(100%) translateZ(0);
     transition: transform var(--submenu-transition);
     overflow-y: auto;
@@ -417,6 +398,8 @@ body.sidebar-open .brand-header {
     overscroll-behavior: contain;
     contain: layout style;
     will-change: transform;
+    /* 🚨 添加：圆角适配 */
+    border-radius: 0 16px 16px 0;
 }
 
 .sidebar-submenu.expanded {
@@ -425,7 +408,7 @@ body.sidebar-open .brand-header {
 
 .submenu-header {
     padding: 16px 20px;
-    border-bottom: 1px solid var(--sidebar-border);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
     background: var(--sidebar-bg);
     position: sticky;
     top: 0;
@@ -469,7 +452,7 @@ body.sidebar-open .brand-header {
     contain: layout;
 }
 
-/* === 7. 🚨 背景遮罩（正确控制）=== */
+/* === 7. 🚨 背景遮罩（完全修复点击关闭）=== */
 .sidebar-overlay {
     position: fixed;
     top: 60px;
@@ -480,12 +463,18 @@ body.sidebar-open .brand-header {
     opacity: 0;
     visibility: hidden;
     transition: opacity var(--transition-slow), visibility var(--transition-slow);
+    /* 🚨 修复：确保overlay在侧边栏下方但能接收点击 */
     z-index: 998;
     backdrop-filter: blur(2px);
     transform: translateZ(0);
     will-change: opacity;
-    /* 🚨 修复：默认不可交互 */
+    /* 🚨 修复：默认不可交互，避免阻挡其他元素 */
     pointer-events: none;
+    /* 🚨 修复：添加鼠标提示 */
+    cursor: pointer;
+    /* 🚨 修复：确保完全覆盖 */
+    width: 100vw;
+    height: 100vh;
 }
 
 .sidebar-overlay.visible {
@@ -493,6 +482,17 @@ body.sidebar-open .brand-header {
     visibility: visible;
     /* 🚨 修复：可见时可交互 */
     pointer-events: auto;
+}
+
+/* 🚨 修复：确保overlay在移动端也能正常工作 */
+.sidebar-overlay::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
 }
 
 /* === 8. 导航项样式 === */
@@ -507,7 +507,7 @@ body.sidebar-open .brand-header {
     letter-spacing: 0.5px;
     cursor: default;
     user-select: none;
-    border-bottom: 1px solid var(--sidebar-border);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
     margin-bottom: 4px;
     contain: layout style;
 }
@@ -635,7 +635,7 @@ body.sidebar-open .brand-header {
 /* 分割线 */
 .nav-separator {
     height: 1px;
-    background: var(--sidebar-border);
+    background: rgba(0, 0, 0, 0.06);
     margin: 12px 24px;
     contain: layout;
 }
@@ -1063,7 +1063,7 @@ body.sidebar-open .brand-header {
 .element-visible { display: block; }
 .element-hidden { display: none; }
 
-/* === 15. 音频播放器 === */
+/* === 15. 音频播放器（修复z-index冲突）=== */
 #player-section {
     position: fixed;
     bottom: 0;
@@ -1073,19 +1073,25 @@ body.sidebar-open .brand-header {
     padding: 0 16px;
     background: rgba(20, 20, 20, 0.95);
     backdrop-filter: blur(6px);
-    z-index: 10000;
+    /* 🚨 修复：降低z-index，避免覆盖头部 */
+    z-index: 999;
     box-shadow: 0 -3px 15px rgba(0, 0, 0, 0.5);
-    /* ✅ 移除了 display: flex; 让JavaScript控制显示/隐藏 */
+    /* 🚨 修复：默认隐藏 */
+    display: none;
     align-items: center;
     justify-content: center;
     transform: translateZ(0);
     contain: layout style;
+    /* 🚨 修复：确保不影响页面流 */
+    pointer-events: none;
 }
 
-/* ✅ 当JavaScript显示音频播放器时，确保使用flex布局来居中对齐 */
+/* 🚨 修复：显示状态时启用交互 */
+#player-section.visible,
 #player-section[style*="display: block"],
 #player-section[style*="display: flex"] {
     display: flex !important;
+    pointer-events: auto;
 }
 
 #player-section audio {
@@ -1251,7 +1257,7 @@ body.sidebar-open .brand-header {
     
     /* 品牌头部大屏幕优化 */
     .brand-title {
-        font-size: 3rem; /* 大屏幕更大的字体 */
+        font-size: 3rem;
     }
     
     .brand-en {
@@ -1285,7 +1291,7 @@ body.sidebar-open .brand-header {
     .chapter-info p { font-size: 17px; }
 }
 
-/* 🚨 移动端（触摸优化 + 遮挡修复）*/
+/* 🚨 移动端（触摸优化 + 遮挡修复 + 点击关闭优化）*/
 @media (max-width: 768px) {
     body { 
         overflow-x: hidden; 
@@ -1318,6 +1324,16 @@ body.sidebar-open .brand-header {
     .sidebar-container.open,
     .sidebar-container[data-state="open"] {
         transform: translateX(0) translateZ(0);
+    }
+    
+    /* 🚨 移动端overlay优化 */
+    .sidebar-overlay {
+        /* 确保overlay覆盖整个屏幕 */
+        top: 0; /* 从屏幕顶部开始，不是从头部下方 */
+        width: 100vw;
+        height: 100vh;
+        /* 增加触摸区域 */
+        touch-action: manipulation;
     }
     
     .nav-item {
@@ -1391,12 +1407,12 @@ body.sidebar-open .brand-header {
     
     .brand-title {
         font-size: 2rem;
-        gap: 0; /* 保持无间距 */
+        gap: 0;
     }
     
     .brand-en {
         font-size: 1.2rem;
-        margin-left: -0.08em; /* 移动端稍微调整负边距 */
+        margin-left: -0.08em;
     }
 }
 
@@ -1438,13 +1454,13 @@ body.sidebar-open .brand-header {
     
     .brand-title {
         font-size: 1.75rem;
-        gap: 0; /* 保持无间距，让它们像一个单词 */
-        align-items: baseline; /* 保持基线对齐 */
+        gap: 0;
+        align-items: baseline;
     }
     
     .brand-en {
         font-size: 1rem;
-        margin-left: -0.06em; /* 小屏幕更精细的调整 */
+        margin-left: -0.06em;
     }
 }
 
@@ -1627,6 +1643,13 @@ body.sidebar-open .brand-header {
     .sidebar-submenu::-webkit-scrollbar {
         width: 8px;
     }
+    
+    /* 🚨 触摸设备overlay优化 */
+    .sidebar-overlay {
+        /* 增加触摸响应面积 */
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+        touch-action: manipulation;
+    }
 }
 
 /* === 21. 打印样式 === */
@@ -1681,27 +1704,32 @@ body.sidebar-open .brand-header {
 
 /* === 22. 🚀 调试模式（开发环境可启用）=== */
 .debug .sidebar-container {
-    border: 2px solid red;
+    border: 2px solid red !important;
 }
 
 .debug .sidebar-main {
-    border: 1px solid blue;
+    border: 1px solid blue !important;
 }
 
 .debug .sidebar-submenu {
-    border: 1px solid green;
+    border: 1px solid green !important;
 }
 
 .debug .nav-item {
-    border: 1px dotted orange;
+    border: 1px dotted orange !important;
 }
 
 .debug .brand-header {
-    border: 2px solid purple;
+    border: 2px solid purple !important;
 }
 
 .debug .brand-title {
-    border: 1px dotted red;
+    border: 1px dotted red !important;
+}
+
+.debug .sidebar-overlay {
+    background: rgba(255, 0, 0, 0.2) !important;
+    border: 3px dashed red !important;
 }
 
 .debug-mode .highlighted-minimal {
