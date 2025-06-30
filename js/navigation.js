@@ -143,8 +143,17 @@ class Navigation {
     // 🆕 新增方法：加载默认内容
     async loadDefaultContent() {
         if (this.config.defaultContentType === 'all-articles') {
-            // 显示所有文章页面
-            this.showAllArticles();
+            // 优先显示从navigation.json配置的文章
+            const allChapters = this.getAllChapters();
+            
+            if (allChapters.length > 0) {
+                this.showAllArticles();
+            } else {
+                // 如果没有配置数据，尝试自动发现chapters文件夹中的文件
+                console.log('[Navigation] 🔍 未找到配置的章节，尝试自动发现chapters文件夹...');
+                await this.displayAutoDiscoveredChapters();
+            }
+            
             this.state.isMainPage = true;
             
             if (this.config.debug) {
@@ -1251,7 +1260,7 @@ class Navigation {
 
     // === 📊 增强的兼容性方法 ===
     
-    // 🆕 增强方法：获取所有章节
+    // 🆕 增强方法：获取所有章节（直接对应chapters文件夹）
     getAllChapters() {
         const allChapters = [];
         this.walkDataTree(this.state.processedData, (item) => {
@@ -1260,6 +1269,147 @@ class Navigation {
             }
         });
         return allChapters;
+    }
+
+    // 🆕 新增方法：从chapters文件夹自动发现文章（辅助工具）
+    async autoDiscoverChapters() {
+        // 由于浏览器安全限制，无法直接扫描文件夹
+        // 提供一个辅助方法，用户可以手动调用来测试chapters文件夹中的文件
+        const commonChapterIds = [
+            'introduction', 'getting-started', 'basics', 'intermediate', 'advanced',
+            'chapter1', 'chapter2', 'chapter3', 'chapter4', 'chapter5',
+            'lesson1', 'lesson2', 'lesson3', 'lesson4', 'lesson5'
+        ];
+        
+        const discoveredChapters = [];
+        
+        for (const id of commonChapterIds) {
+            try {
+                const response = await fetch(`chapters/${id}.html`);
+                if (response.ok) {
+                    const content = await response.text();
+                    // 尝试从HTML中提取标题
+                    const titleMatch = content.match(/<title>(.*?)<\/title>/i) || 
+                                     content.match(/<h1[^>]*>(.*?)<\/h1>/i);
+                    const title = titleMatch ? titleMatch[1].trim() : id.charAt(0).toUpperCase() + id.slice(1);
+                    
+                    discoveredChapters.push({
+                        id: id,
+                        title: title,
+                        description: `来自chapters/${id}.html`
+                    });
+                }
+            } catch (error) {
+                // 文件不存在，跳过
+            }
+        }
+        
+        if (this.config.debug) {
+            console.log('[Navigation] 🔍 自动发现的章节:', discoveredChapters);
+        }
+        
+        return discoveredChapters;
+    }
+
+    // 🆕 新增方法：使用自动发现的章节更新显示
+    async displayAutoDiscoveredChapters() {
+        const discoveredChapters = await this.autoDiscoverChapters();
+        
+        if (discoveredChapters.length === 0) {
+            this.contentArea.innerHTML = `
+                <div class="no-chapters-message">
+                    <h2>未找到章节文件</h2>
+                    <p>请确保chapters文件夹中有HTML文件，或在navigation.json中配置章节信息。</p>
+                    <p>支持的文件名格式：chapter1.html, lesson1.html, introduction.html 等</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // 生成简洁的文章列表卡片（保持原格式）
+        const chaptersHtml = discoveredChapters.map(chapter => `
+            <div class="chapter-card" onclick="window.app.navigation.navigateToChapter('${chapter.id}')">
+                <h3>${chapter.title}</h3>
+                <p>${chapter.description}</p>
+            </div>
+        `).join('');
+        
+        this.contentArea.innerHTML = `
+            <div class="chapters-list">
+                ${chaptersHtml}
+            </div>
+        `;
+    }
+
+    // 🆕 新增方法：手动设置chapters文件夹中的文件列表
+    setChaptersList(chapterFiles) {
+        // 用户可以手动提供chapters文件夹中的文件列表
+        // chapterFiles 格式: ['chapter1.html', 'lesson1.html', 'introduction.html']
+        const manualChapters = chapterFiles.map(filename => {
+            const id = filename.replace('.html', '');
+            const title = id.charAt(0).toUpperCase() + id.slice(1).replace(/[-_]/g, ' ');
+            return {
+                id: id,
+                title: title,
+                description: `来自chapters/${filename}`
+            };
+        });
+        
+        // 更新chapters映射
+        manualChapters.forEach(chapter => {
+            this.state.chaptersMap.set(chapter.id, chapter);
+        });
+        
+        // 显示文章列表
+        const chaptersHtml = manualChapters.map(chapter => `
+            <div class="chapter-card" onclick="window.app.navigation.navigateToChapter('${chapter.id}')">
+                <h3>${chapter.title}</h3>
+                <p>${chapter.description}</p>
+            </div>
+        `).join('');
+        
+        this.contentArea.innerHTML = `
+            <div class="chapters-list">
+                ${chaptersHtml}
+            </div>
+        `;
+        
+        this.state.hasInitialContent = true;
+        this.state.isMainPage = true;
+        
+        if (this.config.debug) {
+            console.log('[Navigation] 📁 手动设置的章节列表:', manualChapters);
+        }
+    }
+
+    // 🆕 新增方法：使用自动发现的章节更新显示
+    async displayAutoDiscoveredChapters() {
+        const discoveredChapters = await this.autoDiscoverChapters();
+        
+        if (discoveredChapters.length === 0) {
+            this.contentArea.innerHTML = `
+                <div class="no-chapters-message">
+                    <h2>未找到章节文件</h2>
+                    <p>请确保chapters文件夹中有HTML文件，或在navigation.json中配置章节信息。</p>
+                    <p>支持的文件名格式：chapter1.html, lesson1.html, introduction.html 等</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // 生成简洁的文章列表卡片
+        const chaptersHtml = discoveredChapters.map(chapter => `
+            <div class="chapter-card" onclick="window.app.navigation.navigateToChapter('${chapter.id}')">
+                <h3>${chapter.title}</h3>
+                <p>${chapter.description}</p>
+            </div>
+        `).join('');
+        
+        this.contentArea.innerHTML = `
+            <div class="chapters-list">
+                ${chaptersHtml}
+            </div>
+        `;
     }
 
     showAllArticles() {
@@ -1278,7 +1428,7 @@ class Navigation {
         }, 100);
     }
 
-    // 🆕 新增方法：显示所有文章页面
+    // 🆕 新增方法：显示所有文章页面（保持原格式）
     displayAllArticlesPage() {
         const allChapters = this.getAllChapters();
         
@@ -1287,54 +1437,18 @@ class Navigation {
             return;
         }
         
-        // 按系列分组
-        const chaptersBySeries = new Map();
-        this.walkDataTree(this.state.processedData, (item) => {
-            if (item.chapters && item.chapters.length > 0) {
-                chaptersBySeries.set(item.id, {
-                    series: item,
-                    chapters: item.chapters
-                });
-            }
-        });
+        // 生成简洁的文章列表卡片（保持原格式）
+        const chaptersHtml = allChapters.map(chapter => `
+            <div class="chapter-card" onclick="window.app.navigation.navigateToChapter('${chapter.id}')">
+                <h3>${chapter.title}</h3>
+                <p>${chapter.description || ''}</p>
+            </div>
+        `).join('');
         
-        const seriesHtml = Array.from(chaptersBySeries.values())
-            .map(({ series, chapters }) => `
-                <div class="series-section" style="margin-bottom: 40px;">
-                    <h2 style="color: #333; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 3px solid #667eea;">
-                        ${series.title}
-                    </h2>
-                    <div class="chapters-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
-                        ${chapters.map(chapter => `
-                            <div class="chapter-card" onclick="window.app.navigation.navigateToChapter('${chapter.id}')" 
-                                 style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); cursor: pointer; transition: all 0.2s ease; border: 2px solid transparent;"
-                                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0, 0, 0, 0.15)'; this.style.borderColor='#667eea';" 
-                                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0, 0, 0, 0.1)'; this.style.borderColor='transparent';">
-                                <h3 style="margin-bottom: 8px; color: #333; font-size: 1.1rem;">${chapter.title}</h3>
-                                <p style="color: #666; font-size: 0.9rem; margin: 0;">${chapter.description || '点击查看详细内容'}</p>
-                                ${chapter.difficulty ? `<div style="margin-top: 8px;"><span style="background: #e9ecef; color: #495057; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem;">难度: ${chapter.difficulty}</span></div>` : ''}
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `).join('');
-        
+        // 直接显示文章列表，不添加额外装饰
         this.contentArea.innerHTML = `
-            <div class="all-articles-page">
-                <div class="page-header" style="text-align: center; margin-bottom: 40px; padding: 40px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px;">
-                    <div style="font-size: 3rem; margin-bottom: 20px;">📚</div>
-                    <h1 style="margin-bottom: 16px; font-size: 2.5rem;">所有文章</h1>
-                    <p style="opacity: 0.9; font-size: 1.1rem;">探索我们精心准备的所有学习内容</p>
-                    <div style="margin-top: 20px;">
-                        <span style="background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-size: 0.9rem;">
-                            共 ${allChapters.length} 篇文章 • ${chaptersBySeries.size} 个系列
-                        </span>
-                    </div>
-                </div>
-                
-                <div class="articles-content" style="padding: 0 20px;">
-                    ${seriesHtml}
-                </div>
+            <div class="chapters-list">
+                ${chaptersHtml}
             </div>
         `;
     }
@@ -1490,6 +1604,24 @@ window.navigateToWordFrequency = function() {
 window.closeSidebarNavigation = function() {
     if (window.app && window.app.navigation && window.app.navigation.state.isOpen) {
         window.app.navigation.close();
+        return true;
+    }
+    return false;
+};
+
+// 🆕 新增全局函数：设置chapters文件夹内容
+window.setChaptersFromFolder = function(chapterFiles) {
+    if (window.app && window.app.navigation) {
+        window.app.navigation.setChaptersList(chapterFiles);
+        return true;
+    }
+    return false;
+};
+
+// 🆕 新增全局函数：自动发现chapters文件夹内容
+window.autoDiscoverChapters = async function() {
+    if (window.app && window.app.navigation) {
+        await window.app.navigation.displayAutoDiscoveredChapters();
         return true;
     }
     return false;
