@@ -1,295 +1,85 @@
 [
-    {
-        "series": "快速访问",
-        "seriesId": "quick-access",
-        "type": "direct",
-        "description": "快速访问常用功能"
-    },
-
-    
-    {
-        "series": "工具页面",
-        "seriesId": "tools",
-        "type": "tools",
-        "url": "tools.html",
-        "description": "实用的学习工具集合"
-    },
-    
-    {
-        "series": "外部资源",
-        "seriesId": "external",
-        "type": "external",
-        "url": "https://www.bbc.co.uk/learningenglish",
-        "description": "BBC学习英语官网",
-        "openInNewTab": true
-    },
-    
-    {
-        "series": "每日英语",
-        "seriesId": "daily-english",
-        "description": "每日更新的英语学习内容",
-        "thumbnail": "images/daily-english.jpg",
+  {
+    "series": "All articles",
+    "seriesId": "all-articles",
+    "type": "all-articles",
+    "description": "查看所有学习内容的完整列表"
+  },
+  {
+    "series": "BBC English",
+    "seriesId": "bbc-english", 
+    "description": "BBC English learning series",
+    "children": [
+      {
+        "id": "6-minutes",
+        "title": "6 Minutes English",
+        "description": "Short BBC learning episodes",
+        "level": 2,
         "chapters": [
-            {
-                "id": "daily-1",
-                "title": "今日词汇：科技术语",
-                "description": "学习科技相关的新词汇",
-                "url": "chapters/daily-1.html",
-                "thumbnail": "images/daily-vocab.jpg",
-                "audio": true,
-                "audioFile": "audio/daily-1.mp3",
-                "srtFile": "srt/daily-1.srt",
-                "duration": "5:30",
-                "difficulty": "intermediate",
-                "tags": ["vocabulary", "technology"],
-                "publishDate": "2024-01-15"
-            },
-            {
-                "id": "daily-2", 
-                "title": "今日语法：时态复习",
-                "description": "复习英语时态的使用",
-                "url": "chapters/daily-2.html",
-                "thumbnail": "images/daily-grammar.jpg",
-                "audio": false,
-                "difficulty": "beginner",
-                "tags": ["grammar", "tenses"],
-                "publishDate": "2024-01-16"
-            }
+          {
+            "id": "chap1",
+            "title": "What's your favourite kind of noodle?",
+            "description": "Learn about food preferences and cultural differences",
+            "audio": "audio/chap1.mp3",
+            "thumbnail": "https://img.youtube.com/vi/aOiuSsnWEik/maxresdefault.jpg",
+            "type": "chapter"
+          },
+          {
+            "id": "chap2",
+            "title": "How important is politeness?", 
+            "description": "Explore the role of politeness in communication",
+            "audio": "audio/chap2.mp3",
+            "thumbnail": "https://img.youtube.com/vi/5wynL5ttotw/maxresdefault.jpg",
+            "type": "chapter"
+          },
+          {
+            "id": "chap3",
+            "title": "Is punctuality important?",
+            "description": "Discussion about time management and cultural attitudes",
+            "audio": "audio/chap3.mp3", 
+            "thumbnail": "https://img.youtube.com/vi/xyz123/maxresdefault.jpg",
+            "type": "chapter"
+          }
         ]
-    },
-    
-    {
-        "series": "新闻英语",
-        "seriesId": "news-english",
-        "description": "通过新闻学习英语",
-        "thumbnail": "images/news-category.jpg",
-        "children": [
-            {
-                "series": "BBC新闻",
-                "seriesId": "bbc-news",
-                "description": "BBC英语学习资源",
-                "thumbnail": "images/bbc-logo.jpg",
-                "website": "https://www.bbc.co.uk/learningenglish",
-                "children": [
-                    {
-                        "series": "6分钟英语",
-                        "seriesId": "6-minute-english",
-                        "description": "每期6分钟的英语学习节目",
-                        "thumbnail": "images/6min-series.jpg",
-                        "totalEpisodes": 150,
-                        "updateFrequency": "weekly",
-                        "chapters": [
-                            {
-                                "id": "6min-climate-change",
-                                "title": "Climate Change Discussion",
-                                "description": "讨论全球气候变化的影响和解决方案",
-                                "url": "chapters/6min-climate-change.html",
-                                "thumbnail": "images/climate-change.jpg",
-                                "audio": true,
-                                "audioFile": "audio/6min-climate-change.mp3",
-                                "srtFile": "srt/6min-climate-change.srt",
-                                "duration": "6:12",
-                                "difficulty": "upper-intermediate",
-                                "tags": ["environment", "discussion", "current-affairs"],
-                                "publishDate": "2024-01-10",
-                                "transcript": "transcripts/6min-climate-change.txt",
-                                "vocabulary": [
-                                    {"word": "sustainability", "definition": "能够持续的"},
-                                    {"word": "emission", "definition": "排放"}
-                                ],
-                                "relatedEpisodes": ["6min-green-energy", "6min-pollution"]
-                            },
-                            {
-                                "id": "6min-artificial-intelligence", 
-                                "title": "Artificial Intelligence in Daily Life",
-                                "description": "探讨人工智能如何改变我们的日常生活",
-                                "url": "chapters/6min-artificial-intelligence.html",
-                                "thumbnail": "images/ai-daily-life.jpg",
-                                "audio": true,
-                                "audioFile": "audio/6min-artificial-intelligence.mp3",
-                                "srtFile": "srt/6min-artificial-intelligence.srt", 
-                                "duration": "6:05",
-                                "difficulty": "intermediate",
-                                "tags": ["technology", "AI", "future"],
-                                "publishDate": "2024-01-17",
-                                "transcript": "transcripts/6min-artificial-intelligence.txt",
-                                "externalUrl": "https://www.bbc.co.uk/learningenglish/features/6-minute-english/ep-240117"
-                            }
-                        ]
-                    },
-                    {
-                        "series": "BBC Learning English",
-                        "seriesId": "bbc-learning",
-                        "description": "BBC官方英语学习课程",
-                        "thumbnail": "images/bbc-learning.jpg",
-                        "chapters": [
-                            {
-                                "id": "bbc-grammar-1",
-                                "title": "英语语法基础",
-                                "description": "从基础开始学习英语语法",
-                                "url": "chapters/bbc-grammar-1.html",
-                                "audio": true,
-                                "audioFile": "audio/bbc-grammar-1.mp3",
-                                "difficulty": "beginner",
-                                "tags": ["grammar", "basics"]
-                            }
-                        ]
-                    }
-                ]
-            },
-            {
-                "series": "CNN新闻", 
-                "seriesId": "cnn-news",
-                "description": "CNN英语新闻学习",
-                "thumbnail": "images/cnn-logo.jpg",
-                "website": "https://edition.cnn.com",
-                "chapters": [
-                    {
-                        "id": "cnn-international-1",
-                        "title": "International News Summary",
-                        "description": "国际新闻摘要和分析",
-                        "url": "chapters/cnn-international-1.html",
-                        "thumbnail": "images/international-news.jpg",
-                        "audio": true,
-                        "audioFile": "audio/cnn-international-1.mp3",
-                        "srtFile": "srt/cnn-international-1.srt",
-                        "duration": "8:45",
-                        "difficulty": "advanced",
-                        "tags": ["news", "international", "politics"],
-                        "publishDate": "2024-01-18",
-                        "sourceUrl": "https://edition.cnn.com/2024/01/18/world/international-news"
-                    }
-                ]
-            }
-        ]
-    },
-    
-    {
-        "series": "互动工具",
-        "seriesId": "interactive-tools", 
-        "description": "在线互动学习工具",
-        "type": "tools-category",
+      },
+      {
+        "id": "learning-english",
+        "title": "Learning English",
+        "description": "Grammar and vocabulary lessons",
+        "level": 2,
         "chapters": [
-            {
-                "id": "word-frequency",
-                "title": "词频统计分析",
-                "description": "分析网站内容的词汇频率，生成学习重点",
-                "type": "tool",
-                "url": "word-frequency.html",
-                "thumbnail": "images/word-frequency-tool.jpg",
-                "icon": "📊",
-                "features": ["词频分析", "词云生成", "学习建议"],
-                "openInNewTab": false
-            },
-            {
-                "id": "pronunciation-practice",
-                "title": "发音练习器", 
-                "description": "在线发音练习和评估工具",
-                "type": "tool",
-                "url": "pronunciation.html",
-                "thumbnail": "images/pronunciation-tool.jpg",
-                "icon": "🎤",
-                "features": ["语音识别", "发音评分", "练习记录"],
-                "openInNewTab": false
-            },
-            {
-                "id": "external-dictionary",
-                "title": "在线词典",
-                "description": "专业的英语学习词典",
-                "type": "external-tool",
-                "url": "https://dictionary.cambridge.org",
-                "thumbnail": "images/cambridge-dict.jpg", 
-                "icon": "📚",
-                "openInNewTab": true,
-                "features": ["权威释义", "发音音频", "例句丰富"]
-            }
+          {
+            "id": "grammar1",
+            "title": "Present Perfect Tense",
+            "description": "Understanding present perfect usage",
+            "audio": "audio/grammar1.mp3",
+            "thumbnail": "https://img.youtube.com/vi/abc456/maxresdefault.jpg",
+            "type": "chapter"
+          }
         ]
-    },
-    
-    {
-        "series": "考试专区",
-        "seriesId": "exams",
-        "description": "各类英语考试备考资料",
-        "thumbnail": "images/exams-category.jpg",
-        "children": [
-            {
-                "series": "雅思 IELTS",
-                "seriesId": "ielts",
-                "description": "雅思考试全面备考",
-                "thumbnail": "images/ielts-logo.jpg",
-                "officialWebsite": "https://www.ielts.org",
-                "children": [
-                    {
-                        "series": "听力 Listening",
-                        "seriesId": "ielts-listening",
-                        "description": "雅思听力专项训练",
-                        "totalParts": 4,
-                        "chapters": [
-                            {
-                                "id": "ielts-listening-part1-practice1",
-                                "title": "Part 1 - 日常对话练习",
-                                "description": "雅思听力Part 1针对性练习",
-                                "url": "chapters/ielts-listening-part1-practice1.html",
-                                "audio": true,
-                                "audioFile": "audio/ielts-listening-part1-practice1.mp3",
-                                "duration": "4:30",
-                                "difficulty": "intermediate",
-                                "examPart": "Part 1",
-                                "questionTypes": ["填空题", "选择题"],
-                                "practiceAnswers": "answers/ielts-listening-part1-practice1.json"
-                            }
-                        ]
-                    },
-                    {
-                        "series": "口语 Speaking",
-                        "seriesId": "ielts-speaking",
-                        "description": "雅思口语考试准备",
-                        "chapters": [
-                            {
-                                "id": "ielts-speaking-introduction",
-                                "title": "Part 1 - 自我介绍",
-                                "description": "雅思口语Part 1自我介绍技巧和练习",
-                                "url": "chapters/ielts-speaking-introduction.html",
-                                "audio": true,
-                                "audioFile": "audio/ielts-speaking-introduction.mp3",
-                                "videoFile": "videos/ielts-speaking-introduction.mp4",
-                                "duration": "3:45",
-                                "difficulty": "beginner",
-                                "examPart": "Part 1",
-                                "sampleQuestions": [
-                                    "Tell me about yourself",
-                                    "Where are you from?",
-                                    "What do you do for work or study?"
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            },
-            {
-                "series": "托福 TOEFL",
-                "seriesId": "toefl", 
-                "description": "托福考试备考资料",
-                "thumbnail": "images/toefl-logo.jpg",
-                "officialWebsite": "https://www.ets.org/toefl",
-                "chapters": [
-                    {
-                        "id": "toefl-integrated-writing",
-                        "title": "综合写作练习",
-                        "description": "托福综合写作题型练习和技巧",
-                        "url": "chapters/toefl-integrated-writing.html",
-                        "audio": true,
-                        "audioFile": "audio/toefl-integrated-writing.mp3",
-                        "readingMaterial": "materials/toefl-reading-passage.txt",
-                        "duration": "20:00",
-                        "difficulty": "advanced",
-                        "examSection": "Writing",
-                        "timeLimit": "20 minutes",
-                        "wordLimit": "150-225 words"
-                    }
-                ]
-            }
+      }
+    ]
+  },
+  {
+    "series": "CNN English",
+    "seriesId": "cnn-english",
+    "description": "CNN news-based English learning",
+    "children": [
+      {
+        "id": "news-digest",
+        "title": "Daily News",
+        "description": "Current events and vocabulary",
+        "level": 2,
+        "chapters": [
+          {
+            "id": "news1",
+            "title": "Technology Trends 2024",
+            "description": "Latest developments in technology",
+            "thumbnail": "https://img.youtube.com/vi/tech2024/maxresdefault.jpg",
+            "type": "chapter"
+          }
         ]
-    }
+      }
+    ]
+  }
 ]
-
