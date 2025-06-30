@@ -1075,11 +1075,17 @@ body.sidebar-open .brand-header {
     backdrop-filter: blur(6px);
     z-index: 10000;
     box-shadow: 0 -3px 15px rgba(0, 0, 0, 0.5);
-    display: flex;
+    /* ✅ 移除了 display: flex; 让JavaScript控制显示/隐藏 */
     align-items: center;
     justify-content: center;
     transform: translateZ(0);
     contain: layout style;
+}
+
+/* ✅ 当JavaScript显示音频播放器时，确保使用flex布局来居中对齐 */
+#player-section[style*="display: block"],
+#player-section[style*="display: flex"] {
+    display: flex !important;
 }
 
 #player-section audio {
