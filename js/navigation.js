@@ -1360,16 +1360,21 @@ class Navigation {
             this.state.chaptersMap.set(chapter.id, chapter);
         });
         
-        // 显示文章列表
+        // 显示文章列表（使用原有样式结构）
         const chaptersHtml = manualChapters.map(chapter => `
-            <div class="chapter-card" onclick="window.app.navigation.navigateToChapter('${chapter.id}')">
-                <h3>${chapter.title}</h3>
-                <p>${chapter.description}</p>
+            <div class="chapter-overview-item">
+                <a href="#" onclick="window.app.navigation.navigateToChapter('${chapter.id}'); return false;">
+                    ${chapter.thumbnail ? `<img src="${chapter.thumbnail}" alt="${chapter.title}" class="chapter-thumbnail">` : ''}
+                    <div class="chapter-info">
+                        <h3>${chapter.title}</h3>
+                        <p>${chapter.description}</p>
+                    </div>
+                </a>
             </div>
         `).join('');
         
         this.contentArea.innerHTML = `
-            <div class="chapters-list">
+            <div class="chapter-list-overview">
                 ${chaptersHtml}
             </div>
         `;
@@ -1382,7 +1387,7 @@ class Navigation {
         }
     }
 
-    // 🆕 新增方法：使用自动发现的章节更新显示
+    // 🆕 新增方法：使用自动发现的章节更新显示（使用原有样式结构）
     async displayAutoDiscoveredChapters() {
         const discoveredChapters = await this.autoDiscoverChapters();
         
@@ -1391,22 +1396,26 @@ class Navigation {
                 <div class="no-chapters-message">
                     <h2>未找到章节文件</h2>
                     <p>请确保chapters文件夹中有HTML文件，或在navigation.json中配置章节信息。</p>
-                    <p>支持的文件名格式：chapter1.html, lesson1.html, introduction.html 等</p>
                 </div>
             `;
             return;
         }
         
-        // 生成简洁的文章列表卡片
+        // 生成文章列表卡片（完全匹配原有CSS样式结构）
         const chaptersHtml = discoveredChapters.map(chapter => `
-            <div class="chapter-card" onclick="window.app.navigation.navigateToChapter('${chapter.id}')">
-                <h3>${chapter.title}</h3>
-                <p>${chapter.description}</p>
+            <div class="chapter-overview-item">
+                <a href="#" onclick="window.app.navigation.navigateToChapter('${chapter.id}'); return false;">
+                    ${chapter.thumbnail ? `<img src="${chapter.thumbnail}" alt="${chapter.title}" class="chapter-thumbnail">` : ''}
+                    <div class="chapter-info">
+                        <h3>${chapter.title}</h3>
+                        <p>${chapter.description}</p>
+                    </div>
+                </a>
             </div>
         `).join('');
         
         this.contentArea.innerHTML = `
-            <div class="chapters-list">
+            <div class="chapter-list-overview">
                 ${chaptersHtml}
             </div>
         `;
@@ -1428,7 +1437,7 @@ class Navigation {
         }, 100);
     }
 
-    // 🆕 新增方法：显示所有文章页面（保持原格式）
+    // 🆕 新增方法：显示所有文章页面（使用原有样式结构）
     displayAllArticlesPage() {
         const allChapters = this.getAllChapters();
         
@@ -1437,17 +1446,22 @@ class Navigation {
             return;
         }
         
-        // 生成简洁的文章列表卡片（保持原格式）
+        // 生成文章列表卡片（完全匹配原有CSS样式结构）
         const chaptersHtml = allChapters.map(chapter => `
-            <div class="chapter-card" onclick="window.app.navigation.navigateToChapter('${chapter.id}')">
-                <h3>${chapter.title}</h3>
-                <p>${chapter.description || ''}</p>
+            <div class="chapter-overview-item">
+                <a href="#" onclick="window.app.navigation.navigateToChapter('${chapter.id}'); return false;">
+                    ${chapter.thumbnail ? `<img src="${chapter.thumbnail}" alt="${chapter.title}" class="chapter-thumbnail">` : ''}
+                    <div class="chapter-info">
+                        <h3>${chapter.title}</h3>
+                        <p>${chapter.description || ''}</p>
+                    </div>
+                </a>
             </div>
         `).join('');
         
-        // 直接显示文章列表，不添加额外装饰
+        // 使用原有的容器类名结构
         this.contentArea.innerHTML = `
-            <div class="chapters-list">
+            <div class="chapter-list-overview">
                 ${chaptersHtml}
             </div>
         `;
