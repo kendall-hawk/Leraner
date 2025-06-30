@@ -1,6 +1,6 @@
 [
     {
-        "id": "quick-start",
+        "id": "Tools",
         "title": "🚀 快速开始",
         "type": "custom",
         "customAction": "show-quick-start",
