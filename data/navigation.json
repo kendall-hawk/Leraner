@@ -1,85 +1,39 @@
 [
-  {
-    "series": "All articles",
-    "seriesId": "all-articles",
-    "type": "all-articles",
-    "description": "查看所有学习内容的完整列表"
-  },
-  {
-    "series": "BBC English",
-    "seriesId": "bbc-english", 
-    "description": "BBC English learning series",
-    "children": [
-      {
-        "id": "6-minutes",
-        "title": "6 Minutes English",
-        "description": "Short BBC learning episodes",
-        "level": 2,
-        "chapters": [
-          {
-            "id": "chap1",
-            "title": "What's your favourite kind of noodle?",
-            "description": "Learn about food preferences and cultural differences",
-            "audio": "audio/chap1.mp3",
-            "thumbnail": "https://img.youtube.com/vi/aOiuSsnWEik/maxresdefault.jpg",
-            "type": "chapter"
-          },
-          {
-            "id": "chap2",
-            "title": "How important is politeness?", 
-            "description": "Explore the role of politeness in communication",
-            "audio": "audio/chap2.mp3",
-            "thumbnail": "https://img.youtube.com/vi/5wynL5ttotw/maxresdefault.jpg",
-            "type": "chapter"
-          },
-          {
-            "id": "chap3",
-            "title": "Is punctuality important?",
-            "description": "Discussion about time management and cultural attitudes",
-            "audio": "audio/chap3.mp3", 
-            "thumbnail": "https://img.youtube.com/vi/xyz123/maxresdefault.jpg",
-            "type": "chapter"
-          }
+    {
+        "series": "All articles",
+        "seriesId": "all-articles",
+        "type": "all-articles",
+        "description": "查看所有学习内容的完整列表"
+    },
+    {
+        "series": "BBC English",
+        "seriesId": "bbc-english",
+        "description": "BBC English learning series",
+        "children": [
+            {
+                "id": "6-minutes",
+                "title": "6 Minutes English",
+                "description": "Short BBC learning episodes",
+                "level": 2,
+                "chapters": [
+                    {
+                        "id": "chap1",
+                        "title": "What's your favourite kind of noodle?",
+                        "description": "Learn about food preferences and cultural differences",
+                        "audio": "audio/chap1.mp3",
+                        "thumbnail": "https://img.youtube.com/vi/aOiuSsnWEik/maxresdefault.jpg",
+                        "type": "chapter"
+                    },
+                    {
+                        "id": "chap2",
+                        "title": "How important is politeness?",
+                        "description": "Explore the role of politeness in communication",
+                        "audio": "audio/chap2.mp3",
+                        "thumbnail": "https://img.youtube.com/vi/5wynL5ttotw/maxresdefault.jpg",
+                        "type": "chapter"
+                    }
+                ]
+            }
         ]
-      },
-      {
-        "id": "learning-english",
-        "title": "Learning English",
-        "description": "Grammar and vocabulary lessons",
-        "level": 2,
-        "chapters": [
-          {
-            "id": "grammar1",
-            "title": "Present Perfect Tense",
-            "description": "Understanding present perfect usage",
-            "audio": "audio/grammar1.mp3",
-            "thumbnail": "https://img.youtube.com/vi/abc456/maxresdefault.jpg",
-            "type": "chapter"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "series": "CNN English",
-    "seriesId": "cnn-english",
-    "description": "CNN news-based English learning",
-    "children": [
-      {
-        "id": "news-digest",
-        "title": "Daily News",
-        "description": "Current events and vocabulary",
-        "level": 2,
-        "chapters": [
-          {
-            "id": "news1",
-            "title": "Technology Trends 2024",
-            "description": "Latest developments in technology",
-            "thumbnail": "https://img.youtube.com/vi/tech2024/maxresdefault.jpg",
-            "type": "chapter"
-          }
-        ]
-      }
-    ]
-  }
+    }
 ]
