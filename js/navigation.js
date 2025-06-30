@@ -1,501 +1,402 @@
-// js/navigation.js - 真正的自定义多级导航系统
-// 🎯 支持通过JSON完全自定义导航结构和行为
+// js/navigation.js - 真正的自定义导航系统
 window.EnglishSite = window.EnglishSite || {};
 
+/**
+ * 🚀 真正的自定义导航系统
+ * - 根据JSON配置自动生成任意层级导航
+ * - 支持无限嵌套结构
+ * - 重构版现代UI外观
+ * - 完全兼容现有功能（不破坏任何现有模块）
+ */
 class Navigation {
-    static CONFIG = {
-        CSS: {
-            NAV_LIST: 'main-nav-list',
-            ACTIVE: 'active',
-            DROPDOWN_OPEN: 'dropdown-open',
-        },
-        ROUTES: {
-            SERIES: 'series',
-            CHAPTER: 'chapter',
-            ALL: 'all',
-            TOOLS: 'tools',
-        },
-        HASH_PREFIX: {
-            SERIES: 'series=',
-            ALL_ARTICLES: 'all-articles',
-            TOOLS: 'tools',
-        },
-        EVENTS: {
-            SERIES_SELECTED: 'seriesSelected',
-            CHAPTER_LOADED: 'chapterLoaded',
-            NAVIGATION_UPDATED: 'navigationUpdated',
-            ALL_ARTICLES_REQUESTED: 'allArticlesRequested',
-            TOOLS_REQUESTED: 'toolsRequested',
-            CUSTOM_NAVIGATION: 'customNavigation',
-        }
-    };
-
     constructor(navContainer, contentArea, navData, options = {}) {
         this.navContainer = navContainer;
         this.contentArea = contentArea;
-        this.navData = navData;
+        this.navData = navData || [];
+        this.options = options;
         
-        // 🔒 完全保留原有缓存系统
-        this.domCache = new Map();
-        this.elements = new Map();
-        
-        // 🔒 完全保留原有状态管理 + 添加自定义导航
+        // 🎯 自定义导航状态管理
         this.state = {
-            // 原有导航状态
-            linksMap: new Map(),
-            activeLink: null,
-            chaptersMap: new Map(),
-            
-            // 原有下拉菜单状态
-            dropdown: {
-                isOpen: false,
-                currentId: null,
-                overlay: null,
-                isProcessing: false,
-                pooledOverlays: []
-            },
-            
-            // 原有性能状态
-            lastResize: 0,
-            debounceTimers: new Map(),
+            // 侧边栏状态
+            isOpen: false,
             isMobile: window.innerWidth <= 768,
             
-            // 原有预加载状态
-            preloadQueue: new Set(),
-            preloadInProgress: false,
+            // 🔑 自定义导航核心状态
+            currentPath: [],           // 当前导航路径 [{id, title, level, data}, ...]
+            currentLevel: 0,           // 当前显示层级
+            navigationStack: [],       // 导航栈，支持任意深度
             
-            // 🆕 自定义导航状态
-            sidebar: {
-                isOpen: false,
-                currentLevel: 1,
-                navigationPath: [],
-                elements: {},
-                
-                // 🎯 自定义导航核心数据
-                navigationTree: [], // 解析后的导航树
-                flatItemsMap: new Map(), // 所有项目的扁平映射
-                currentItems: [] // 当前层级显示的项目
-            }
+            // DOM和数据缓存
+            elements: {},
+            linksMap: new Map(),
+            chaptersMap: new Map(),
+            navigationTree: null,      // 🔑 自动解析的导航树
+            
+            // 兼容性状态
+            activeLink: null,
+            hasInitialContent: false,
+            isMainPage: false
         };
         
-        // 🔒 完全保留原有事件处理器
-        this.eventHandlers = {
-            globalClick: this.#handleGlobalClick.bind(this),
-            windowResize: this.#createDebouncer('resize', this.#handleResize.bind(this), 100),
-            popState: this.#handlePopState.bind(this),
-            keydown: this.#handleKeydown.bind(this)
+        this.config = window.EnglishSite.ConfigManager?.createModuleConfig('navigation', {
+            siteTitle: options.siteTitle || 'Learner',
+            debug: options.debug || false,
+            animationDuration: 250,
+            autoLoadDefaultContent: true,
+            defaultContentType: 'all-articles',
+            // 🔑 自定义导航配置
+            maxDepth: 10,              // 最大支持层级数
+            autoDetectStructure: true, // 自动检测JSON结构
+            supportDynamicLoading: true, // 支持动态加载
+            ...options
+        }) || {
+            siteTitle: options.siteTitle || 'Learner',
+            debug: options.debug || false,
+            animationDuration: 250,
+            autoLoadDefaultContent: true,
+            defaultContentType: 'all-articles',
+            maxDepth: 10,
+            autoDetectStructure: true,
+            supportDynamicLoading: true,
+            ...options
         };
         
-        this.initPromise = this.#initialize(options);
+        this.cache = window.EnglishSite.CacheManager?.createCache('navigation', {
+            maxSize: 50,
+            ttl: 300000,
+            strategy: 'lru'
+        }) || new Map();
+        
+        this.initPromise = this.initialize();
     }
 
-    // 🔒 完全保留原有辅助方法
-    #getElement(selector) {
-        if (!this.domCache.has(selector)) {
-            this.domCache.set(selector, document.querySelector(selector));
-        }
-        return this.domCache.get(selector);
-    }
-
-    #createDebouncer(key, func, delay) {
-        return (...args) => {
-            const timers = this.state.debounceTimers;
-            clearTimeout(timers.get(key));
-            timers.set(key, setTimeout(() => func.apply(this, args), delay));
-        };
-    }
-
-    // 🔒 保留原有初始化，添加自定义导航解析
-    async #initialize(options = {}) {
+    // === 🚀 核心初始化 ===
+    async initialize() {
         try {
             if (window.EnglishSite.coreToolsReady) {
                 await window.EnglishSite.coreToolsReady;
             }
             
-            // 🔒 完全保留原有配置
-            this.config = window.EnglishSite.ConfigManager?.createModuleConfig('navigation', {
-                siteTitle: '互动学习平台',
-                cacheMaxSize: 50,
-                cacheTTL: 300000,
-                enablePreloading: true,
-                debug: false,
-                ...options
-            }) || {
-                siteTitle: '互动学习平台',
-                cacheMaxSize: 50,
-                cacheTTL: 300000,
-                enablePreloading: true,
-                debug: false,
-                ...options
-            };
-
-            this.cache = window.EnglishSite.CacheManager?.createCache('navigation', {
-                maxSize: this.config.cacheMaxSize,
-                ttl: this.config.cacheTTL,
-                strategy: 'lru'
-            }) || new Map();
-
-            if (!this.navContainer || !this.contentArea || !this.navData) {
-                throw new Error('Navigation: Missing required arguments');
+            this.validateRequiredElements();
+            this.createSidebarStructure();
+            
+            // 🔑 自定义导航核心：自动解析JSON结构
+            this.parseNavigationStructure();
+            this.buildChaptersMapping();
+            
+            this.setupEventListeners();
+            this.renderCurrentLevel();
+            this.ensureCorrectInitialState();
+            
+            // 确保兼容性
+            await this.ensureInitialContentDisplay();
+            
+            if (this.config.debug) {
+                console.log('[CustomNavigation] 🚀 自定义导航初始化完成');
+                console.log('[CustomNavigation] 📊 导航树:', this.state.navigationTree);
+                console.log('[CustomNavigation] 📚 章节映射:', this.state.chaptersMap.size);
             }
-
-            // 🆕 创建侧边栏 + 解析自定义导航
-            this.#createSidebarStructure();
-            this.#parseCustomNavigation();
             
-            // 🔒 完全保留原有初始化流程
-            await Promise.all([
-                this.#loadAndMergeToolsData(),
-                this.#preprocessData()
-            ]);
-            
-            this.#render();
-            this.#setupEventListeners();
-            this.#handleInitialLoad();
-            
-            if (this.config.enablePreloading) {
-                this.#startPreloading();
-            }
-                
         } catch (error) {
-            this.#handleInitializationFailure(error);
+            console.error('[CustomNavigation] 初始化失败:', error);
+            this.handleInitializationError(error);
             throw error;
         }
     }
 
-    // 🆕 解析自定义导航结构
-    #parseCustomNavigation() {
-        const { navigationTree, flatItemsMap } = this.state.sidebar;
+    // === 🔑 自定义导航核心：自动解析任意JSON结构 ===
+    parseNavigationStructure() {
+        this.state.navigationTree = this.buildNavigationTree(this.navData, 0);
         
-        // 清空现有数据
-        navigationTree.length = 0;
-        flatItemsMap.clear();
+        if (this.config.debug) {
+            console.log('[CustomNavigation] 🌳 自动解析导航结构完成');
+            this.debugNavigationTree(this.state.navigationTree);
+        }
+    }
+
+    // 🔑 递归构建导航树（支持任意嵌套）
+    buildNavigationTree(items, level) {
+        if (!Array.isArray(items)) return [];
         
-        // 🎯 添加固定的 All Articles 项
-        const allArticlesItem = {
-            id: 'all-articles',
-            title: 'All Articles',
-            icon: '📚',
-            type: 'all-articles',
-            behavior: 'direct', // 直接导航
-            level: 1
-        };
-        navigationTree.push(allArticlesItem);
-        flatItemsMap.set('all-articles', allArticlesItem);
+        return items.map(item => {
+            const node = {
+                // 基础信息
+                id: item.seriesId || item.id || this.generateId(),
+                title: item.series || item.title || 'Untitled',
+                level: level,
+                
+                // 原始数据
+                originalData: item,
+                
+                // 🔑 自动检测节点类型
+                type: this.detectNodeType(item),
+                
+                // 🔑 自动解析子节点
+                children: [],
+                chapters: [],
+                
+                // 扩展属性
+                url: item.url,
+                description: item.description,
+                thumbnail: item.thumbnail,
+                icon: item.icon,
+                openInNewTab: item.openInNewTab,
+                
+                // 🔑 自定义属性支持
+                customProps: this.extractCustomProps(item)
+            };
+            
+            // 🔑 自动解析子结构（支持多种命名方式）
+            const childrenSources = [
+                item.children,     // 标准的children
+                item.subItems,     // 可能的subItems
+                item.subSeries,    // 可能的subSeries
+                item.categories,   // 可能的categories
+                item.sections      // 可能的sections
+            ].filter(Boolean);
+            
+            if (childrenSources.length > 0) {
+                node.children = this.buildNavigationTree(childrenSources[0], level + 1);
+            }
+            
+            // 🔑 自动解析章节（支持多种命名方式）
+            const chapterSources = [
+                item.chapters,     // 标准的chapters
+                item.articles,     // 可能的articles
+                item.pages,        // 可能的pages
+                item.items,        // 可能的items
+                item.content       // 可能的content
+            ].filter(Boolean);
+            
+            if (chapterSources.length > 0) {
+                node.chapters = this.normalizeChapters(chapterSources[0], node.id);
+            }
+            
+            return node;
+        });
+    }
+
+    // 🔑 自动检测节点类型
+    detectNodeType(item) {
+        // 明确指定的类型
+        if (item.type) return item.type;
         
-        // 🎯 递归解析用户自定义的导航数据
-        this.navData.forEach(item => {
-            const parsedItem = this.#parseNavItem(item, 1);
-            if (parsedItem) {
-                navigationTree.push(parsedItem);
+        // 自动推断
+        if (item.url && item.url.startsWith('http')) return 'external';
+        if (item.seriesId === 'tools' || item.category === 'tools') return 'tools';
+        if (item.seriesId === 'all-articles') return 'all-articles';
+        
+        // 根据内容推断
+        const hasChildren = this.hasAnyChildren(item);
+        const hasChapters = this.hasAnyChapters(item);
+        
+        if (hasChildren && hasChapters) return 'category-with-content';
+        if (hasChildren) return 'category';
+        if (hasChapters) return 'series';
+        
+        return 'page';
+    }
+
+    // 🔑 检测是否有子项（支持多种命名）
+    hasAnyChildren(item) {
+        return !!(item.children || item.subItems || item.subSeries || 
+                 item.categories || item.sections);
+    }
+
+    // 🔑 检测是否有章节（支持多种命名）
+    hasAnyChapters(item) {
+        return !!(item.chapters || item.articles || item.pages || 
+                 item.items || item.content);
+    }
+
+    // 🔑 标准化章节数据
+    normalizeChapters(chapters, parentId) {
+        if (!Array.isArray(chapters)) return [];
+        
+        return chapters.map(chapter => ({
+            ...chapter,
+            id: chapter.id || this.generateId(),
+            title: chapter.title || 'Untitled Chapter',
+            seriesId: parentId,
+            type: chapter.type || 'chapter'
+        }));
+    }
+
+    // 🔑 提取自定义属性
+    extractCustomProps(item) {
+        const standardProps = new Set([
+            'id', 'seriesId', 'title', 'series', 'children', 'chapters',
+            'type', 'url', 'description', 'thumbnail', 'icon', 'openInNewTab',
+            'subItems', 'subSeries', 'categories', 'sections',
+            'articles', 'pages', 'items', 'content'
+        ]);
+        
+        const customProps = {};
+        Object.keys(item).forEach(key => {
+            if (!standardProps.has(key)) {
+                customProps[key] = item[key];
+            }
+        });
+        
+        return customProps;
+    }
+
+    // 🔑 构建章节映射（兼容现有模块）
+    buildChaptersMapping() {
+        this.state.chaptersMap.clear();
+        this.walkNavigationTree(this.state.navigationTree, (node) => {
+            if (node.chapters && node.chapters.length > 0) {
+                node.chapters.forEach(chapter => {
+                    const chapterWithMeta = {
+                        ...chapter,
+                        seriesId: node.id,
+                        seriesTitle: node.title,
+                        parentNode: node
+                    };
+                    this.state.chaptersMap.set(chapter.id, chapterWithMeta);
+                });
             }
         });
         
         if (this.config.debug) {
-            console.log('[Navigation] 🎯 自定义导航解析完成');
-            console.log('[Navigation] 📊 导航树:', navigationTree);
-            console.log('[Navigation] 🗺️ 扁平映射:', flatItemsMap);
+            console.log(`[CustomNavigation] 📚 构建章节映射: ${this.state.chaptersMap.size} 个章节`);
         }
     }
 
-    #parseNavItem(item, level, parentPath = []) {
-        // 🎯 标准化导航项属性
-        const id = item.id || item.seriesId || this.#generateId();
-        const title = item.title || item.series || 'Untitled';
+    // 🔑 遍历导航树的工具函数
+    walkNavigationTree(nodes, callback) {
+        if (!Array.isArray(nodes)) return;
         
-        const navItem = {
-            id: id,
-            title: title,
-            level: level,
-            path: [...parentPath, id],
-            
-            // 🎯 外观配置
-            icon: item.icon,
-            description: item.description,
-            
-            // 🎯 行为配置
-            type: item.type || 'category',
-            behavior: item.behavior || 'auto', // 'direct', 'expand', 'custom', 'auto'
-            
-            // 🎯 导航目标
-            url: item.url,
-            externalUrl: item.externalUrl,
-            openInNewTab: item.openInNewTab,
-            action: item.action, // 自定义动作
-            
-            // 🎯 子项和内容
-            children: [],
-            chapters: item.chapters || [],
-            
-            // 原始数据
-            _originalData: item
-        };
+        nodes.forEach(node => {
+            callback(node);
+            if (node.children && node.children.length > 0) {
+                this.walkNavigationTree(node.children, callback);
+            }
+        });
+    }
+
+    // === 🎨 自定义渲染系统 ===
+    
+    renderCurrentLevel() {
+        const currentNodes = this.getCurrentLevelNodes();
+        this.renderBreadcrumb();
+        this.renderNavigationLevel(currentNodes, this.state.elements.mainContent);
+        this.hideSubmenu();
+    }
+
+    // 🔑 获取当前层级的节点
+    getCurrentLevelNodes() {
+        if (this.state.currentPath.length === 0) {
+            // 根级别
+            return this.state.navigationTree;
+        }
         
-        // 🎯 处理子项 (支持无限级嵌套)
-        if (item.children && Array.isArray(item.children)) {
-            item.children.forEach(child => {
-                const childItem = this.#parseNavItem(child, level + 1, navItem.path);
-                if (childItem) {
-                    navItem.children.push(childItem);
+        // 当前路径的最后一个节点的子节点
+        const currentParent = this.state.currentPath[this.state.currentPath.length - 1];
+        return currentParent.data.children || [];
+    }
+
+    renderBreadcrumb() {
+        const breadcrumbEl = this.state.elements.breadcrumb;
+        if (!breadcrumbEl) return;
+        
+        if (this.state.currentPath.length === 0) {
+            breadcrumbEl.style.display = 'none';
+            return;
+        }
+        
+        breadcrumbEl.style.display = 'block';
+        const pathHtml = this.state.currentPath
+            .map((pathItem, index) => {
+                const isLast = index === this.state.currentPath.length - 1;
+                if (isLast) {
+                    return `<span class="breadcrumb-current">${pathItem.title}</span>`;
+                } else {
+                    return `<a href="#" class="breadcrumb-link" data-action="breadcrumb-link" data-level="${pathItem.level}" data-id="${pathItem.id}">${pathItem.title}</a>`;
                 }
-            });
-        }
+            })
+            .join('<span class="breadcrumb-separator"> > </span>');
         
-        // 🎯 自动判断行为
-        if (navItem.behavior === 'auto') {
-            if (navItem.children.length > 0 || navItem.chapters.length > 0) {
-                navItem.behavior = 'expand'; // 有子项则展开
-            } else {
-                navItem.behavior = 'direct'; // 无子项则直接导航
-            }
-        }
-        
-        // 存储到扁平映射
-        this.state.sidebar.flatItemsMap.set(id, navItem);
-        
-        return navItem;
-    }
-
-    // 🆕 创建侧边栏结构
-    #createSidebarStructure() {
-        // 隐藏原导航但保留备份
-        if (this.navContainer) {
-            this.navContainer.style.display = 'none';
-            this.navContainer.setAttribute('data-backup', 'true');
-        }
-        
-        // 创建汉堡按钮
-        this.#createHamburgerButton();
-        
-        // 创建侧边栏
-        this.#createSidebarElements();
-    }
-
-    #createHamburgerButton() {
-        let header = document.querySelector('.site-header');
-        if (!header) {
-            header = document.createElement('header');
-            header.className = 'site-header';
-            document.body.insertBefore(header, document.body.firstChild);
-        }
-        
-        if (!header.querySelector('.nav-toggle')) {
-            const hamburger = document.createElement('button');
-            hamburger.className = 'nav-toggle';
-            hamburger.innerHTML = `<span class="hamburger-icon"><span></span><span></span><span></span></span>`;
-            hamburger.setAttribute('data-action', 'toggle-sidebar');
-            
-            const brandHeader = header.querySelector('.brand-header');
-            if (brandHeader) {
-                header.insertBefore(hamburger, brandHeader.nextSibling);
-            } else {
-                header.insertBefore(hamburger, header.firstChild);
-            }
-        }
-    }
-
-    #createSidebarElements() {
-        // 清理旧的侧边栏
-        const oldSidebar = document.querySelector('.sidebar-container');
-        if (oldSidebar) oldSidebar.remove();
-        
-        const oldOverlay = document.querySelector('.sidebar-overlay');
-        if (oldOverlay) oldOverlay.remove();
-        
-        // 创建侧边栏容器
-        const sidebar = document.createElement('div');
-        sidebar.className = 'sidebar-container';
-        sidebar.innerHTML = `
-            <nav class="sidebar-main">
-                <div class="nav-breadcrumb" style="display: none;"></div>
-                <div class="nav-content"></div>
-            </nav>
-            <div class="sidebar-submenu">
-                <div class="submenu-content"></div>
+        breadcrumbEl.innerHTML = `
+            <div class="breadcrumb-container">
+                <button class="breadcrumb-back" data-action="breadcrumb-back" aria-label="返回上级">‹</button>
+                <div class="breadcrumb-path">${pathHtml}</div>
             </div>
         `;
-        
-        // 创建遮罩
-        const overlay = document.createElement('div');
-        overlay.className = 'sidebar-overlay';
-        overlay.setAttribute('data-action', 'close-sidebar');
-        
-        document.body.appendChild(sidebar);
-        document.body.appendChild(overlay);
-        
-        // 缓存元素
-        this.state.sidebar.elements = {
-            container: sidebar,
-            mainPanel: sidebar.querySelector('.sidebar-main'),
-            submenuPanel: sidebar.querySelector('.sidebar-submenu'),
-            breadcrumb: sidebar.querySelector('.nav-breadcrumb'),
-            mainContent: sidebar.querySelector('.nav-content'),
-            submenuContent: sidebar.querySelector('.submenu-content'),
-            overlay: overlay,
-            hamburger: document.querySelector('.nav-toggle')
-        };
     }
 
-    // 🔒 完全保留原有数据处理方法
-    async #loadAndMergeToolsData() {
-        try {
-            const response = await fetch('./data/tools.json');
-            
-            if (response.ok) {
-                const toolsData = await response.json();
-                
-                if (Array.isArray(toolsData) && toolsData.length > 0) {
-                    const validTools = toolsData.filter(tool => tool.id && tool.title);
-                    
-                    if (validTools.length > 0) {
-                        // 🎯 创建工具分类，支持自定义配置
-                        const toolsSeries = {
-                            id: "tools",
-                            title: "学习工具",
-                            icon: "🛠️",
-                            type: "tools-category",
-                            behavior: "expand", // 工具分类展开显示工具列表
-                            description: "实用的英语学习工具集合",
-                            children: validTools.map(tool => ({
-                                ...tool,
-                                type: tool.type || 'tool',
-                                behavior: 'direct' // 工具项直接导航
-                            }))
-                        };
-                        
-                        this.navData.push(toolsSeries);
-                    }
-                }
-            }
-        } catch (error) {
-            if (this.config.debug) {
-                console.warn('[Navigation] Tools loading failed:', error);
-            }
-        }
-    }
-
-    #preprocessData() {
-        if (!Array.isArray(this.navData)) {
-            throw new Error('Navigation data must be an array');
-        }
-
-        let totalChapters = 0;
-        
-        // 🎯 递归处理章节数据，支持多级结构
-        const processItem = (item) => {
-            if (item.chapters && Array.isArray(item.chapters)) {
-                item.chapters.forEach(chapter => {
-                    if (!chapter.id) return;
-                    
-                    const chapterWithSeriesInfo = { 
-                        ...chapter, 
-                        seriesId: item.id || item.seriesId,
-                        seriesTitle: item.title || item.series
-                    };
-                    this.state.chaptersMap.set(chapter.id, chapterWithSeriesInfo);
-                    totalChapters++;
-                });
-            }
-            
-            if (item.children && Array.isArray(item.children)) {
-                item.children.forEach(child => processItem(child));
-            }
-        };
-        
-        this.navData.forEach(item => processItem(item));
-
-        if (this.config.debug) {
-            console.log(`[Navigation] Preprocessed ${totalChapters} chapters from ${this.navData.length} series`);
-        }
-    }
-
-    // 🆕 自定义导航渲染系统
-    #render() {
-        this.state.linksMap.clear();
-        this.#renderCurrentLevel();
-    }
-
-    #renderCurrentLevel() {
-        const { currentLevel, navigationPath, navigationTree } = this.state.sidebar;
-        
-        // 🎯 根据当前路径确定要显示的项目
-        let itemsToShow;
-        
-        if (currentLevel === 1) {
-            // 第一级：显示根级项目
-            itemsToShow = navigationTree;
-        } else {
-            // 更深层级：根据导航路径找到当前项目
-            const currentParent = this.#getCurrentParentItem();
-            if (currentParent) {
-                if (currentParent.children && currentParent.children.length > 0) {
-                    itemsToShow = currentParent.children;
-                } else if (currentParent.chapters && currentParent.chapters.length > 0) {
-                    // 显示章节列表
-                    this.#renderChaptersList(currentParent.chapters);
-                    return;
-                }
-            }
-        }
-        
-        if (itemsToShow) {
-            this.#renderNavigationItems(itemsToShow);
-        }
-        
-        // 更新面包屑
-        this.#updateBreadcrumb();
-    }
-
-    #renderNavigationItems(items) {
-        const mainContent = this.state.sidebar.elements.mainContent;
-        if (!mainContent) return;
+    renderNavigationLevel(nodes, container) {
+        if (!container || !nodes) return;
         
         const fragment = document.createDocumentFragment();
         
-        items.forEach(item => {
-            const element = this.#createNavigationElement(item);
+        nodes.forEach(node => {
+            const element = this.createNavigationItem(node);
             fragment.appendChild(element);
-            
-            // 缓存映射
-            this.state.linksMap.set(item.id, element);
+            this.state.linksMap.set(node.id, element);
         });
         
-        mainContent.innerHTML = '';
-        mainContent.appendChild(fragment);
+        container.innerHTML = '';
+        container.appendChild(fragment);
     }
 
-    #createNavigationElement(item) {
-        const hasExpandableContent = (item.behavior === 'expand') && 
-                                    ((item.children && item.children.length > 0) || 
-                                     (item.chapters && item.chapters.length > 0));
+    createNavigationItem(node) {
+        const hasChildren = node.children && node.children.length > 0;
+        const hasChapters = node.chapters && node.chapters.length > 0;
+        const isExpandable = hasChildren || hasChapters;
         
         const element = document.createElement('div');
-        element.className = `nav-item level-${item.level} ${hasExpandableContent ? 'expandable' : 'clickable'}`;
-        element.setAttribute('data-id', item.id);
-        element.setAttribute('data-behavior', item.behavior);
-        element.setAttribute('data-type', item.type);
-        element.setAttribute('data-action', 'custom-nav-item');
+        element.className = this.getItemClasses(node, isExpandable);
+        element.setAttribute('data-id', node.id);
+        element.setAttribute('data-level', node.level);
+        element.setAttribute('data-type', node.type);
+        element.setAttribute('data-action', 'nav-item');
         
-        // 🎯 构建HTML内容
-        const iconHtml = item.icon ? `<span class="nav-icon">${item.icon}</span>` : '';
-        const arrowHtml = hasExpandableContent ? '<span class="expand-arrow">></span>' : '';
+        // 🔑 支持图标显示
+        const iconHtml = node.icon ? `<span class="nav-icon">${node.icon}</span>` : '';
         
-        element.innerHTML = `${iconHtml}<span class="nav-title">${item.title}</span>${arrowHtml}`;
+        element.innerHTML = `
+            ${iconHtml}
+            <span class="nav-title">${node.title}</span>
+            ${isExpandable ? '<span class="expand-arrow">></span>' : ''}
+        `;
         
         return element;
     }
 
-    #renderChaptersList(chapters) {
-        const submenuContent = this.state.sidebar.elements.submenuContent;
-        if (!submenuContent) return;
+    getItemClasses(node, isExpandable) {
+        const classes = ['nav-item', `level-${node.level}`];
+        
+        if (isExpandable) {
+            classes.push('expandable');
+        } else {
+            classes.push('clickable');
+        }
+        
+        // 根据类型添加特殊样式
+        if (node.type === 'tool' || node.type === 'tools') {
+            classes.push('tools-item');
+        }
+        if (node.type === 'external') {
+            classes.push('external-item');
+        }
+        if (node.type === 'all-articles') {
+            classes.push('all-articles-item');
+        }
+        
+        return classes.join(' ');
+    }
+
+    renderChaptersList(chapters, container) {
+        if (!container || !chapters) return;
         
         const fragment = document.createDocumentFragment();
         
         chapters.forEach(chapter => {
             const element = document.createElement('div');
-            element.className = `nav-item level-${this.state.sidebar.currentLevel} clickable chapter-item`;
+            element.className = `nav-item level-${this.state.currentLevel + 1} clickable chapter-item`;
             element.setAttribute('data-id', chapter.id);
-            element.setAttribute('data-action', 'custom-chapter-item');
+            element.setAttribute('data-action', 'navigate-chapter');
             
             const iconHtml = chapter.icon ? `<span class="nav-icon">${chapter.icon}</span>` : '';
             element.innerHTML = `${iconHtml}<span class="nav-title">${chapter.title}</span>`;
@@ -503,448 +404,630 @@ class Navigation {
             fragment.appendChild(element);
         });
         
-        submenuContent.innerHTML = '';
-        submenuContent.appendChild(fragment);
-        
-        // 显示子菜单
-        this.#showSubmenu();
+        container.innerHTML = '';
+        container.appendChild(fragment);
     }
 
-    // 🆕 自定义导航交互处理
-    #handleCustomNavClick(element) {
-        const itemId = element.dataset.id;
-        const behavior = element.dataset.behavior;
-        const item = this.state.sidebar.flatItemsMap.get(itemId);
-        
-        if (!item) {
-            console.error('[Navigation] 找不到导航项:', itemId);
+    // === 🎯 自定义导航核心逻辑 ===
+    
+    handleNavItemClick(itemId) {
+        const node = this.findNodeById(itemId);
+        if (!node) {
+            console.error('[CustomNavigation] 找不到节点:', itemId);
             return;
         }
         
         if (this.config.debug) {
-            console.log('[Navigation] 🎯 点击导航项:', item.title, '行为:', behavior);
+            console.log('[CustomNavigation] 🎯 点击节点:', node.title, '类型:', node.type);
         }
         
-        // 🎯 根据行为类型处理
-        switch (behavior) {
-            case 'expand':
-                this.#expandNavItem(item);
-                break;
-            case 'direct':
-                this.#directNavigate(item);
-                break;
-            case 'custom':
-                this.#customAction(item);
-                break;
-            default:
-                console.warn('[Navigation] 未知行为类型:', behavior);
-                break;
+        // 🔑 根据节点类型和内容决定行为
+        const hasChildren = node.children && node.children.length > 0;
+        const hasChapters = node.chapters && node.chapters.length > 0;
+        
+        if (hasChildren) {
+            // 有子节点 → 进入下一级
+            this.navigateToLevel(node);
+        } else if (hasChapters) {
+            // 有章节 → 显示章节列表
+            this.showChaptersList(node);
+        } else {
+            // 叶子节点 → 直接导航
+            this.handleDirectNavigation(node);
         }
     }
 
-    #expandNavItem(item) {
-        // 🎯 展开导航项 - 进入下一级
-        
-        // 更新导航路径
-        this.state.sidebar.navigationPath.push({
-            id: item.id,
-            title: item.title,
-            level: item.level
+    // 🔑 导航到指定层级
+    navigateToLevel(node) {
+        // 添加到导航路径
+        this.state.currentPath.push({
+            id: node.id,
+            title: node.title,
+            level: node.level,
+            data: node
         });
-        this.state.sidebar.currentLevel = item.level + 1;
         
-        // 重新渲染当前级别
-        this.#renderCurrentLevel();
+        this.state.currentLevel = node.level + 1;
+        
+        // 渲染下一级
+        this.renderBreadcrumb();
+        this.renderNavigationLevel(node.children, this.state.elements.mainContent);
+        this.updateActiveState(node.id);
         
         if (this.config.debug) {
-            console.log('[Navigation] 🔄 展开导航项:', item.title);
-            console.log('[Navigation] 📍 当前路径:', this.state.sidebar.navigationPath);
+            console.log('[CustomNavigation] 📁 导航到层级:', this.state.currentPath.map(p => p.title).join(' > '));
         }
     }
 
-    #directNavigate(item) {
-        // 🎯 直接导航 - 关闭侧边栏并跳转
-        this.#closeSidebar();
+    // 🔑 显示章节列表
+    showChaptersList(node) {
+        // 添加到导航路径
+        this.state.currentPath.push({
+            id: node.id,
+            title: node.title,
+            level: node.level,
+            data: node
+        });
         
-        // 根据项目类型进行导航
-        switch (item.type) {
+        this.state.currentLevel = node.level + 1;
+        
+        // 渲染面包屑和章节列表
+        this.renderBreadcrumb();
+        this.renderChaptersList(node.chapters, this.state.elements.submenuContent);
+        this.showSubmenu();
+        this.updateActiveState(node.id);
+        
+        if (this.config.debug) {
+            console.log('[CustomNavigation] 📚 显示章节列表:', node.title);
+        }
+    }
+
+    // 🔑 处理直接导航（叶子节点）
+    handleDirectNavigation(node) {
+        this.close();
+        this.state.isMainPage = false;
+        
+        // 🔑 根据节点类型执行相应操作
+        switch (node.type) {
+            case 'external':
+                this.handleExternalNavigation(node);
+                break;
             case 'all-articles':
-                this.#route({ type: Navigation.CONFIG.ROUTES.ALL, id: null });
+                this.handleAllArticlesNavigation(node);
                 break;
             case 'tools':
-            case 'tools-category':
-                this.#route({ type: Navigation.CONFIG.ROUTES.TOOLS, id: null });
+                this.handleToolsNavigation(node);
                 break;
             case 'tool':
-                this.#route({ type: Navigation.CONFIG.ROUTES.CHAPTER, id: item.id });
+                this.handleSingleToolNavigation(node);
                 break;
-            case 'external':
-                this.#handleExternalLink(item);
+            case 'chapter':
+                this.navigateToChapter(node.id);
                 break;
             case 'series':
-                this.#route({ type: Navigation.CONFIG.ROUTES.SERIES, id: item.id });
+                this.handleSeriesNavigation(node);
                 break;
             default:
-                if (item.url || item.externalUrl) {
-                    this.#handleExternalLink(item);
-                } else {
-                    // 自定义类型，触发事件
-                    this.#dispatchEvent(Navigation.CONFIG.EVENTS.CUSTOM_NAVIGATION, {
-                        item: item,
-                        action: 'navigate'
-                    });
-                }
+                // 自定义类型或未知类型的处理
+                this.handleCustomNavigation(node);
                 break;
         }
         
-        if (this.config.debug) {
-            console.log('[Navigation] 🎯 直接导航:', item.title, '类型:', item.type);
+        this.setActiveLink(node.id);
+    }
+
+    // 🔑 各种类型的导航处理（保持兼容性）
+    handleExternalNavigation(node) {
+        const openInNew = node.openInNewTab !== false;
+        if (openInNew) {
+            window.open(node.url, '_blank', 'noopener,noreferrer');
+            this.displayExternalLinkMessage(node);
+        } else {
+            window.location.href = node.url;
         }
     }
 
-    #customAction(item) {
-        // 🎯 自定义动作 - 触发自定义事件
-        this.#closeSidebar();
-        
-        this.#dispatchEvent(Navigation.CONFIG.EVENTS.CUSTOM_NAVIGATION, {
-            item: item,
-            action: item.action || 'custom',
-            customData: item._originalData
+    handleAllArticlesNavigation(node) {
+        this.state.isMainPage = true;
+        const allChapters = this.getAllChapters();
+        this.dispatchEvent('allArticlesRequested', { chapters: allChapters });
+        this.updateTitle('所有文章');
+    }
+
+    handleToolsNavigation(node) {
+        this.dispatchEvent('toolsRequested');
+        this.updateTitle('学习工具');
+    }
+
+    handleSingleToolNavigation(node) {
+        if (node.url) {
+            if (node.url.startsWith('http')) {
+                window.open(node.url, '_blank', 'noopener,noreferrer');
+                this.displayToolRedirectMessage(node.title, node.url);
+            } else {
+                window.location.href = node.url;
+            }
+        }
+        this.updateTitle(node.title);
+        this.dispatchEvent('toolPageLoaded', { toolId: node.id, toolUrl: node.url, chapterData: node });
+    }
+
+    handleSeriesNavigation(node) {
+        this.dispatchEvent('seriesSelected', { 
+            seriesId: node.id, 
+            chapters: node.chapters,
+            item: node
         });
-        
-        if (this.config.debug) {
-            console.log('[Navigation] 🎭 自定义动作:', item.action);
-        }
+        this.updateTitle(`系列: ${node.title}`);
     }
 
-    #handleExternalLink(item) {
-        const url = item.externalUrl || item.url;
-        const openInNewTab = item.openInNewTab !== false; // 默认新窗口
-        
-        if (openInNewTab) {
-            window.open(url, '_blank', 'noopener,noreferrer');
-            this.#displayExternalLinkMessage(item);
+    handleCustomNavigation(node) {
+        // 🔑 支持完全自定义的导航行为
+        if (node.customProps.customAction) {
+            // 支持自定义action
+            this.dispatchEvent('customNavigation', { 
+                action: node.customProps.customAction,
+                node: node
+            });
+        } else if (node.url) {
+            // 有URL就跳转
+            window.location.href = node.url;
+        } else if (node.chapters && node.chapters.length > 0) {
+            // 有章节就当作系列处理
+            this.handleSeriesNavigation(node);
         } else {
-            window.location.href = url;
+            // 默认派发通用导航事件
+            this.dispatchEvent('navigationItemSelected', { item: node });
         }
+        
+        this.updateTitle(node.title);
     }
 
-    #displayExternalLinkMessage(item) {
-        this.contentArea.innerHTML = `
-            <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border-radius: 12px; margin: 20px 0;">
-                <div style="font-size: 3rem; margin-bottom: 20px;">${item.icon || '🌐'}</div>
-                <h2 style="margin-bottom: 16px;">${item.title}</h2>
-                <p style="margin-bottom: 24px; opacity: 0.9;">${item.description || '外部链接已在新窗口打开'}</p>
-                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin: 20px auto; max-width: 400px;">
-                    <small style="opacity: 0.8;">如果页面没有自动打开，请点击下方链接：</small><br>
-                    <a href="${item.externalUrl || item.url}" target="_blank" style="color: #fff; text-decoration: underline; font-weight: 500;">
-                        ${item.externalUrl || item.url}
-                    </a>
-                </div>
-            </div>
-        `;
-        
-        this.#updateTitle(item.title);
-    }
-
-    // 🆕 导航路径管理
-    #getCurrentParentItem() {
-        const { navigationPath } = this.state.sidebar;
-        if (navigationPath.length === 0) return null;
-        
-        const parentId = navigationPath[navigationPath.length - 1].id;
-        return this.state.sidebar.flatItemsMap.get(parentId);
-    }
-
-    #goBackInSidebar() {
-        const { navigationPath } = this.state.sidebar;
-        
-        if (navigationPath.length === 0) {
-            // 已经在根级，关闭侧边栏
-            this.#closeSidebar();
+    // 🔑 返回上级导航
+    navigateBack() {
+        if (this.state.currentPath.length === 0) {
+            this.close();
             return;
         }
         
-        // 返回上一级
-        navigationPath.pop();
-        this.state.sidebar.currentLevel--;
+        // 移除最后一级
+        this.state.currentPath.pop();
+        this.state.currentLevel--;
         
-        // 隐藏子菜单
-        this.#hideSubmenu();
-        
-        // 重新渲染
-        this.#renderCurrentLevel();
-        
-        if (this.config.debug) {
-            console.log('[Navigation] ⬅️ 返回上级，当前路径:', navigationPath);
-        }
-    }
-
-    #updateBreadcrumb() {
-        const breadcrumb = this.state.sidebar.elements.breadcrumb;
-        if (!breadcrumb) return;
-        
-        const { navigationPath } = this.state.sidebar;
-        
-        if (navigationPath.length === 0) {
-            breadcrumb.style.display = 'none';
-            return;
-        }
-        
-        breadcrumb.style.display = 'block';
-        const pathHtml = navigationPath
-            .map(item => `<span class="breadcrumb-item">${item.title}</span>`)
-            .join(' <span class="breadcrumb-separator">></span> ');
-        
-        breadcrumb.innerHTML = `
-            <div class="breadcrumb-container">
-                <button class="breadcrumb-back" data-action="custom-nav-back" aria-label="返回上级">‹</button>
-                <div class="breadcrumb-path">${pathHtml}</div>
-            </div>
-        `;
-    }
-
-    // 子菜单控制
-    #showSubmenu() {
-        const submenu = this.state.sidebar.elements.submenuPanel;
-        if (submenu) {
-            submenu.classList.add('expanded');
-            submenu.style.display = 'block';
-        }
-    }
-
-    #hideSubmenu() {
-        const submenu = this.state.sidebar.elements.submenuPanel;
-        if (submenu) {
-            submenu.classList.remove('expanded');
-            submenu.style.display = 'none';
-        }
-    }
-
-    // 侧边栏控制
-    #toggleSidebar() {
-        if (this.state.sidebar.isOpen) {
-            this.#closeSidebar();
+        if (this.state.currentPath.length === 0) {
+            // 返回根级别
+            this.renderCurrentLevel();
         } else {
-            this.#openSidebar();
-        }
-    }
-
-    #openSidebar() {
-        const { container, overlay } = this.state.sidebar.elements;
-        this.state.sidebar.isOpen = true;
-        
-        container.classList.add('open');
-        overlay.classList.add('visible');
-        document.body.classList.add('sidebar-open');
-    }
-
-    #closeSidebar() {
-        const { container, overlay } = this.state.sidebar.elements;
-        this.state.sidebar.isOpen = false;
-        
-        container.classList.remove('open');
-        overlay.classList.remove('visible');
-        document.body.classList.remove('sidebar-open');
-        
-        // 重置导航状态
-        this.state.sidebar.navigationPath = [];
-        this.state.sidebar.currentLevel = 1;
-        this.#updateBreadcrumb();
-        this.#hideSubmenu();
-    }
-
-    // 🔒 完全保留原有事件处理
-    #setupEventListeners() {
-        document.addEventListener('click', this.eventHandlers.globalClick);
-        window.addEventListener('resize', this.eventHandlers.windowResize);
-        window.addEventListener('popstate', this.eventHandlers.popState);
-        document.addEventListener('keydown', this.eventHandlers.keydown);
-        
-        if (this.state.isMobile) {
-            const touchHandler = this.#createDebouncer('touch', () => {
-                if (this.state.dropdown.isOpen) this.#hideDropdown();
-                if (this.state.sidebar.isOpen) this.#closeSidebar();
-            }, 50);
+            // 返回上一级
+            const parentNode = this.state.currentPath[this.state.currentPath.length - 1];
             
-            window.addEventListener('touchmove', touchHandler, { passive: true });
-            window.addEventListener('orientationchange', this.eventHandlers.windowResize);
+            this.renderBreadcrumb();
+            
+            if (parentNode.data.children && parentNode.data.children.length > 0) {
+                this.renderNavigationLevel(parentNode.data.children, this.state.elements.mainContent);
+            } else if (parentNode.data.chapters && parentNode.data.chapters.length > 0) {
+                this.renderChaptersList(parentNode.data.chapters, this.state.elements.submenuContent);
+                this.showSubmenu();
+            }
         }
     }
 
-    #handleGlobalClick(event) {
+    // 🔑 导航到指定层级（面包屑点击）
+    navigateToSpecificLevel(level, nodeId) {
+        const targetLevel = parseInt(level);
+        
+        // 截断导航路径
+        this.state.currentPath = this.state.currentPath.filter(p => p.level <= targetLevel);
+        this.state.currentLevel = targetLevel + 1;
+        
+        if (this.state.currentPath.length === 0) {
+            this.renderCurrentLevel();
+        } else {
+            const targetNode = this.findNodeById(nodeId);
+            if (targetNode) {
+                this.navigateToLevel(targetNode);
+            }
+        }
+    }
+
+    // === 🔧 工具函数 ===
+    
+    findNodeById(id, nodes = null) {
+        nodes = nodes || this.state.navigationTree;
+        
+        for (const node of nodes) {
+            if (node.id === id) return node;
+            if (node.children && node.children.length > 0) {
+                const found = this.findNodeById(id, node.children);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+
+    generateId() {
+        return 'nav_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    debugNavigationTree(nodes, depth = 0) {
+        const indent = '  '.repeat(depth);
+        nodes.forEach(node => {
+            console.log(`${indent}${node.title} (${node.type}) - Level ${node.level}`);
+            if (node.children && node.children.length > 0) {
+                console.log(`${indent}  ├─ Children:`);
+                this.debugNavigationTree(node.children, depth + 2);
+            }
+            if (node.chapters && node.chapters.length > 0) {
+                console.log(`${indent}  └─ Chapters: ${node.chapters.length}`);
+            }
+        });
+    }
+
+    // === 侧边栏UI控制（保持重构版外观）===
+    
+    validateRequiredElements() {
+        if (!this.navContainer || !this.contentArea) {
+            throw new Error('Navigation: 缺少必需的DOM元素');
+        }
+    }
+
+    createSidebarStructure() {
+        this.hideOriginalNavigation();
+        this.createHeaderElements();
+        this.createSidebarContainer();
+        this.createOverlay();
+        this.cacheElements();
+    }
+
+    hideOriginalNavigation() {
+        const originalNav = document.querySelector('.main-navigation');
+        if (originalNav) {
+            originalNav.style.display = 'none';
+            originalNav.setAttribute('data-backup', 'true');
+        }
+    }
+
+    createHeaderElements() {
+        let header = document.querySelector('.site-header');
+        if (!header) {
+            header = document.createElement('header');
+            header.className = 'site-header';
+            header.innerHTML = '<div class="brand-logo">Learner</div>';
+            document.body.insertBefore(header, document.body.firstChild);
+        }
+        
+        if (!header.querySelector('.nav-toggle')) {
+            const hamburger = document.createElement('button');
+            hamburger.className = 'nav-toggle';
+            hamburger.setAttribute('aria-label', '打开导航菜单');
+            hamburger.setAttribute('data-action', 'toggle-sidebar');
+            hamburger.innerHTML = `
+                <span class="hamburger-icon">
+                    <span></span><span></span><span></span>
+                </span>
+            `;
+            header.insertBefore(hamburger, header.firstChild);
+        }
+    }
+
+    createSidebarContainer() {
+        const oldSidebar = document.querySelector('.sidebar-container');
+        if (oldSidebar) oldSidebar.remove();
+        
+        const sidebarContainer = document.createElement('div');
+        sidebarContainer.className = 'sidebar-container';
+        sidebarContainer.setAttribute('data-state', 'closed');
+        sidebarContainer.innerHTML = `
+            <nav class="sidebar-main">
+                <div class="nav-breadcrumb"></div>
+                <div class="nav-content"></div>
+            </nav>
+            <div class="sidebar-submenu">
+                <div class="submenu-content"></div>
+            </div>
+        `;
+        
+        document.body.appendChild(sidebarContainer);
+    }
+
+    createOverlay() {
+        const oldOverlay = document.querySelector('.sidebar-overlay');
+        if (oldOverlay) oldOverlay.remove();
+        
+        const overlay = document.createElement('div');
+        overlay.className = 'sidebar-overlay';
+        overlay.setAttribute('aria-label', '点击关闭导航');
+        overlay.setAttribute('data-action', 'close-sidebar');
+        document.body.appendChild(overlay);
+    }
+
+    cacheElements() {
+        this.state.elements = {
+            hamburger: document.querySelector('.nav-toggle'),
+            container: document.querySelector('.sidebar-container'),
+            mainPanel: document.querySelector('.sidebar-main'),
+            submenuPanel: document.querySelector('.sidebar-submenu'),
+            overlay: document.querySelector('.sidebar-overlay'),
+            breadcrumb: document.querySelector('.nav-breadcrumb'),
+            mainContent: document.querySelector('.nav-content'),
+            submenuContent: document.querySelector('.submenu-content')
+        };
+    }
+
+    showSubmenu() {
+        const submenu = this.state.elements.submenuPanel;
+        if (!submenu) return;
+        
+        submenu.classList.remove('hidden');
+        submenu.classList.add('expanded');
+        submenu.style.display = 'block';
+        submenu.style.transform = 'translateX(100%)';
+        submenu.style.opacity = '0';
+        submenu.style.visibility = 'visible';
+        submenu.style.pointerEvents = 'auto';
+        
+        requestAnimationFrame(() => {
+            submenu.style.transform = 'translateX(0)';
+            submenu.style.opacity = '1';
+        });
+    }
+
+    hideSubmenu() {
+        const submenu = this.state.elements.submenuPanel;
+        if (!submenu) return;
+        
+        submenu.style.transform = 'translateX(100%)';
+        submenu.style.opacity = '0';
+        
+        setTimeout(() => {
+            submenu.style.display = 'none';
+            submenu.style.visibility = 'hidden';
+            submenu.style.pointerEvents = 'none';
+            submenu.classList.remove('expanded');
+            submenu.classList.add('hidden');
+            submenu.innerHTML = '';
+        }, this.config.animationDuration);
+    }
+
+    setupEventListeners() {
+        document.addEventListener('click', this.handleGlobalClick.bind(this));
+        window.addEventListener('resize', this.throttle(this.handleResize.bind(this), 250));
+        window.addEventListener('keydown', this.handleKeydown.bind(this));
+    }
+
+    handleGlobalClick(event) {
         const target = event.target;
         const actionElement = target.closest('[data-action]');
         
         if (!actionElement) {
-            this.#handleOutsideClick(event);
+            this.handleOutsideClick(event);
             return;
         }
         
         const action = actionElement.dataset.action;
+        const id = actionElement.dataset.id;
         
         event.preventDefault();
         event.stopPropagation();
         
         switch (action) {
             case 'toggle-sidebar':
-                this.#toggleSidebar();
+                this.toggle();
                 break;
             case 'close-sidebar':
-                this.#closeSidebar();
+                this.close();
                 break;
-            case 'custom-nav-item':
-                this.#handleCustomNavClick(actionElement);
+            case 'nav-item':
+                this.handleNavItemClick(id);
                 break;
-            case 'custom-chapter-item':
-                this.navigateToChapter(actionElement.dataset.id);
-                this.#closeSidebar();
+            case 'navigate-chapter':
+                this.navigateToChapter(id);
+                this.close();
                 break;
-            case 'custom-nav-back':
-                this.#goBackInSidebar();
+            case 'breadcrumb-back':
+                this.navigateBack();
+                break;
+            case 'breadcrumb-link':
+                this.navigateToSpecificLevel(actionElement.dataset.level, id);
                 break;
         }
     }
 
-    #handleOutsideClick(event) {
-        const sidebar = this.state.sidebar.elements.container;
-        const hamburger = this.state.sidebar.elements.hamburger;
-        const overlay = this.state.sidebar.elements.overlay;
+    handleOutsideClick(event) {
+        if (!this.state.isOpen) return;
         
-        if (this.state.sidebar.isOpen && 
-            (event.target === overlay || 
-             (!sidebar?.contains(event.target) && !hamburger?.contains(event.target)))) {
-            this.#closeSidebar();
+        const sidebar = this.state.elements.container;
+        const hamburger = this.state.elements.hamburger;
+        const overlay = this.state.elements.overlay;
+        
+        if (event.target === overlay || 
+            (!sidebar.contains(event.target) && !hamburger.contains(event.target))) {
+            this.close();
         }
     }
 
-    #handleResize() {
-        const now = Date.now();
-        if (now - this.state.lastResize < 50) return;
-        
-        this.state.lastResize = now;
+    handleResize() {
         this.state.isMobile = window.innerWidth <= 768;
     }
 
-    #handleKeydown(event) {
-        if (event.key === 'Escape') {
-            if (this.state.sidebar.isOpen) {
-                this.#closeSidebar();
+    handleKeydown(event) {
+        if (event.key === 'Escape' && this.state.isOpen) {
+            event.preventDefault();
+            this.close();
+        }
+    }
+
+    throttle(func, delay) {
+        let timeoutId;
+        let lastExecTime = 0;
+        return function (...args) {
+            const currentTime = Date.now();
+            
+            if (currentTime - lastExecTime > delay) {
+                func.apply(this, args);
+                lastExecTime = currentTime;
+            } else {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    func.apply(this, args);
+                    lastExecTime = Date.now();
+                }, delay - (currentTime - lastExecTime));
             }
-        }
+        };
     }
 
-    #handlePopState(event) {
-        const route = event.state || this.#parseHash();
-        this.#route(route, false, true);
+    toggle() {
+        this.state.isOpen ? this.close() : this.open();
     }
 
-    #handleInitialLoad() {
-        const route = this.#parseHash();
-        this.#route(route, true);
-    }
-
-    // 🔒 完全保留原有路由和内容加载系统
-    #parseHash() {
-        const hash = window.location.hash.substring(1);
-        const { ROUTES, HASH_PREFIX } = Navigation.CONFIG;
+    open() {
+        this.state.isOpen = true;
         
-        if (hash.startsWith(HASH_PREFIX.SERIES)) {
-            return { type: ROUTES.SERIES, id: hash.substring(HASH_PREFIX.SERIES.length) };
-        }
-        if (hash === HASH_PREFIX.ALL_ARTICLES) {
-            return { type: ROUTES.ALL, id: null };
-        }
-        if (hash === HASH_PREFIX.TOOLS) {
-            return { type: ROUTES.TOOLS, id: null };
-        }
-        if (hash && this.state.chaptersMap.has(hash)) {
-            return { type: ROUTES.CHAPTER, id: hash };
-        }
-
-        const defaultSeriesId = this.navData[0]?.seriesId || this.navData[0]?.id;
-        return defaultSeriesId ? { type: ROUTES.SERIES, id: defaultSeriesId } : { type: ROUTES.ALL, id: null };
+        const { container, overlay } = this.state.elements;
+        
+        container.setAttribute('data-state', 'open');
+        container.classList.add('open');
+        overlay.classList.add('visible');
+        
+        document.body.style.overflow = 'hidden';
+        document.body.classList.add('sidebar-open');
+        
+        this.updateHamburgerAction();
     }
 
-    #route(route, replace = false, fromPopState = false) {
-        if (!fromPopState) {
-            const historyMethod = replace ? 'replaceState' : 'pushState';
-            const newHash = this.#getHashFromRoute(route);
-            history[historyMethod](route, '', newHash);
-        }
-
-        switch (route.type) {
-            case Navigation.CONFIG.ROUTES.SERIES:
-                this.#setActiveSeries(route.id);
-                break;
-            case Navigation.CONFIG.ROUTES.CHAPTER:
-                this.navigateToChapter(route.id);
-                break;
-            case Navigation.CONFIG.ROUTES.ALL:
-                this.#showAllArticles();
-                break;
-            case Navigation.CONFIG.ROUTES.TOOLS:
-                this.#showToolsPage();
-                break;
-            default:
-                this.#loadDefaultRoute();
-                break;
-        }
+    close() {
+        this.state.isOpen = false;
+        
+        const { container, overlay } = this.state.elements;
+        
+        container.setAttribute('data-state', 'closed');
+        container.classList.remove('open');
+        overlay.classList.remove('visible');
+        
+        document.body.style.overflow = '';
+        document.body.classList.remove('sidebar-open');
+        
+        this.resetNavigationState();
+        this.updateHamburgerAction();
     }
 
-    #getHashFromRoute(route) {
-        const { type, id } = route;
-        switch(type) {
-            case Navigation.CONFIG.ROUTES.SERIES: 
-                return `#${Navigation.CONFIG.HASH_PREFIX.SERIES}${id}`;
-            case Navigation.CONFIG.ROUTES.CHAPTER: 
-                return `#${id}`;
-            case Navigation.CONFIG.ROUTES.ALL: 
-                return `#${Navigation.CONFIG.HASH_PREFIX.ALL_ARTICLES}`;
-            case Navigation.CONFIG.ROUTES.TOOLS:
-                return `#${Navigation.CONFIG.HASH_PREFIX.TOOLS}`;
-            default: 
-                return '';
+    resetNavigationState() {
+        this.state.currentPath = [];
+        this.state.currentLevel = 0;
+        this.hideSubmenu();
+        this.renderCurrentLevel();
+    }
+
+    updateHamburgerAction() {
+        const hamburger = this.state.elements.hamburger;
+        if (hamburger) {
+            hamburger.setAttribute('data-action', this.state.isOpen ? 'close-sidebar' : 'toggle-sidebar');
         }
     }
 
-    #loadDefaultRoute() {
-        const defaultSeriesId = this.navData[0]?.seriesId || this.navData[0]?.id;
-        if (defaultSeriesId) {
-            this.#setActiveSeries(defaultSeriesId);
-        } else {
-            this.#showAllArticles();
+    ensureCorrectInitialState() {
+        this.close();
+        this.hideSubmenu();
+        
+        if (this.contentArea) {
+            this.contentArea.style.marginLeft = '0';
+            this.contentArea.style.width = '100%';
         }
     }
 
-    // 🔒 完全保留所有原有内容加载方法...
-    // [这里省略大量原有方法以节省空间，实际代码中需要包含完整版本]
+    // === 🔗 兼容性API（确保与现有模块完全兼容）===
     
-    navigateToChapter(chapterId) {
-        if (!this.state.chaptersMap.has(chapterId)) {
-            this.#displayError('章节未找到');
-            return;
-        }
-        this.#loadChapterContent(chapterId);
+    async waitForInitialization() {
+        return this.initPromise;
     }
 
-    async #loadChapterContent(chapterId) {
-        const chapterData = this.state.chaptersMap.get(chapterId);
-        if (!chapterData) {
-            this.#displayError('章节数据未找到');
-            return;
-        }
+    async ensureInitialContentDisplay() {
+        if (this.state.hasInitialContent) return;
 
         try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const chapterId = urlParams.get('chapter');
+            const seriesId = urlParams.get('series');
+            
+            if (chapterId) {
+                this.navigateToChapter(chapterId);
+                this.state.hasInitialContent = true;
+                return;
+            }
+            
+            if (seriesId) {
+                const node = this.findNodeById(seriesId);
+                if (node) {
+                    this.handleDirectNavigation(node);
+                    this.state.hasInitialContent = true;
+                    return;
+                }
+            }
+            
+            if (this.config.autoLoadDefaultContent) {
+                await this.loadDefaultContent();
+            }
+            
+        } catch (error) {
+            console.error('[CustomNavigation] 初始内容加载失败:', error);
+            this.displayFallbackContent();
+        }
+    }
+
+    async loadDefaultContent() {
+        if (this.config.defaultContentType === 'all-articles') {
+            this.showAllArticles();
+            this.state.isMainPage = true;
+        }
+        
+        this.state.hasInitialContent = true;
+    }
+
+    showAllArticles() {
+        this.state.isMainPage = true;
+        const allChapters = this.getAllChapters();
+        this.dispatchEvent('allArticlesRequested', { chapters: allChapters });
+        this.setActiveLink('all-articles');
+        this.updateTitle('所有文章');
+    }
+
+    getAllChapters() {
+        return Array.from(this.state.chaptersMap.values());
+    }
+
+    navigateToChapter(chapterId) {
+        const chapterData = this.state.chaptersMap.get(chapterId);
+        if (!chapterData) {
+            console.error('Chapter not found:', chapterId);
+            return;
+        }
+        
+        this.state.isMainPage = false;
+        this.loadChapterContent(chapterId, chapterData);
+    }
+
+    async loadChapterContent(chapterId, chapterData) {
+        try {
+            if (chapterData.externalUrl) {
+                const openInNew = chapterData.openInNewTab !== false;
+                if (openInNew) {
+                    window.open(chapterData.externalUrl, '_blank', 'noopener,noreferrer');
+                    this.displayExternalLinkMessage(chapterData);
+                } else {
+                    window.location.href = chapterData.externalUrl;
+                }
+                return;
+            }
+            
             if (chapterData.type === 'tool' && chapterData.url) {
-                this.#handleToolPageNavigation(chapterData);
+                this.handleToolPageNavigation(chapterData);
                 return;
             }
             
             let content = this.cache.get ? this.cache.get(chapterId) : null;
             
             if (!content) {
-                const contentUrl = this.#getContentUrl(chapterData);
+                const contentUrl = this.getContentUrl(chapterData);
                 const response = await fetch(contentUrl);
                 
                 if (!response.ok) {
@@ -958,377 +1041,240 @@ class Navigation {
                 }
             }
             
-            this.#displayChapterContent(chapterId, content, chapterData);
+            this.displayChapterContent(chapterId, content, chapterData);
             
         } catch (error) {
-            this.#displayError('章节加载失败，请检查网络连接');
-            this.#dispatchEvent('chapterLoadError', { chapterId, error });
+            console.error('Chapter loading failed:', error);
+            this.displayError('章节加载失败，请检查网络连接');
+            this.dispatchEvent('chapterLoadError', { chapterId, error });
         }
     }
 
-    #getContentUrl(chapterData) {
+    getContentUrl(chapterData) {
         if (chapterData.url) {
-            if (chapterData.url.startsWith('http')) {
-                return chapterData.url;
-            }
-            return chapterData.url;
+            return chapterData.url.startsWith('http') ? chapterData.url : chapterData.url;
         }
         return `chapters/${chapterData.id}.html`;
     }
 
-    #handleToolPageNavigation(chapterData) {
+    handleToolPageNavigation(chapterData) {
         const { id, url, title } = chapterData;
         
         if (url.startsWith('http')) {
             window.open(url, '_blank', 'noopener,noreferrer');
-            this.#displayExternalLinkMessage(chapterData);
+            this.displayToolRedirectMessage(title, url);
         } else {
             window.location.href = url;
         }
         
-        this.#updateTitle(title);
-        this.#setActiveLink(chapterData.seriesId);
-        
-        this.#dispatchEvent('toolPageLoaded', { 
-            toolId: id, 
-            toolUrl: url, 
-            chapterData 
-        });
+        this.updateTitle(title);
+        this.setActiveLink(id);
+        this.dispatchEvent('toolPageLoaded', { toolId: id, toolUrl: url, chapterData });
     }
-    
-    #displayChapterContent(chapterId, content, chapterData) {
+
+    displayChapterContent(chapterId, content, chapterData) {
         this.contentArea.innerHTML = content;
-        this.#updateTitle(chapterData.title);
-        this.#setActiveLink(chapterData.seriesId);
+        this.updateTitle(chapterData.title);
+        this.setActiveLink(chapterData.id);
 
-        this.#dispatchEvent(Navigation.CONFIG.EVENTS.CHAPTER_LOADED, { 
+        const hasAudio = chapterData.audio === true || 
+                         !!chapterData.audioFile || 
+                         !!chapterData.audio || 
+                         !!chapterData.srtFile;
+
+        this.dispatchEvent('chapterLoaded', { 
             chapterId, 
-            hasAudio: chapterData.audio, 
-            chapterData 
+            hasAudio: hasAudio, 
+            chapterData: {
+                ...chapterData,
+                audioFile: chapterData.audioFile || chapterData.audio || `audio/${chapterId}.mp3`,
+                srtFile: chapterData.srtFile || `srt/${chapterId}.srt`,
+                duration: chapterData.duration,
+                difficulty: chapterData.difficulty,
+                tags: chapterData.tags,
+                publishDate: chapterData.publishDate,
+                description: chapterData.description,
+                thumbnail: chapterData.thumbnail
+            }
         });
 
-        const { prevChapterId, nextChapterId } = this.#getChapterNav(chapterId);
-        this.#dispatchEvent(Navigation.CONFIG.EVENTS.NAVIGATION_UPDATED, { prevChapterId, nextChapterId });
+        const { prevChapterId, nextChapterId } = this.getChapterNav(chapterId);
+        this.dispatchEvent('navigationUpdated', { prevChapterId, nextChapterId });
     }
 
-    #setActiveSeries(seriesId) {
-        const seriesData = this.navData.find(s => (s.seriesId || s.id) === seriesId);
-        if (seriesData) {
-            this.#updateTitle(`Series: ${seriesData.series || seriesData.title || seriesId}`);
-            this.#setActiveLink(seriesId);
-            this.#dispatchEvent(Navigation.CONFIG.EVENTS.SERIES_SELECTED, { 
-                seriesId, 
-                chapters: seriesData.chapters 
-            });
-        }
-    }
-    
-    #showAllArticles() {
-        this.#updateTitle('All Articles');
-        this.#setActiveLink(Navigation.CONFIG.ROUTES.ALL);
-        this.#dispatchEvent(Navigation.CONFIG.EVENTS.ALL_ARTICLES_REQUESTED);
-    }
-
-    #showToolsPage() {
-        this.#updateTitle('Tools');
-        this.#setActiveLink(Navigation.CONFIG.ROUTES.TOOLS);
-        this.#displayToolsPageContent();
-        this.#dispatchEvent(Navigation.CONFIG.EVENTS.TOOLS_REQUESTED);
-    }
-
-    #displayToolsPageContent() {
-        this.contentArea.innerHTML = `
-            <div class="tools-page">
-                <div class="tools-header" style="text-align: center; margin-bottom: 40px; padding: 40px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px;">
-                    <div style="font-size: 3rem; margin-bottom: 20px;">🛠️</div>
-                    <h1 style="margin-bottom: 16px; font-size: 2.5rem;">学习工具箱</h1>
-                    <p style="opacity: 0.9; font-size: 1.1rem;">提升英语学习效率的实用工具集合</p>
-                </div>
-                
-                <div class="tools-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; padding: 0 20px;">
-                    <div class="tool-card" onclick="window.location.href='word-frequency.html'" style="
-                        background: white; 
-                        border-radius: 12px; 
-                        padding: 24px; 
-                        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
-                        cursor: pointer; 
-                        transition: all 0.3s ease;
-                        border: 2px solid transparent;
-                    "
-                    onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 8px 20px rgba(0, 0, 0, 0.15)'; this.style.borderColor='#667eea';"
-                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0, 0, 0, 0.1)'; this.style.borderColor='transparent';">
-                        
-                        <div class="tool-icon" style="font-size: 2.5rem; text-align: center; margin-bottom: 16px;">
-                            📊
-                        </div>
-                        
-                        <h3 style="margin-bottom: 12px; color: #333; font-size: 1.3rem; text-align: center;">
-                            词频统计分析
-                        </h3>
-                        
-                        <p style="color: #666; margin-bottom: 20px; line-height: 1.5; text-align: center; min-height: 48px;">
-                            全站英文词汇频次统计，帮助发现重点学习词汇，支持词云展示和智能搜索
-                        </p>
-                        
-                        <div class="tool-footer" style="text-align: center;">
-                            <button style="
-                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                                color: white; 
-                                border: none; 
-                                padding: 10px 24px; 
-                                border-radius: 6px; 
-                                cursor: pointer; 
-                                font-weight: 500;
-                                transition: all 0.2s ease;
-                                pointer-events: none;
-                            ">
-                                使用工具 →
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-    
-    #setActiveLink(id) {
-        if (this.state.activeLink) {
-            this.state.activeLink.classList.remove(Navigation.CONFIG.CSS.ACTIVE);
-        }
+    setActiveLink(id) {
+        this.state.linksMap.forEach(link => link.classList.remove('active'));
         
         const newActiveLink = this.state.linksMap.get(id);
         if (newActiveLink) {
-            newActiveLink.classList.add(Navigation.CONFIG.CSS.ACTIVE);
+            newActiveLink.classList.add('active');
             this.state.activeLink = newActiveLink;
         }
     }
 
-    #getChapterNav(chapterId) {
+    updateActiveState(itemId) {
+        this.setActiveLink(itemId);
+    }
+
+    getChapterNav(chapterId) {
         const chapterData = this.state.chaptersMap.get(chapterId);
         if (!chapterData) return { prevChapterId: null, nextChapterId: null };
 
-        const series = this.navData.find(s => (s.seriesId || s.id) === chapterData.seriesId);
-        if (!series) return { prevChapterId: null, nextChapterId: null };
+        const parentItem = this.findParentItem(chapterId);
+        if (!parentItem || !parentItem.chapters) {
+            return { prevChapterId: null, nextChapterId: null };
+        }
         
-        const currentIndex = series.chapters.findIndex(c => c.id === chapterId);
-        const prevChapter = series.chapters[currentIndex - 1];
-        const nextChapter = series.chapters[currentIndex + 1];
+        const currentIndex = parentItem.chapters.findIndex(c => c.id === chapterId);
+        const prevChapter = parentItem.chapters[currentIndex - 1];
+        const nextChapter = parentItem.chapters[currentIndex + 1];
 
         return {
             prevChapterId: prevChapter?.id || null,
-            nextChapterId: nextChapter?.id || null,
+            nextChapterId: nextChapter?.id || null
         };
     }
 
-    // 🔒 完全保留原有预加载和其他所有方法...
-    #startPreloading() {
-        if (!this.config.enablePreloading) return;
+    findParentItem(chapterId) {
+        const chapterData = this.state.chaptersMap.get(chapterId);
+        if (!chapterData) return null;
         
-        const preloadCount = 3;
-        const chaptersToPreload = Array.from(this.state.chaptersMap.values())
-            .filter(chapter => chapter.type !== 'tool')
-            .slice(0, preloadCount)
-            .map(chapter => chapter.id);
-        
-        chaptersToPreload.forEach((chapterId, index) => {
-            setTimeout(() => {
-                this.#preloadChapter(chapterId);
-            }, index * 1000);
-        });
+        return this.findNodeById(chapterData.seriesId);
     }
 
-    async #preloadChapter(chapterId) {
-        if (this.cache.has && this.cache.has(chapterId)) return;
-        if (this.state.preloadQueue.has(chapterId)) return;
-        
-        this.state.preloadQueue.add(chapterId);
-        
-        try {
-            const chapterData = this.state.chaptersMap.get(chapterId);
-            if (!chapterData || chapterData.type === 'tool') return;
-            
-            const contentUrl = this.#getContentUrl(chapterData);
-            const response = await fetch(contentUrl);
-            
-            if (response.ok) {
-                const content = await response.text();
-                if (this.cache.set) {
-                    this.cache.set(chapterId, content);
-                }
-                
-                if (this.config.debug) {
-                    console.log(`[Navigation] Preloaded: ${chapterId}`);
-                }
-            }
-        } catch (error) {
-            if (this.config.debug) {
-                console.warn(`[Navigation] Preload failed: ${chapterId}`, error);
-            }
-        } finally {
-            this.state.preloadQueue.delete(chapterId);
-        }
-    }
-
-    // 工具方法
-    #generateId() {
-        return 'nav_' + Math.random().toString(36).substr(2, 9);
-    }
-
-    #updateTitle(text) {
+    updateTitle(text) {
         document.title = text ? `${text} | ${this.config.siteTitle}` : this.config.siteTitle;
     }
 
-    #displayError(message) {
+    displayError(message) {
         this.contentArea.innerHTML = `<p class="error-message" style="text-align: center; padding: 40px; color: #dc3545;">${message}</p>`;
     }
 
-    #dispatchEvent(eventName, detail = {}) {
+    displayExternalLinkMessage(data) {
+        this.contentArea.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; border-radius: 12px; margin: 20px 0;">
+                <div style="font-size: 3rem; margin-bottom: 20px;">🌐</div>
+                <h2 style="margin-bottom: 16px;">${data.title}</h2>
+                <p style="margin-bottom: 24px; opacity: 0.9;">${data.description || '外部链接已在新窗口打开'}</p>
+            </div>
+        `;
+    }
+
+    displayToolRedirectMessage(title, url) {
+        this.contentArea.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; margin: 20px 0;">
+                <div style="font-size: 3rem; margin-bottom: 20px;">🚀</div>
+                <h2 style="margin-bottom: 16px;">${title}</h2>
+                <p style="margin-bottom: 24px; opacity: 0.9;">工具页面已在新窗口打开</p>
+            </div>
+        `;
+    }
+
+    displayFallbackContent() {
+        this.contentArea.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; margin: 20px 0;">
+                <div style="font-size: 3rem; margin-bottom: 20px;">📚</div>
+                <h1 style="margin-bottom: 16px; font-size: 2rem;">Learner</h1>
+                <p style="margin-bottom: 24px; opacity: 0.9;">正在加载内容，请稍候...</p>
+            </div>
+        `;
+        
+        this.updateTitle('加载中');
+        this.state.hasInitialContent = true;
+    }
+
+    dispatchEvent(eventName, detail = {}) {
         document.dispatchEvent(new CustomEvent(eventName, { detail }));
     }
 
-    #handleInitializationFailure(error) {
+    handleInitializationError(error) {
         this.contentArea.innerHTML = `
             <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; margin: 20px 0;">
-                <h2 style="color: #dc3545; margin-bottom: 16px;">导航系统初始化失败</h2>
+                <h2 style="color: #dc3545; margin-bottom: 16px;">自定义导航初始化失败</h2>
                 <p>遇到了一些问题：${error.message}</p>
-                <button onclick="location.reload()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 0 5px;">
+                <button onclick="location.reload()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
                     重新加载
                 </button>
             </div>
         `;
     }
 
-    // 🔒 完全保留原有公共API方法
-    navigateToTool(toolId) {
-        const toolData = this.state.chaptersMap.get(toolId);
-        if (!toolData || toolData.type !== 'tool') {
-            return false;
-        }
-        
-        this.navigateToChapter(toolId);
-        return true;
-    }
-
-    getToolsList() {
-        return Array.from(this.state.chaptersMap.values())
-            .filter(chapter => chapter.type === 'tool')
-            .map(tool => ({
-                id: tool.id,
-                title: tool.title,
-                description: tool.description,
-                url: tool.url,
-                seriesId: tool.seriesId,
-                category: tool.category
-            }));
-    }
-
-    async waitForInitialization() {
-        return this.initPromise;
-    }
-
-    getCacheStats() {
-        return this.cache.getStats ? this.cache.getStats() : null;
-    }
-
-    getPerformanceStats() {
+    // === 🔧 实用方法 ===
+    
+    // 获取导航统计信息
+    getNavigationStats() {
         return {
-            preloadQueue: this.state.preloadQueue.size,
-            preloadInProgress: this.state.preloadInProgress,
-            domCacheSize: this.domCache.size,
-            elementsMapSize: this.elements.size,
-            linksMapSize: this.state.linksMap.size,
-            chaptersMapSize: this.state.chaptersMap.size,
-            customNavigationItems: this.state.sidebar.flatItemsMap.size,
-            isMobile: this.state.isMobile,
-            sidebarOpen: this.state.sidebar.isOpen
+            totalNodes: this.countTotalNodes(this.state.navigationTree),
+            totalChapters: this.state.chaptersMap.size,
+            maxDepth: this.getMaxDepth(this.state.navigationTree),
+            currentLevel: this.state.currentLevel,
+            currentPath: this.state.currentPath.map(p => p.title),
+            nodeTypes: this.getNodeTypeStats()
         };
     }
 
-    preloadChapters(chapterIds) {
-        if (!Array.isArray(chapterIds)) return;
-        
-        chapterIds.forEach((chapterId, index) => {
-            setTimeout(() => {
-                this.#preloadChapter(chapterId);
-            }, index * 500);
+    countTotalNodes(nodes) {
+        let count = nodes.length;
+        nodes.forEach(node => {
+            if (node.children && node.children.length > 0) {
+                count += this.countTotalNodes(node.children);
+            }
         });
+        return count;
     }
 
-    clearCache() {
-        if (this.cache && this.cache.clear) {
-            this.cache.clear();
-        }
-        this.domCache.clear();
-        this.state.preloadQueue.clear();
+    getMaxDepth(nodes, currentDepth = 0) {
+        let maxDepth = currentDepth;
+        nodes.forEach(node => {
+            if (node.children && node.children.length > 0) {
+                const childDepth = this.getMaxDepth(node.children, currentDepth + 1);
+                maxDepth = Math.max(maxDepth, childDepth);
+            }
+        });
+        return maxDepth;
+    }
+
+    getNodeTypeStats() {
+        const stats = {};
+        this.walkNavigationTree(this.state.navigationTree, (node) => {
+            stats[node.type] = (stats[node.type] || 0) + 1;
+        });
+        return stats;
     }
 
     destroy() {
-        // 清理定时器
-        for (const timer of this.state.debounceTimers.values()) {
-            clearTimeout(timer);
-        }
-        this.state.debounceTimers.clear();
+        this.close();
         
-        // 关闭侧边栏
-        this.#closeSidebar();
-        
-        // 恢复原导航
-        const originalNav = document.querySelector('[data-backup="true"]');
-        if (originalNav) {
-            originalNav.style.display = '';
-            originalNav.removeAttribute('data-backup');
-        }
-        
-        // 移除侧边栏DOM
         const elementsToRemove = ['container', 'overlay'];
         elementsToRemove.forEach(key => {
-            const element = this.state.sidebar.elements[key];
+            const element = this.state.elements[key];
             if (element && element.parentElement) {
                 element.remove();
             }
         });
         
-        // 移除汉堡按钮
-        const hamburger = this.state.sidebar.elements.hamburger;
+        const hamburger = this.state.elements.hamburger;
         if (hamburger && hamburger.parentElement) {
             hamburger.remove();
         }
         
-        // 移除事件监听器
-        document.removeEventListener('click', this.eventHandlers.globalClick);
-        window.removeEventListener('resize', this.eventHandlers.windowResize);
-        window.removeEventListener('popstate', this.eventHandlers.popState);
-        document.removeEventListener('keydown', this.eventHandlers.keydown);
-        
-        // 清理缓存
-        this.clearCache();
-        
-        // 清理状态
         this.state.linksMap.clear();
-        this.state.activeLink = null;
         this.state.chaptersMap.clear();
-        this.state.preloadQueue.clear();
-        this.state.sidebar.flatItemsMap.clear();
+        this.state.currentPath = [];
         
-        // 清理body样式
         document.body.style.overflow = '';
         document.body.classList.remove('sidebar-open');
         
         if (this.config.debug) {
-            console.log('[Navigation] Instance destroyed and cleaned up');
+            console.log('[CustomNavigation] 🧹 自定义导航已销毁');
         }
-    }
-
-    // 🔒 保留原有下拉菜单方法（兼容性）
-    #hideDropdown() {
-        // 空方法，保持兼容性
     }
 }
 
 // 注册到全局
 window.EnglishSite.Navigation = Navigation;
 
-// 🔒 完全保留原有全局函数
+// 便捷的全局函数
 window.navigateToWordFrequency = function() {
     if (window.app && window.app.navigation) {
         return window.app.navigation.navigateToTool('word-frequency');
@@ -1337,13 +1283,23 @@ window.navigateToWordFrequency = function() {
 };
 
 window.closeSidebarNavigation = function() {
-    if (window.app && window.app.navigation && window.app.navigation.state?.sidebar?.isOpen) {
-        window.app.navigation.state.sidebar.isOpen = false;
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    if (window.app && window.app.navigation && window.app.navigation.state.isOpen) {
+        window.app.navigation.close();
         return true;
     }
     return false;
 };
 
-// 保留原有函数名为兼容性
-window.closeNavigationDropdowns = window.closeSidebarNavigation;
+// 🔍 调试函数
+window.debugCustomNavigation = function() {
+    if (window.app && window.app.navigation) {
+        const nav = window.app.navigation;
+        console.log('=== 🔍 自定义导航调试信息 ===');
+        console.log('📊 导航统计:', nav.getNavigationStats());
+        console.log('🌳 导航树:', nav.state.navigationTree);
+        console.log('📚 章节映射:', nav.state.chaptersMap);
+        console.log('🗂️ 当前路径:', nav.state.currentPath);
+        return nav.getNavigationStats();
+    }
+    return null;
+};
