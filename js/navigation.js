@@ -1,5 +1,4 @@
-// === 重构后的 navigation.js (模块化架构版) ===
-
+// js/navigation.js - 重构版侧边导航系统 v3.0 (遮挡问题修复版)
 window.EnglishSite = window.EnglishSite || {};
 
 // === 1. 🚀 核心状态管理器 ===
@@ -24,6 +23,8 @@ class StateManager {
             dom: new Map(),
             content: null
         };
+        
+        this.listeners = new Set();
     }
 
     setState(key, value) {
@@ -44,7 +45,6 @@ class StateManager {
     }
 
     notifyChange(key, value) {
-        // 状态变化通知机制
         document.dispatchEvent(new CustomEvent('stateChanged', {
             detail: { key, value, state: this.state }
         }));
@@ -67,7 +67,7 @@ class DOMHelper {
 
     create(html) {
         const temp = document.createElement('div');
-        temp.innerHTML = html;
+        temp.innerHTML = html.trim();
         return temp.firstElementChild;
     }
 
@@ -88,12 +88,31 @@ class DOMHelper {
             }, duration);
         });
     }
+
+    // 🚨 新增：强制隐藏元素
+    forceHide(element) {
+        if (!element) return;
+        element.style.transform = 'translateX(-100%) translateX(-20px) translateZ(0)';
+        element.style.visibility = 'hidden';
+        element.style.opacity = '0';
+        element.style.pointerEvents = 'none';
+    }
+
+    // 🚨 新增：强制显示元素
+    forceShow(element) {
+        if (!element) return;
+        element.style.transform = 'translateX(0) translateZ(0)';
+        element.style.visibility = 'visible';
+        element.style.opacity = '1';
+        element.style.pointerEvents = 'auto';
+    }
 }
 
 // === 3. 🚀 事件总线 ===
 class EventBus {
     constructor() {
         this.listeners = new Map();
+        this.debounceTimers = new Map();
         this.setupGlobalHandlers();
     }
 
@@ -123,10 +142,10 @@ class EventBus {
     }
 
     setupGlobalHandlers() {
-        document.addEventListener('click', this.handleGlobalClick.bind(this));
-        window.addEventListener('resize', this.debounce(this.handleResize.bind(this), 100));
-        window.addEventListener('popstate', this.handlePopState.bind(this));
-        document.addEventListener('keydown', this.handleKeydown.bind(this));
+        document.addEventListener('click', this.handleGlobalClick.bind(this), { passive: false });
+        window.addEventListener('resize', this.debounce('resize', this.handleResize.bind(this), 100), { passive: true });
+        window.addEventListener('popstate', this.handlePopState.bind(this), { passive: true });
+        document.addEventListener('keydown', this.handleKeydown.bind(this), { passive: false });
     }
 
     handleGlobalClick(event) {
@@ -145,12 +164,17 @@ class EventBus {
         this.emit('keydown', { event, key: event.key });
     }
 
-    debounce(func, delay) {
-        let timeoutId;
+    debounce(key, func, delay) {
         return (...args) => {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => func.apply(this, args), delay);
+            clearTimeout(this.debounceTimers.get(key));
+            this.debounceTimers.set(key, setTimeout(() => func.apply(this, args), delay));
         };
+    }
+
+    destroy() {
+        this.debounceTimers.forEach(timer => clearTimeout(timer));
+        this.debounceTimers.clear();
+        this.listeners.clear();
     }
 }
 
@@ -161,19 +185,38 @@ class SidebarManager {
         this.dom = dom;
         this.events = events;
         this.elements = {};
+        this.config = {
+            sidebarWidth: 70,
+            minWidth: 320,
+            maxWidth: '90vw',
+            responsiveWidths: { desktop: 70, tablet: 80, mobile: 90 }
+        };
         
         this.init();
         this.bindEvents();
     }
 
     init() {
+        this.hideOriginalNavigation();
         this.createSidebarElements();
         this.applySidebarConfig();
+        this.forceCorrectInitialState();
+    }
+
+    // 🚨 修复：隐藏原有导航
+    hideOriginalNavigation() {
+        const originalNav = this.dom.$('.main-navigation');
+        if (originalNav) {
+            originalNav.style.display = 'none';
+            originalNav.setAttribute('data-sidebar-fallback', 'true');
+        }
     }
 
     createSidebarElements() {
-        // 创建汉堡菜单按钮
+        // 创建或获取头部
         const header = this.dom.$('.site-header') || this.createSiteHeader();
+        
+        // 创建汉堡菜单按钮
         const hamburger = this.dom.create(`
             <button class="nav-toggle" aria-label="打开导航菜单" data-action="toggleSidebar">
                 <span class="hamburger-icon"><span></span><span></span><span></span></span>
@@ -194,6 +237,7 @@ class SidebarManager {
             <div class="sidebar-overlay" data-action="closeSidebar"></div>
         `);
 
+        // 添加到页面
         document.body.appendChild(sidebarContainer);
         document.body.appendChild(overlay);
 
@@ -210,7 +254,7 @@ class SidebarManager {
     createSiteHeader() {
         const header = this.dom.create(`
             <header class="site-header">
-                <div class="brand-logo">学习平台</div>
+                <div class="brand-logo">互动学习平台</div>
             </header>
         `);
         document.body.insertBefore(header, document.body.firstChild);
@@ -219,15 +263,60 @@ class SidebarManager {
 
     applySidebarConfig() {
         const container = this.elements.container;
-        container.style.setProperty('--sidebar-width', '70%');
-        container.style.setProperty('--sidebar-min-width', '320px');
+        const config = this.config;
+        
+        // 设置CSS变量
+        container.style.setProperty('--sidebar-width', `${config.sidebarWidth}%`);
+        container.style.setProperty('--sidebar-min-width', `${config.minWidth}px`);
+        container.style.setProperty('--sidebar-max-width', config.maxWidth);
+        
         this.handleResponsiveWidth();
     }
 
     handleResponsiveWidth() {
         const width = window.innerWidth;
-        const targetWidth = width <= 768 ? 90 : width <= 1024 ? 80 : 70;
-        this.elements.container.style.setProperty('--sidebar-width', `${targetWidth}%`);
+        const config = this.config;
+        
+        const targetWidth = width <= 768 ? config.responsiveWidths.mobile :
+                           width <= 1024 ? config.responsiveWidths.tablet :
+                           config.responsiveWidths.desktop;
+        
+        const container = this.elements.container;
+        if (container) {
+            container.style.setProperty('--sidebar-width', `${targetWidth}%`);
+            
+            // 🚨 修复：确保不超出视口
+            const actualWidth = Math.min(
+                (window.innerWidth * targetWidth) / 100,
+                window.innerWidth - 20
+            );
+            container.style.width = `${actualWidth}px`;
+        }
+    }
+
+    // 🚨 新增：强制正确的初始状态
+    forceCorrectInitialState() {
+        requestAnimationFrame(() => {
+            this.dom.forceHide(this.elements.container);
+            this.elements.overlay.classList.remove('visible');
+            document.body.style.overflow = '';
+            this.state.setState('isOpen', false);
+            
+            // 🚨 确保内容区域不被遮挡
+            this.ensureContentAreaNotBlocked();
+        });
+    }
+
+    // 🚨 新增：确保内容区域不被遮挡
+    ensureContentAreaNotBlocked() {
+        const contentArea = this.dom.$('#content') || this.dom.$('.content-area');
+        if (contentArea) {
+            contentArea.style.marginLeft = '0';
+            contentArea.style.width = '100%';
+            contentArea.style.position = 'relative';
+            contentArea.style.zIndex = '1';
+            contentArea.style.boxSizing = 'border-box';
+        }
     }
 
     bindEvents() {
@@ -237,7 +326,18 @@ class SidebarManager {
     }
 
     handleClick({ event, target }) {
-        const action = target.closest('[data-action]')?.dataset.action;
+        // 🚨 优先处理overlay点击
+        if (target.matches('.sidebar-overlay') || target.closest('.sidebar-overlay')) {
+            event.preventDefault();
+            event.stopPropagation();
+            this.close();
+            return;
+        }
+
+        const actionElement = target.closest('[data-action]');
+        if (!actionElement) return;
+
+        const action = actionElement.dataset.action;
         
         switch (action) {
             case 'toggleSidebar':
@@ -254,6 +354,14 @@ class SidebarManager {
     handleResize() {
         this.handleResponsiveWidth();
         this.state.setState('isMobile', window.innerWidth <= 768);
+        
+        // 🚨 重新确保内容不被遮挡
+        setTimeout(() => {
+            this.ensureContentAreaNotBlocked();
+            if (!this.state.getState('isOpen')) {
+                this.forceCorrectInitialState();
+            }
+        }, 100);
     }
 
     handleKeydown({ event, key }) {
@@ -268,6 +376,7 @@ class SidebarManager {
 
     open() {
         requestAnimationFrame(() => {
+            this.dom.forceShow(this.elements.container);
             this.elements.container.dataset.state = 'open';
             this.elements.container.classList.add('open');
             this.elements.overlay.classList.add('visible');
@@ -278,12 +387,16 @@ class SidebarManager {
 
     close() {
         requestAnimationFrame(() => {
+            this.dom.forceHide(this.elements.container);
             this.elements.container.dataset.state = 'closed';
             this.elements.container.classList.remove('open');
             this.elements.overlay.classList.remove('visible');
             document.body.style.overflow = '';
             this.collapseSubmenu();
             this.state.setState('isOpen', false);
+            
+            // 🚨 确保关闭后内容不被遮挡
+            setTimeout(() => this.ensureContentAreaNotBlocked(), 50);
         });
     }
 
@@ -331,10 +444,13 @@ class NavigationRenderer {
         this.dom = dom;
         this.events = events;
         this.templates = {
-            toolsItem: `<div class="nav-item tools-item level-1 clickable" data-action="openTools">
-                <span class="nav-title">Tools</span>
-                <span class="nav-arrow">></span>
-            </div>`,
+            toolsItem: `
+                <div class="nav-item tools-item level-1 clickable" data-action="openTools">
+                    <span class="nav-title">Tools</span>
+                    <span class="nav-arrow">></span>
+                </div>
+                <div class="nav-separator"></div>
+            `,
             expandableItem: (title, seriesId) => `
                 <div class="nav-item level-1 expandable" data-series-id="${seriesId}" data-action="toggleSubmenu">
                     <span class="nav-title">${title}</span>
@@ -348,11 +464,12 @@ class NavigationRenderer {
     }
 
     renderMainNavigation(container) {
+        if (!container) return;
+
         const navContent = this.dom.create('<div class="sidebar-nav-content"></div>');
         
         // Tools项
         navContent.appendChild(this.dom.create(this.templates.toolsItem));
-        navContent.appendChild(this.dom.create('<div class="nav-separator"></div>'));
         
         // 文章分类
         const articleCategory = this.createCategory('📚 文章内容', 'articles', [
@@ -491,7 +608,7 @@ class RouterController {
 // === 7. 🚀 核心导航控制器（外观模式） ===
 class NavigationCore {
     constructor(navContainer, contentArea, navData, options = {}) {
-        // 🚀 依赖注入
+        // 依赖注入
         this.state = new StateManager();
         this.dom = new DOMHelper();
         this.events = new EventBus();
@@ -499,10 +616,10 @@ class NavigationCore {
         // 原始参数保存（兼容性）
         this.navContainer = navContainer;
         this.contentArea = contentArea;
-        this.originalNavData = navData;
+        this.originalNavData = navData || [];
         this.options = options;
         
-        // 🚀 模块组合
+        // 模块组合
         this.sidebar = new SidebarManager(this.state, this.dom, this.events);
         this.renderer = new NavigationRenderer(this.state, this.dom, this.events);
         this.router = new RouterController(this.state, this.events);
@@ -537,17 +654,30 @@ class NavigationCore {
             // 处理初始路由
             this.handleInitialRoute();
             
+            // 🚨 最终修复检查
+            this.finalOverlapFix();
+            
         } catch (error) {
             console.error('[NavigationCore] Initialization failed:', error);
+            this.handleInitializationFailure(error);
             throw error;
         }
     }
 
+    // 🚨 新增：最终遮挡修复
+    finalOverlapFix() {
+        setTimeout(() => {
+            this.sidebar.ensureContentAreaNotBlocked();
+            if (!this.state.getState('isOpen')) {
+                this.dom.forceHide(this.sidebar.elements.container);
+            }
+        }, 100);
+    }
+
     async preprocessData() {
-        this.state.setData('navData', this.originalNavData || []);
+        this.state.setData('navData', this.originalNavData);
         
         const chaptersMap = new Map();
-        let totalChapters = 0;
         
         for (const series of this.originalNavData) {
             if (!series.seriesId || !Array.isArray(series.chapters)) continue;
@@ -560,7 +690,6 @@ class NavigationCore {
                     seriesId: series.seriesId,
                     seriesTitle: series.series
                 });
-                totalChapters++;
             }
         }
         
@@ -612,6 +741,9 @@ class NavigationCore {
             case 'showAllArticles':
                 this.handleAllArticlesClick();
                 break;
+            case 'showNews':
+                this.handleNewsClick();
+                break;
             case 'toggleSubmenu':
                 this.handleExpandableClick(actionElement);
                 break;
@@ -632,6 +764,11 @@ class NavigationCore {
     handleAllArticlesClick() {
         this.sidebar.close();
         this.router.route({ type: 'all', id: null });
+    }
+
+    handleNewsClick() {
+        this.sidebar.close();
+        // 可以添加新闻页面逻辑
     }
 
     handleExpandableClick(element) {
@@ -808,13 +945,13 @@ class NavigationCore {
 
     showAllArticles() {
         this.updateTitle('All Articles');
-        this.renderer.setActiveLink('all');
+        this.renderer.setActiveLink('showAllArticles');
         this.dispatchEvent('allArticlesRequested');
     }
 
     showToolsPage() {
         this.updateTitle('Tools');
-        this.renderer.setActiveLink('tools');
+        this.renderer.setActiveLink('openTools');
         this.displayToolsPageContent();
         this.dispatchEvent('toolsRequested');
     }
@@ -894,11 +1031,11 @@ class NavigationCore {
         if (this.cache.manager && this.cache.manager.clear) {
             this.cache.manager.clear();
         }
-        this.state.cache.dom.clear();
+        this.dom.cache.clear();
     }
 
     updateTitle(text) {
-        document.title = text ? `${text} | 学习平台` : '学习平台';
+        document.title = text ? `${text} | 互动学习平台` : '互动学习平台';
     }
 
     displayError(message) {
@@ -909,9 +1046,24 @@ class NavigationCore {
         document.dispatchEvent(new CustomEvent(eventName, { detail }));
     }
 
+    handleInitializationFailure(error) {
+        this.contentArea.innerHTML = `
+            <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; margin: 20px 0;">
+                <h2 style="color: #dc3545; margin-bottom: 16px;">导航系统初始化失败</h2>
+                <p>遇到了一些问题：${error.message}</p>
+                <button onclick="location.reload()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 0 5px;">
+                    重新加载
+                </button>
+            </div>
+        `;
+    }
+
     destroy() {
-        // 清理状态
+        // 关闭侧边栏
         this.sidebar.close();
+        
+        // 恢复原导航
+        this.restoreOriginalNavigation();
         
         // 移除DOM元素
         if (this.sidebar.elements.container) {
@@ -926,11 +1078,20 @@ class NavigationCore {
         
         // 清理缓存和状态
         this.clearCache();
+        this.events.destroy();
         document.body.style.overflow = '';
+    }
+
+    restoreOriginalNavigation() {
+        const originalNav = document.querySelector('[data-sidebar-fallback="true"]');
+        if (originalNav) {
+            originalNav.style.display = '';
+            originalNav.removeAttribute('data-sidebar-fallback');
+        }
     }
 }
 
-// === 🚀 兼容性外观类（100%向后兼容） ===
+// === 8. 🚀 兼容性外观类（100%向后兼容） ===
 class Navigation {
     constructor(navContainer, contentArea, navData, options = {}) {
         // 使用组合模式委托给重构后的核心
@@ -939,22 +1100,20 @@ class Navigation {
         // 兼容性属性映射
         this.navContainer = this.core.navContainer;
         this.contentArea = this.core.contentArea;
-        this.navData = navData;
+        this.navData = navData || [];
         this.cache = this.core.cache;
         this.initPromise = this.core.initPromise;
         
-        // 🚀 兼容性：保留侧边栏状态引用
+        // 兼容性：保留侧边栏状态引用
+        const self = this;
         this.sidebarState = {
-            get isOpen() { return this.core.state.getState('isOpen'); },
-            get expandedSubmenu() { return this.core.state.getState('expandedSubmenu'); },
-            get mainPanel() { return this.core.sidebar.elements.mainPanel; },
-            get submenuPanel() { return this.core.sidebar.elements.submenuPanel; },
-            get sidebarContainer() { return this.core.sidebar.elements.container; },
-            get overlay() { return this.core.sidebar.elements.overlay; }
+            get isOpen() { return self.core.state.getState('isOpen'); },
+            get expandedSubmenu() { return self.core.state.getState('expandedSubmenu'); },
+            get mainPanel() { return self.core.sidebar.elements.mainPanel; },
+            get submenuPanel() { return self.core.sidebar.elements.submenuPanel; },
+            get sidebarContainer() { return self.core.sidebar.elements.container; },
+            get overlay() { return self.core.sidebar.elements.overlay; }
         };
-        
-        // 绑定核心引用
-        Object.defineProperty(this.sidebarState, 'core', { value: this.core });
     }
 
     // === 🚀 所有公开API方法（100%兼容） ===
@@ -966,7 +1125,6 @@ class Navigation {
     clearCache() { return this.core.clearCache(); }
     destroy() { return this.core.destroy(); }
     
-    // 新增性能监控API
     getPerformanceStats() {
         return {
             preloadQueue: 0,
@@ -981,16 +1139,15 @@ class Navigation {
     }
 
     preloadChapters(chapterIds) {
-        // 简化版预加载（保持接口兼容）
         if (!Array.isArray(chapterIds)) return;
         console.log('[Navigation] Preload requested for:', chapterIds);
     }
 }
 
-// === 🚀 全局导出（100%兼容） ===
+// === 9. 🚀 全局导出（100%兼容） ===
 window.EnglishSite.Navigation = Navigation;
 
-// === 🚀 兼容性全局函数（100%兼容） ===
+// === 10. 🚀 兼容性全局函数（100%兼容） ===
 window.navigateToWordFrequency = function() {
     if (window.app && window.app.navigation) {
         return window.app.navigation.navigateToTool('word-frequency');
@@ -1008,3 +1165,58 @@ window.closeSidebarNavigation = function() {
     }
     return false;
 };
+
+// === 11. 🚨 立即修复脚本（自动运行） ===
+(function immediateOverlapFix() {
+    // 页面加载完成后立即修复
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', runFix);
+    } else {
+        runFix();
+    }
+    
+    function runFix() {
+        setTimeout(() => {
+            // 强制隐藏侧边栏
+            const sidebar = document.querySelector('.sidebar-container');
+            if (sidebar) {
+                sidebar.style.transform = 'translateX(-100%) translateX(-20px) translateZ(0)';
+                sidebar.style.visibility = 'hidden';
+                sidebar.style.opacity = '0';
+                sidebar.style.pointerEvents = 'none';
+                sidebar.dataset.state = 'closed';
+                sidebar.classList.remove('open');
+            }
+            
+            // 修复内容区域
+            const content = document.querySelector('#content, .content-area');
+            if (content) {
+                content.style.marginLeft = '0';
+                content.style.width = '100%';
+                content.style.position = 'relative';
+                content.style.zIndex = '1';
+                content.style.boxSizing = 'border-box';
+            }
+            
+            // 隐藏原导航
+            const nav = document.querySelector('.main-navigation');
+            if (nav) {
+                nav.style.display = 'none';
+            }
+            
+            // 隐藏遮罩
+            const overlay = document.querySelector('.sidebar-overlay');
+            if (overlay) {
+                overlay.classList.remove('visible');
+                overlay.style.opacity = '0';
+                overlay.style.visibility = 'hidden';
+                overlay.style.pointerEvents = 'none';
+            }
+            
+            // 恢复body滚动
+            document.body.style.overflow = '';
+            
+            console.log('🚀 [Navigation] Overlap fix applied');
+        }, 50);
+    }
+})();
