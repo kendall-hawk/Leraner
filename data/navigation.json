@@ -1,46 +1,37 @@
 [
-  {
-    "id": "quick-start",
-    "title": "🚀 快速开始", 
-    "behavior": "direct",
-    "action": "show-quick-start"
-  },
-  {
-    "id": "learning-paths",
-    "title": "📚 学习路径",
-    "behavior": "expand",
-    "children": [
-      {
-        "id": "beginner",
-        "title": "🌱 初学者",
-        "behavior": "expand", 
+    {
+        "id": "quick-start",
+        "title": "🚀 快速开始",
+        "type": "custom",
+        "behavior": "direct",
+        "description": "新手入门指南",
+        "action": "show-quick-start",
+        "icon": "🚀"
+    },
+    {
+        "id": "bbc-english",
+        "title": "📺 BBC English",
+        "type": "series",
+        "behavior": "expand",
+        "description": "BBC英语学习系列",
+        "icon": "📺",
         "chapters": [
-          {
-            "id": "lesson1",
-            "title": "第一课：问候语"
-          }
+            {
+                "id": "chap1",
+                "title": "What's your favourite kind of noodle?",
+                "description": "Learn about food preferences",
+                "audio": "audio/chap1.mp3",
+                "thumbnail": "https://img.youtube.com/vi/aOiuSsnWEik/maxresdefault.jpg",
+                "type": "chapter"
+            },
+            {
+                "id": "chap2",
+                "title": "How important is politeness?",
+                "description": "Explore the role of politeness",
+                "audio": "audio/chap2.mp3",
+                "thumbnail": "https://img.youtube.com/vi/5wynL5ttotw/maxresdefault.jpg",
+                "type": "chapter"
+            }
         ]
-      }
-    ]
-  },
-  {
-    "id": "tools",
-    "title": "🛠️ 工具箱",
-    "behavior": "expand",
-    "children": [
-      {
-        "id": "word-tool",
-        "title": "📊 词频分析",
-        "behavior": "direct",
-        "url": "word-frequency.html"
-      },
-      {
-        "id": "external-dict",
-        "title": "📖 在线词典", 
-        "behavior": "direct",
-        "externalUrl": "https://dictionary.cambridge.org/",
-        "openInNewTab": true
-      }
-    ]
-  }
+    }
 ]
