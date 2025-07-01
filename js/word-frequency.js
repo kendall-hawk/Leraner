@@ -520,6 +520,131 @@ class SimplifiedWordFrequencyAnalyzer {
         
         return mostCommon;
     }
+    // 🎯 分布密度算法（方案2）
+    calculateDistributionScore(baseWord, stats) {
+        const frequency = stats.totalCount;
+        const articleCount = stats.articles.size;
+        const totalArticles = this.articleContents.size;
+        
+        if (totalArticles === 0 || articleCount === 0) return frequency;
+        
+        // 分布密度：在多少比例的文章中出现
+        const distributionRatio = articleCount / totalArticles;
+        
+        // 平均密度：每篇文章平均出现次数
+        const avgDensity = frequency / articleCount;
+        
+        // 综合评分：频次 × 分布密度 × 稳定性修正
+        const distributionWeight = Math.sqrt(distributionRatio); // 开方避免过度惩罚
+        const stabilityWeight = Math.log(avgDensity + 1) / Math.log(10); // 对数平滑
+        
+        return frequency * distributionWeight * stabilityWeight;
+    }
+
+    // 🎯 获取智能排序的词频数据
+    getWordFrequencyDataSmart() {
+        const data = [];
+        
+        this.wordStats.forEach((stats, baseWord) => {
+            const distributionScore = this.calculateDistributionScore(baseWord, stats);
+            
+            data.push({
+                word: baseWord,
+                totalCount: stats.totalCount,
+                articleCount: stats.articles.size,
+                distributionScore: distributionScore, // 🆕 智能评分
+                distributionRatio: stats.articles.size / this.articleContents.size, // 🆕 分布比例
+                avgPerArticle: (stats.totalCount / stats.articles.size).toFixed(1), // 🆕 平均密度
+                variants: Array.from(stats.variants.entries()).sort((a, b) => b[1] - a[1]),
+                mostCommonVariant: this.getMostCommonVariant(stats.variants),
+                articles: Array.from(stats.articles.entries()).map(([id, articleData]) => ({
+                    id,
+                    title: articleData.title,
+                    count: articleData.count,
+                    contexts: articleData.contexts,
+                    variants: articleData.variants
+                }))
+            });
+        });
+        
+        // 🎯 按智能评分排序，而不是单纯频次
+        data.sort((a, b) => b.distributionScore - a.distributionScore);
+        return data;
+    }
+
+    // 🎯 基于分布评分的章节难度计算
+    calculateSmartArticleDifficulty(articleId) {
+        const article = this.articleContents.get(articleId);
+        if (!article) return null;
+        
+        const words = this.extractWords(article.content);
+        let totalDifficultyScore = 0;
+        let validWordCount = 0;
+        let difficultyBreakdown = { easy: 0, medium: 0, hard: 0 };
+        
+        words.forEach(word => {
+            if (this.isValidWord(word)) {
+                const stem = this.stemmer.getStem(word);
+                const stats = this.wordStats.get(stem);
+                
+                if (stats) {
+                    validWordCount++;
+                    
+                    // 基于分布评分计算单词难度
+                    const distributionScore = this.calculateDistributionScore(stem, stats);
+                    
+                    // 智能评分越高 = 越常用 = 越简单 = 难度越低
+                    const wordDifficulty = this.convertScoreToDifficulty(distributionScore);
+                    totalDifficultyScore += wordDifficulty;
+                    
+                    // 统计难度分布
+                    if (wordDifficulty <= 2) difficultyBreakdown.easy++;
+                    else if (wordDifficulty <= 3.5) difficultyBreakdown.medium++;
+                    else difficultyBreakdown.hard++;
+                }
+            }
+        });
+        
+        if (validWordCount === 0) return { stars: 3, label: "⭐⭐⭐ 中等" };
+        
+        const avgDifficulty = totalDifficultyScore / validWordCount;
+        const stars = Math.round(avgDifficulty);
+        
+        // 计算高频词占比（用于显示）
+        const easyWordRatio = (difficultyBreakdown.easy / validWordCount * 100).toFixed(1);
+        
+        return {
+            stars: Math.max(1, Math.min(5, stars)),
+            avgDifficulty: avgDifficulty.toFixed(2),
+            validWordCount: validWordCount,
+            easyWordRatio: easyWordRatio,
+            label: this.getStarLabel(stars),
+            breakdown: difficultyBreakdown,
+            tooltip: `${easyWordRatio}% 高频词汇`
+        };
+    }
+
+    // 🎯 将分布评分转换为难度等级
+    convertScoreToDifficulty(distributionScore) {
+        // 根据分布评分的实际分布，映射到1-5难度
+        if (distributionScore >= 20) return 1;      // 很简单（高频高分布）
+        if (distributionScore >= 10) return 2;      // 简单  
+        if (distributionScore >= 5) return 3;       // 中等
+        if (distributionScore >= 2) return 4;       // 困难
+        return 5;                                   // 很困难（低频低分布）
+    }
+
+    // 🎯 星级标签
+    getStarLabel(stars) {
+        const labels = {
+            1: "⭐ 入门级",
+            2: "⭐⭐ 简单", 
+            3: "⭐⭐⭐ 中等",
+            4: "⭐⭐⭐⭐ 困难",
+            5: "⭐⭐⭐⭐⭐ 专家级"
+        };
+        return labels[stars] || "⭐⭐⭐ 中等";
+    }
     
     // 🎯 获取词频数据
     getWordFrequencyData() {
@@ -593,6 +718,26 @@ class SimplifiedWordFrequencyAnalyzer {
         };
     }
 }
+// 🎯 智能排序的公开API
+    getTopWordsSmart(limit = 100) {
+        try {
+            const words = this.analyzer.getWordFrequencyDataSmart();
+            return words.slice(0, limit);
+        } catch (error) {
+            console.error('获取智能排序词频失败:', error);
+            return [];
+        }
+    }
+
+    // 🎯 章节难度计算的公开API
+    getArticleDifficulty(articleId) {
+        try {
+            return this.analyzer.calculateSmartArticleDifficulty(articleId);
+        } catch (error) {
+            console.error('计算章节难度失败:', error);
+            return { stars: 3, label: "⭐⭐⭐ 中等" };
+        }
+    }
 
 // 🎯 简化的词频管理器 - 专注可用性
 class SimplifiedWordFrequencyManager {
