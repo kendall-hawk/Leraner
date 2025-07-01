@@ -1161,7 +1161,7 @@ this.elements.content.innerHTML = `
     }
 
     // 🚀 优化：创建章节元素（缓存配置）
-// 🎨 完全替换 #createChapterElement() 方法为水平布局版本
+// 🎨 完全替换 #createChapterElement() 方法为条件缩略图版本
 #createChapterElement(chapter) {
     const wrapper = document.createElement('div');
     wrapper.className = 'chapter-overview-item';
@@ -1169,7 +1169,10 @@ this.elements.content.innerHTML = `
     // 🚀 使用缓存的屏幕信息
     const { isMobile, isTablet } = this.state.screenInfo;
 
-    // 🎨 水平布局样式
+    // 🔍 智能检测缩略图是否可用
+    const hasThumbnail = this.#hasValidThumbnail(chapter);
+
+    // 🎨 水平布局样式 - 根据是否有缩略图调整
     wrapper.style.cssText = `
         margin-bottom: 0 !important; 
         border: none !important; 
@@ -1197,12 +1200,12 @@ this.elements.content.innerHTML = `
         display: flex !important;
         align-items: flex-start !important;
         width: 100% !important;
-        gap: ${isMobile ? '12px' : '16px'} !important;
+        gap: ${hasThumbnail ? (isMobile ? '12px' : '16px') : '0'} !important;
         overflow: visible !important;
         height: auto !important;
     `;
 
-    // 🎨 左侧内容区域
+    // 🎨 左侧内容区域 - 根据是否有缩略图调整宽度
     const contentContainer = document.createElement('div');
     contentContainer.className = 'chapter-info';
     contentContainer.style.cssText = `
@@ -1212,6 +1215,7 @@ this.elements.content.innerHTML = `
         gap: ${isMobile ? '6px' : '8px'} !important;
         min-width: 0 !important;
         overflow: visible !important;
+        ${hasThumbnail ? '' : 'width: 100% !important;'}
     `;
 
     // 🎨 系列信息（顶部）
@@ -1277,7 +1281,7 @@ this.elements.content.innerHTML = `
     `;
     description.textContent = chapter.description || 'Explore this English learning topic';
 
-// 🎨 底部标签行（智能难度版本）
+    // 🎨 底部标签行（智能难度版本）
     const tagsRow = document.createElement('div');
     tagsRow.className = 'chapter-tags-row';
     tagsRow.style.cssText = `
@@ -1377,48 +1381,42 @@ this.elements.content.innerHTML = `
     contentContainer.appendChild(description);
     contentContainer.appendChild(tagsRow);
 
-    // 🎨 右侧图片
-    const imageContainer = document.createElement('div');
-    imageContainer.style.cssText = `
-        width: ${isMobile ? '80px' : '120px'} !important;
-        height: ${isMobile ? '60px' : '90px'} !important;
-        flex-shrink: 0 !important;
-        border-radius: 8px !important;
-        overflow: hidden !important;
-        background: #f8f9fa !important;
-    `;
-
-    const thumbnail = document.createElement('img');
-    thumbnail.className = 'chapter-thumbnail';
-    thumbnail.loading = 'lazy';
-    thumbnail.src = chapter.thumbnail || 'images/placeholder.jpg';
-    thumbnail.alt = chapter.title;
-    thumbnail.style.cssText = `
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: cover !important;
-        display: block !important;
-        transition: transform 0.3s ease !important;
-    `;
-
-    imageContainer.appendChild(thumbnail);
-
     // 🎨 组装整体布局（左侧内容 + 右侧图片）
     link.appendChild(contentContainer);
-    link.appendChild(imageContainer);
+
+    // 🔍 条件渲染：只有在有有效缩略图时才创建图片容器
+    if (hasThumbnail) {
+        const imageContainer = this.#createThumbnailContainer(chapter, isMobile);
+        link.appendChild(imageContainer);
+    }
+
     wrapper.appendChild(link);
 
     // 🎨 悬停效果
     const addHoverEffect = () => {
         wrapper.style.backgroundColor = '#fafafa';
         title.style.color = '#1a73e8';
-        thumbnail.style.transform = 'scale(1.05)';
+        
+        // 只有在有缩略图时才应用图片悬停效果
+        if (hasThumbnail) {
+            const thumbnail = wrapper.querySelector('.chapter-thumbnail');
+            if (thumbnail) {
+                thumbnail.style.transform = 'scale(1.05)';
+            }
+        }
     };
 
     const removeHoverEffect = () => {
         wrapper.style.backgroundColor = 'transparent';
         title.style.color = '#1a1a1a';
-        thumbnail.style.transform = 'scale(1)';
+        
+        // 只有在有缩略图时才重置图片效果
+        if (hasThumbnail) {
+            const thumbnail = wrapper.querySelector('.chapter-thumbnail');
+            if (thumbnail) {
+                thumbnail.style.transform = 'scale(1)';
+            }
+        }
     };
 
     if (isMobile) {
@@ -1432,6 +1430,151 @@ this.elements.content.innerHTML = `
 
     return wrapper;
 }
+
+// 🔍 新增：智能检测缩略图是否有效
+#hasValidThumbnail(chapter) {
+    // 检查是否存在缩略图字段
+    if (!chapter.thumbnail) {
+        return false;
+    }
+
+    // 检查是否为空字符串或只包含空白字符
+    if (typeof chapter.thumbnail !== 'string' || !chapter.thumbnail.trim()) {
+        return false;
+    }
+
+    // 检查是否为占位符路径
+    const placeholderPaths = [
+        'images/placeholder.jpg',
+        'placeholder.jpg',
+        '/placeholder.jpg',
+        'images/default.jpg',
+        'default.jpg'
+    ];
+
+    const normalizedPath = chapter.thumbnail.toLowerCase().replace(/^\.\//, '');
+    if (placeholderPaths.includes(normalizedPath)) {
+        return false;
+    }
+
+    // 检查是否为有效的图片URL格式
+    const imageExtensions = /\.(jpg|jpeg|png|gif|webp|svg|bmp)(\?.*)?$/i;
+    const isHttpUrl = /^https?:\/\//.test(chapter.thumbnail);
+    const isRelativePath = /^(\.\/|\/|images\/|assets\/)/.test(chapter.thumbnail);
+    const hasImageExtension = imageExtensions.test(chapter.thumbnail);
+
+    // 允许HTTP URL或相对路径且有图片扩展名
+    return (isHttpUrl || isRelativePath) && (hasImageExtension || isHttpUrl);
+}
+
+// 🎨 新增：创建缩略图容器（独立方法便于维护）
+#createThumbnailContainer(chapter, isMobile) {
+    const imageContainer = document.createElement('div');
+    imageContainer.className = 'chapter-thumbnail-container';
+    imageContainer.style.cssText = `
+        width: ${isMobile ? '80px' : '120px'} !important;
+        height: ${isMobile ? '60px' : '90px'} !important;
+        flex-shrink: 0 !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
+        background: #f8f9fa !important;
+        position: relative !important;
+    `;
+
+    const thumbnail = document.createElement('img');
+    thumbnail.className = 'chapter-thumbnail';
+    thumbnail.loading = 'lazy';
+    thumbnail.src = chapter.thumbnail;
+    thumbnail.alt = chapter.title;
+    thumbnail.style.cssText = `
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        display: block !important;
+        transition: transform 0.3s ease, opacity 0.3s ease !important;
+    `;
+
+    // 🔧 图片加载错误处理
+    thumbnail.addEventListener('error', () => {
+        this.#handleThumbnailError(imageContainer, thumbnail);
+    }, { once: true });
+
+    // 🔧 图片加载成功处理
+    thumbnail.addEventListener('load', () => {
+        thumbnail.style.opacity = '1';
+    }, { once: true });
+
+    // 初始设置为半透明，加载完成后变为不透明
+    thumbnail.style.opacity = '0.8';
+
+    imageContainer.appendChild(thumbnail);
+    return imageContainer;
+}
+
+// 🔧 新增：缩略图加载错误处理
+#handleThumbnailError(container, thumbnail) {
+    console.warn('[App] 缩略图加载失败:', thumbnail.src);
+    
+    // 创建占位符图标
+    const placeholder = document.createElement('div');
+    placeholder.style.cssText = `
+        width: 100% !important;
+        height: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        color: #6c757d !important;
+        font-size: 24px !important;
+    `;
+    placeholder.textContent = '📖';
+
+    // 替换失败的图片
+    container.innerHTML = '';
+    container.appendChild(placeholder);
+    
+    // 为容器添加错误标识
+    container.classList.add('thumbnail-error');
+}
+
+// === 关键变化对比 ===
+// BEFORE (原始的章节元素创建逻辑)
+/*
+// 🎨 右侧图片 - 总是创建
+const imageContainer = document.createElement('div');
+imageContainer.style.cssText = `
+    width: ${isMobile ? '80px' : '120px'} !important;
+    // ... 样式代码
+`;
+
+const thumbnail = document.createElement('img');
+thumbnail.src = chapter.thumbnail || 'images/placeholder.jpg'; // 总是设置图片
+// ... 图片设置代码
+
+imageContainer.appendChild(thumbnail);
+link.appendChild(contentContainer);
+link.appendChild(imageContainer); // 总是添加图片容器
+*/
+
+// AFTER (优化后的条件渲染逻辑)
+/*
+// 🔍 条件渲染：只有在有有效缩略图时才创建图片容器
+if (hasThumbnail) {
+    const imageContainer = this.#createThumbnailContainer(chapter, isMobile);
+    link.appendChild(imageContainer);
+}
+
+// 新增智能检测方法
+#hasValidThumbnail(chapter) {
+    // 多重验证：存在性、非空、非占位符、格式正确
+}
+*/
+
+// IMPACT: 
+// 1. 性能提升：避免无效图片的加载和DOM创建
+// 2. 用户体验：无缩略图时内容自动填充全宽，显示更美观
+// 3. 错误处理：图片加载失败时显示优雅的占位符
+// 4. 代码维护：逻辑更清晰，职责分离
 
     // === 公共API方法 ===
     async waitForInitialization() {
