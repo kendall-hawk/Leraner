@@ -234,6 +234,7 @@ function loadDebugTool() {
     
     <!-- 主应用（最后加载） -->
     <script src="js/main.js" defer></script>
+<script>
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         const debug = document.createElement('div');
@@ -259,5 +260,6 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => debug.remove(), 5000);
     }, 2000);
 });
+</script>
 </body>
 </html>
