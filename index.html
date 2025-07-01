@@ -234,9 +234,6 @@ function loadDebugTool() {
     
     <!-- 主应用（最后加载） -->
     <script src="js/main.js" defer></script>
-    <!-- 替换你HTML底部的调试代码为这个 -->
-<!-- 替换你HTML底部的调试代码为这个 -->
-<!-- 替换你HTML底部的调试代码为这个 -->
 <!-- 替换你HTML底部的调试代码为这个 -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -257,18 +254,16 @@ document.addEventListener('DOMContentLoaded', function() {
         var mainNav = document.querySelector('#main-nav');
         var hamburger = document.querySelector('.nav-toggle');
         
-        // 强制显示侧边栏测试
-        if (sidebar) {
-            sidebar.classList.add('open');
-            sidebar.style.opacity = '1';
-            sidebar.style.visibility = 'visible';
-            sidebar.style.transform = 'translateX(0)';
-        }
+        // 检查子菜单面板和点击事件
+        var submenu = document.querySelector('.sidebar-submenu');
+        var submenuContent = document.querySelector('.submenu-content');
+        var navContent = document.querySelector('.nav-content');
         
-        debug.innerHTML = '🔧强制显示侧边栏测试<br>' +
-            '侧边栏应该现在可见了！<br>' +
-            '如果能看到，说明CSS正常<br>' +
-            '问题在JavaScript点击事件<br>' +
+        debug.innerHTML = '🔍子菜单调试:<br>' +
+            '子菜单面板: ' + (submenu ? '✅' : '❌') + '<br>' +
+            '子菜单内容区: ' + (submenuContent ? '✅' : '❌') + '<br>' +
+            '主导航内容区: ' + (navContent ? '✅' : '❌') + '<br>' +
+            '点击BBC测试子菜单<br>' +
             '点击关闭';
         
         debug.onclick = function() { debug.remove(); };
