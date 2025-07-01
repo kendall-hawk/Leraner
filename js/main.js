@@ -645,15 +645,36 @@ class App {
     // 🔧 辅助：显示无内容消息（增强版）
     #showNoContentMessage() {
         this.elements.content.innerHTML = `
-             <div class="chapter-list-overview" style="
-        display: block !important;
-        max-width: 800px !important;
-        margin: 0 auto !important;
-        padding: ${isMobile ? '16px' : '24px'} !important;
-        background: white !important;
-        width: 100% !important;
-    "></div>
-`;
+            <div style="text-align: center; padding: 60px 20px; background: #f8f9fa; border-radius: 12px; margin: 20px;">
+                <div style="font-size: 3rem; margin-bottom: 20px;">📭</div>
+                <h2 style="margin-bottom: 16px; color: #6c757d;">暂无内容</h2>
+                <p style="margin-bottom: 16px; color: #6c757d;">没有找到可显示的文章</p>
+                <p style="margin-bottom: 24px; color: #868e96; font-size: 14px;">
+                    已检查导航数据：${this.navData?.length || 0} 个顶级项目
+                </p>
+                <div style="margin-bottom: 24px;">
+                    <button onclick="window.debugNavData()" style="
+                        padding: 8px 16px; 
+                        background: #6c757d; 
+                        color: white; 
+                        border: none; 
+                        border-radius: 4px; 
+                        cursor: pointer; 
+                        margin-right: 8px;
+                        font-size: 14px;
+                    ">🔍 调试导航数据</button>
+                    <button onclick="location.reload()" style="
+                        padding: 8px 16px; 
+                        background: #007bff; 
+                        color: white; 
+                        border: none; 
+                        border-radius: 4px; 
+                        cursor: pointer; 
+                        font-size: 14px;
+                    ">🔄 重新加载</button>
+                </div>
+            </div>
+        `;
     }
 
     #onChapterLoaded(e) {
@@ -1116,20 +1137,16 @@ class App {
         } = this.state.screenInfo;
         const gap = isMobile ? '16px' : '20px';
 
-        this.elements.content.innerHTML = `
-            <div class="chapter-list-overview" style="
-                display: grid !important;
-                grid-template-columns: 1fr !important;
-                gap: ${gap} !important;
-                padding-top: 0px !important;
-                padding-bottom: 16px !important;
-                margin: 0 !important;
-                width: 100% !important;
-                max-width: 600px !important;
-                margin-left: auto !important;
-                margin-right: auto !important;
-            "></div>
-        `;
+this.elements.content.innerHTML = `
+    <div class="chapter-list-overview" style="
+        display: block !important;
+        max-width: 800px !important;
+        margin: 0 auto !important;
+        padding: ${isMobile ? '16px' : '24px'} !important;
+        background: white !important;
+        width: 100% !important;
+    "></div>
+`;
 
         const container = this.elements.content.querySelector('.chapter-list-overview');
         const fragment = document.createDocumentFragment();
