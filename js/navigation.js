@@ -509,14 +509,17 @@ class Navigation {
         } else if (hasChildren) {
             console.log('[Navigation] 📁 进入子级别');
             this.navigateToLevel(node);
-        } else if (hasChapters) {
-            console.log('[Navigation] 📚 显示章节列表');
-            this.showChaptersList(node);
-        } else {
-            console.log('[Navigation] 🔗 直接导航');
-            this.handleDirectNavigation(node);
-        }
-    }
+        } else if (node.type === 'series' && hasChapters) {
+    console.log('[Navigation] 📚 系列类型 - 在主内容区显示章节');
+    this.handleDirectNavigation(node);
+} else if (hasChapters) {
+    console.log('[Navigation] 📚 显示章节列表（侧边栏）');
+    this.showChaptersList(node);
+} else {
+    console.log('[Navigation] 🔗 直接导航');
+    this.handleDirectNavigation(node);
+}
+    
 
     // 🆕 核心新功能：显示位置对齐的子菜单
     showAlignedSubmenu(node, clickedElement) {
