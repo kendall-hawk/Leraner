@@ -1165,197 +1165,243 @@ class App {
     }
 
     // 🚀 优化：创建章节元素（缓存配置）
-    #createChapterElement(chapter) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'chapter-overview-item';
+// 🎨 完全替换 #createChapterElement() 方法为水平布局版本
+#createChapterElement(chapter) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chapter-overview-item';
 
-        // 🚀 优化：使用缓存的屏幕信息
-        const {
-            isMobile,
-            isTablet
-        } = this.state.screenInfo;
+    // 🚀 使用缓存的屏幕信息
+    const { isMobile, isTablet } = this.state.screenInfo;
 
-        // 🚀 优化：响应式配置（预计算）
-        const config = isMobile ? {
-                cardHeight: '220px',
-                imageHeight: '120px',
-                contentPadding: '10px',
-                titleSize: '18px',
-                descSize: '16px',
-                borderRadius: '8px'
-            } :
-            isTablet ? {
-                cardHeight: '240px',
-                imageHeight: '130px',
-                contentPadding: '12px',
-                titleSize: '19px',
-                descSize: '17px',
-                borderRadius: '10px'
-            } : {
-                cardHeight: '260px',
-                imageHeight: '140px',
-                contentPadding: '14px',
-                titleSize: '20px',
-                descSize: '18px',
-                borderRadius: '12px'
-            };
-
-        wrapper.style.cssText = `
-            margin-bottom: 0 !important; 
-            border: 1px solid #e0e0e0 !important; 
-            border-radius: ${config.borderRadius} !important; 
-            background: white !important; 
-            transition: all 0.3s ease !important;
-            overflow: hidden !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
-            display: flex !important;
-            flex-direction: column !important;
-            height: ${config.cardHeight} !important;
-            position: relative !important;
-        `;
-
-        const link = document.createElement('a');
-        link.className = 'overview-chapter-link';
-        link.href = `#${chapter.id}`;
-        link.dataset.chapterId = chapter.id;
-        link.style.cssText = `
-            text-decoration: none !important; 
-            color: inherit !important; 
-            display: flex !important;
-            flex-direction: column !important;
-            width: 100% !important;
-            height: 100% !important;
-            overflow: hidden !important;
-        `;
-
-        // 🚀 优化：图片容器
-        const imageContainer = document.createElement('div');
-        imageContainer.style.cssText = `
-            width: 100% !important;
-            height: ${config.imageHeight} !important;
-            position: relative !important;
-            overflow: hidden !important;
-            background: #f8f9fa !important;
-            flex-shrink: 0 !important;
-        `;
-
-        const thumbnail = document.createElement('img');
-        thumbnail.className = 'chapter-thumbnail';
-        thumbnail.loading = 'lazy';
-        thumbnail.src = chapter.thumbnail || 'images/placeholder.jpg';
-        thumbnail.alt = chapter.title;
-        thumbnail.style.cssText = `
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover !important;
-            display: block !important;
-            transition: transform 0.3s ease !important;
-        `;
-
-        // 🚀 优化：内容容器
-        const contentContainer = document.createElement('div');
-        contentContainer.className = 'chapter-info';
-        contentContainer.style.cssText = `
-            padding: ${config.contentPadding} !important;
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 0px !important;
-            flex: 1 !important;
-            overflow: hidden !important;
-        `;
-
-        // 标题
-        const title = document.createElement('h3');
-        const titleLineHeight = Math.round(parseInt(config.titleSize) * 1.3);
-        const titleMaxHeight = titleLineHeight * 2;
-
-        title.style.cssText = `
-            margin: 0 !important; 
-            font-size: ${config.titleSize} !important; 
-            color: #333 !important;
-            font-weight: 600 !important;
-            line-height: ${titleLineHeight}px !important;
-            font-family: var(--font-family-sans) !important;
-            display: -webkit-box !important;
-            -webkit-line-clamp: 2 !important;
-            -webkit-box-orient: vertical !important;
-            overflow: hidden !important;
-            text-overflow: ellipsis !important;
-            height: ${titleMaxHeight}px !important;
-            flex-shrink: 0 !important;
-        `;
-        title.textContent = chapter.title;
-        contentContainer.appendChild(title);
-
-        // 描述
-        if (chapter.description?.trim()) {
-            const description = document.createElement('p');
-            const descLines = isMobile ? 4 : isTablet ? 5 : 6;
-
-            description.style.cssText = `
-                margin: 0 !important; 
-                font-size: ${config.descSize} !important; 
-                color: #666 !important; 
-                line-height: 1.3 !important;
-                display: -webkit-box !important;
-                -webkit-line-clamp: ${descLines} !important;
-                -webkit-box-orient: vertical !important;
-                overflow: hidden !important;
-                text-overflow: ellipsis !important;
-                flex: 1 !important;
-            `;
-            description.textContent = chapter.description;
-            contentContainer.appendChild(description);
-        }
-// 🆕 系列标签（简化版）
-if (chapter.seriesTitle || chapter.breadcrumb) {
-    const seriesLabel = document.createElement('div');
-    seriesLabel.className = 'chapter-series-label';
-    
-    const seriesText = chapter.seriesTitle || 
-                      chapter.breadcrumb?.split(' > ').pop() || 
-                      '未分类';
-    
-    seriesLabel.innerHTML = `
-        <span>📺</span>
-        <span>${seriesText}</span>
+    // 🎨 水平布局样式
+    wrapper.style.cssText = `
+        margin-bottom: 0 !important; 
+        border: none !important; 
+        border-bottom: 1px solid #f0f0f0 !important;
+        border-radius: 0 !important; 
+        background: transparent !important; 
+        transition: all 0.2s ease !important;
+        overflow: visible !important;
+        box-shadow: none !important;
+        display: flex !important;
+        align-items: flex-start !important;
+        padding: 24px 0 !important;
+        gap: ${isMobile ? '12px' : '16px'} !important;
+        position: relative !important;
+        height: auto !important;
     `;
-    
-    contentContainer.appendChild(seriesLabel);
-}
 
-        // 组装
-        imageContainer.appendChild(thumbnail);
-        link.appendChild(imageContainer);
-        link.appendChild(contentContainer);
-        wrapper.appendChild(link);
+    const link = document.createElement('a');
+    link.className = 'overview-chapter-link';
+    link.href = `#${chapter.id}`;
+    link.dataset.chapterId = chapter.id;
+    link.style.cssText = `
+        text-decoration: none !important; 
+        color: inherit !important; 
+        display: flex !important;
+        align-items: flex-start !important;
+        width: 100% !important;
+        gap: ${isMobile ? '12px' : '16px'} !important;
+        overflow: visible !important;
+        height: auto !important;
+    `;
 
-        // 🚀 优化：悬停效果（缓存函数）
-        const addHoverEffect = () => {
-            wrapper.style.transform = 'translateY(-4px)';
-            wrapper.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
-            wrapper.style.borderColor = '#007bff';
-            thumbnail.style.transform = 'scale(1.05)';
-        };
+    // 🎨 左侧内容区域
+    const contentContainer = document.createElement('div');
+    contentContainer.className = 'chapter-info';
+    contentContainer.style.cssText = `
+        flex: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: ${isMobile ? '6px' : '8px'} !important;
+        min-width: 0 !important;
+        overflow: visible !important;
+    `;
 
-        const removeHoverEffect = () => {
-            wrapper.style.transform = 'translateY(0)';
-            wrapper.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
-            wrapper.style.borderColor = '#e0e0e0';
-            thumbnail.style.transform = 'scale(1)';
-        };
+    // 🎨 系列信息（顶部）
+    const seriesInfo = document.createElement('div');
+    seriesInfo.className = 'chapter-series-info';
+    seriesInfo.style.cssText = `
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        font-size: ${isMobile ? '12px' : '13px'} !important;
+        color: #666 !important;
+        font-weight: 500 !important;
+        margin-bottom: 4px !important;
+    `;
 
-        if (isMobile) {
-            wrapper.addEventListener('touchstart', addHoverEffect);
-            wrapper.addEventListener('touchend', removeHoverEffect);
-            wrapper.addEventListener('touchcancel', removeHoverEffect);
-        } else {
-            wrapper.addEventListener('mouseenter', addHoverEffect);
-            wrapper.addEventListener('mouseleave', removeHoverEffect);
-        }
+    const seriesIcon = document.createElement('span');
+    seriesIcon.textContent = '📺';
+    seriesIcon.style.cssText = `
+        font-size: ${isMobile ? '11px' : '12px'} !important;
+    `;
 
-        return wrapper;
+    const seriesText = document.createElement('span');
+    seriesText.textContent = chapter.seriesTitle || '6 Minutes English';
+    seriesText.style.cssText = `
+        color: #666 !important;
+    `;
+
+    seriesInfo.appendChild(seriesIcon);
+    seriesInfo.appendChild(seriesText);
+
+    // 🎨 标题
+    const title = document.createElement('h2');
+    title.style.cssText = `
+        margin: 0 !important; 
+        font-size: ${isMobile ? '18px' : '22px'} !important; 
+        color: #1a1a1a !important;
+        font-weight: 700 !important;
+        line-height: 1.3 !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        margin-bottom: ${isMobile ? '6px' : '8px'} !important;
+        display: -webkit-box !important;
+        -webkit-line-clamp: 2 !important;
+        -webkit-box-orient: vertical !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    `;
+    title.textContent = chapter.title;
+
+    // 🎨 描述
+    const description = document.createElement('p');
+    description.style.cssText = `
+        margin: 0 !important; 
+        font-size: ${isMobile ? '14px' : '15px'} !important; 
+        color: #666 !important; 
+        line-height: 1.4 !important;
+        font-weight: 400 !important;
+        margin-bottom: ${isMobile ? '8px' : '12px'} !important;
+        display: -webkit-box !important;
+        -webkit-line-clamp: 2 !important;
+        -webkit-box-orient: vertical !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    `;
+    description.textContent = chapter.description || 'Explore this English learning topic';
+
+    // 🎨 底部标签行
+    const tagsRow = document.createElement('div');
+    tagsRow.className = 'chapter-tags-row';
+    tagsRow.style.cssText = `
+        display: flex !important;
+        align-items: center !important;
+        gap: ${isMobile ? '10px' : '12px'} !important;
+        font-size: ${isMobile ? '12px' : '13px'} !important;
+        color: #666 !important;
+        font-weight: 500 !important;
+        flex-wrap: wrap !important;
+    `;
+
+    // 星星难度（硬编码3星）
+    const difficultyTag = document.createElement('span');
+    difficultyTag.style.cssText = `
+        display: flex !important;
+        align-items: center !important;
+        color: #ffc107 !important;
+    `;
+    difficultyTag.textContent = '⭐⭐⭐';
+
+    // 阅读时间
+    const timeTag = document.createElement('span');
+    timeTag.style.cssText = `
+        display: flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        color: #666 !important;
+    `;
+    timeTag.innerHTML = `
+        <span>📖</span>
+        <span>6 min</span>
+    `;
+
+    // 媒体类型（根据是否有audio决定）
+    const mediaTag = document.createElement('span');
+    mediaTag.style.cssText = `
+        display: flex !important;
+        align-items: center !important;
+        gap: 4px !important;
+        color: #666 !important;
+    `;
+
+    if (chapter.audio) {
+        mediaTag.innerHTML = `
+            <span>🎵</span>
+            <span>Audio</span>
+        `;
+    } else {
+        mediaTag.innerHTML = `
+            <span>📖</span>
+            <span>Article</span>
+        `;
     }
+
+    tagsRow.appendChild(difficultyTag);
+    tagsRow.appendChild(timeTag);
+    tagsRow.appendChild(mediaTag);
+
+    // 🎨 组装左侧内容
+    contentContainer.appendChild(seriesInfo);
+    contentContainer.appendChild(title);
+    contentContainer.appendChild(description);
+    contentContainer.appendChild(tagsRow);
+
+    // 🎨 右侧图片
+    const imageContainer = document.createElement('div');
+    imageContainer.style.cssText = `
+        width: ${isMobile ? '80px' : '120px'} !important;
+        height: ${isMobile ? '60px' : '90px'} !important;
+        flex-shrink: 0 !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
+        background: #f8f9fa !important;
+    `;
+
+    const thumbnail = document.createElement('img');
+    thumbnail.className = 'chapter-thumbnail';
+    thumbnail.loading = 'lazy';
+    thumbnail.src = chapter.thumbnail || 'images/placeholder.jpg';
+    thumbnail.alt = chapter.title;
+    thumbnail.style.cssText = `
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        display: block !important;
+        transition: transform 0.3s ease !important;
+    `;
+
+    imageContainer.appendChild(thumbnail);
+
+    // 🎨 组装整体布局（左侧内容 + 右侧图片）
+    link.appendChild(contentContainer);
+    link.appendChild(imageContainer);
+    wrapper.appendChild(link);
+
+    // 🎨 悬停效果
+    const addHoverEffect = () => {
+        wrapper.style.backgroundColor = '#fafafa';
+        title.style.color = '#1a73e8';
+        thumbnail.style.transform = 'scale(1.05)';
+    };
+
+    const removeHoverEffect = () => {
+        wrapper.style.backgroundColor = 'transparent';
+        title.style.color = '#1a1a1a';
+        thumbnail.style.transform = 'scale(1)';
+    };
+
+    if (isMobile) {
+        wrapper.addEventListener('touchstart', addHoverEffect);
+        wrapper.addEventListener('touchend', removeHoverEffect);
+        wrapper.addEventListener('touchcancel', removeHoverEffect);
+    } else {
+        wrapper.addEventListener('mouseenter', addHoverEffect);
+        wrapper.addEventListener('mouseleave', removeHoverEffect);
+    }
+
+    return wrapper;
+}
 
     // === 公共API方法 ===
     async waitForInitialization() {
