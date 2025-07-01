@@ -1,137 +1,36 @@
 [
   {
-    "comment": "1. 基础系列格式 - 包含章节的系列",
-    "seriesId": "basic-english",
-    "series": "基础英语",
-    "description": "适合初学者的英语系列",
-    "thumbnail": "images/basic-english.jpg",
-    "chapters": [
-      {
-        "id": "chapter1",
-        "title": "字母与发音",
-        "url": "chapters/basic-1.html",
-        "audio": "audio/basic-1.mp3"
-      }
-    ]
-  },
-
-  {
-    "comment": "2. 分层分类格式 - 包含子分类",
-    "id": "grammar",
-    "title": "语法大全",
+    "id": "bbc-english",
+    "title": "BBC English", 
     "type": "category",
-    "icon": "📚",
+    "icon": "📺",
+    "description": "BBC English learning series for beginners",
     "children": [
       {
-        "id": "tenses",
-        "title": "时态语法",
-        "description": "各种时态的用法",
+        "id": "6-minutes-english",
+        "title": "6 Minutes English",
+        "type": "series",
+        "icon": "⏰", 
+        "description": "Short episodes covering various topics",
+        "thumbnail": "https://img.youtube.com/vi/aOiuSsnWEik/maxresdefault.jpg",
         "chapters": [
           {
-            "id": "present-tense",
-            "title": "现在时态"
-          }
-        ]
-      }
-    ]
-  },
-
-  {
-    "comment": "3. 外部链接格式",
-    "id": "dict",
-    "title": "在线词典",
-    "type": "external",
-    "url": "https://dictionary.com",
-    "icon": "🔗",
-    "description": "权威英语词典",
-    "openInNewTab": true
-  },
-
-  {
-    "comment": "4. 工具格式",
-    "seriesId": "tools",
-    "series": "学习工具",
-    "type": "tools",
-    "icon": "🛠️",
-    "chapters": [
-      {
-        "id": "word-frequency",
-        "title": "词频分析器",
-        "type": "tool",
-        "url": "tools/word-frequency.html"
-      }
-    ]
-  },
-
-  {
-    "comment": "5. 带子菜单的分类格式",
-    "id": "advanced",
-    "title": "高级英语",
-    "type": "category-with-submenu",
-    "icon": "🎓",
-    "children": [
-      {
-        "id": "writing",
-        "title": "高级写作",
-        "description": "学术写作技巧",
-        "chapters": [
+            "id": "chap1",
+            "title": "What's your favourite kind of noodle?",
+            "description": "Learn about food preferences and cultural differences",
+            "audio": "audio/chap1.mp3",
+            "thumbnail": "https://img.youtube.com/vi/aOiuSsnWEik/maxresdefault.jpg",
+            "type": "chapter"
+          },
           {
-            "id": "essay-writing",
-            "title": "论文写作"
+            "id": "chap2", 
+            "title": "How important is politeness?",
+            "description": "Explore the role of politeness in communication", 
+            "audio": "audio/chap2.mp3",
+            "thumbnail": "https://img.youtube.com/vi/5wynL5ttotw/maxresdefault.jpg",
+            "type": "chapter"
           }
         ]
-      }
-    ]
-  },
-
-  {
-    "comment": "6. 所有文章格式",
-    "seriesId": "all-articles",
-    "series": "所有文章",
-    "type": "all-articles",
-    "icon": "📄",
-    "description": "查看所有学习内容"
-  },
-
-  {
-    "comment": "7. 多层嵌套格式 - 支持无限层级",
-    "id": "comprehensive",
-    "title": "综合英语",
-    "children": [
-      {
-        "id": "level1",
-        "title": "初级",
-        "children": [
-          {
-            "id": "level1-grammar",
-            "title": "初级语法",
-            "chapters": [
-              {
-                "id": "basic-sentence",
-                "title": "基本句型"
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-
-  {
-    "comment": "8. 自定义属性格式 - 支持任意扩展字段",
-    "id": "special",
-    "title": "特殊课程",
-    "customAction": "showSpecialInterface",
-    "difficulty": "advanced",
-    "tags": ["premium", "interactive"],
-    "duration": "2小时",
-    "price": "$29.99",
-    "chapters": [
-      {
-        "id": "special-1",
-        "title": "特殊内容",
-        "difficulty": "hard",
-        "premium": true
       }
     ]
   }
