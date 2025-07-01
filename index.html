@@ -237,6 +237,7 @@ function loadDebugTool() {
     <!-- 替换你HTML底部的调试代码为这个 -->
 <!-- 替换你HTML底部的调试代码为这个 -->
 <!-- 替换你HTML底部的调试代码为这个 -->
+<!-- 替换你HTML底部的调试代码为这个 -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
@@ -256,18 +257,18 @@ document.addEventListener('DOMContentLoaded', function() {
         var mainNav = document.querySelector('#main-nav');
         var hamburger = document.querySelector('.nav-toggle');
         
-        // 检查侧边栏显示状态
-        var sidebarStyle = sidebar ? window.getComputedStyle(sidebar) : null;
-        var sidebarVisible = sidebarStyle ? sidebarStyle.visibility : 'N/A';
-        var sidebarOpacity = sidebarStyle ? sidebarStyle.opacity : 'N/A';
-        var sidebarTransform = sidebarStyle ? sidebarStyle.transform : 'N/A';
-        var sidebarClass = sidebar ? sidebar.className : 'N/A';
+        // 强制显示侧边栏测试
+        if (sidebar) {
+            sidebar.classList.add('open');
+            sidebar.style.opacity = '1';
+            sidebar.style.visibility = 'visible';
+            sidebar.style.transform = 'translateX(0)';
+        }
         
-        debug.innerHTML = '🔍侧边栏状态:<br>' +
-            '可见性: ' + sidebarVisible + '<br>' +
-            '透明度: ' + sidebarOpacity + '<br>' +
-            '变换: ' + sidebarTransform.slice(0,30) + '<br>' +
-            'CSS类: ' + sidebarClass + '<br>' +
+        debug.innerHTML = '🔧强制显示侧边栏测试<br>' +
+            '侧边栏应该现在可见了！<br>' +
+            '如果能看到，说明CSS正常<br>' +
+            '问题在JavaScript点击事件<br>' +
             '点击关闭';
         
         debug.onclick = function() { debug.remove(); };
