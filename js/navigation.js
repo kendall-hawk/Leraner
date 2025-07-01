@@ -482,47 +482,47 @@ class Navigation {
 
     // === 🎯 核心导航逻辑（增强版） ===
 
-    handleNavItemClick(itemId, clickedElement = null) {
-        const node = this.findNodeById(itemId);
-        if (!node) {
-            console.error('[Navigation] ❌ 找不到节点:', itemId);
-            return;
-        }
-
-        console.log('[Navigation] 🎯 点击节点:', node.title, '类型:', node.type);
-
-        const hasChildren = node.children && node.children.length > 0;
-        const hasChapters = node.chapters && node.chapters.length > 0;
-
-        console.log('[Navigation] 📊 节点分析:', {
-            hasChildren: hasChildren,
-            hasChapters: hasChapters,
-            childrenCount: node.children?.length || 0,
-            chaptersCount: node.chapters?.length || 0,
-            nodeType: node.type
-        });
-
-        // 🆕 增强逻辑：处理新的节点类型
-        if (node.type === 'category-with-submenu' && hasChildren) {
-            console.log('[Navigation] 🔄 显示对齐子菜单');
-            this.showAlignedSubmenu(node, clickedElement);
-        } else if (hasChildren && node.level === 0) {
-            console.log('[Navigation] 📁 顶级分类 - 显示对齐子菜单');
-            this.showAlignedSubmenu(node, clickedElement);
-        } else if (hasChildren) {
-            console.log('[Navigation] 📁 进入子级别');
-            this.navigateToLevel(node);
-        } else if (node.type === 'series' && hasChapters) {
-            console.log('[Navigation] 📚 系列类型 - 在主内容区显示章节');
-            this.handleDirectNavigation(node);
-        } else if (hasChapters) {
-            console.log('[Navigation] 📚 显示章节列表（侧边栏）');
-            this.showChaptersList(node);
-        } else {
-            console.log('[Navigation] 🔗 直接导航');
-            this.handleDirectNavigation(node);
-        }
-      ｝
+handleNavItemClick(itemId, clickedElement = null) {
+    const node = this.findNodeById(itemId);
+    if (!node) {
+        console.error('[Navigation] ❌ 找不到节点:', itemId);
+        return;
+    }
+    
+    console.log('[Navigation] 🎯 点击节点:', node.title, '类型:', node.type);
+    
+    const hasChildren = node.children && node.children.length > 0;
+    const hasChapters = node.chapters && node.chapters.length > 0;
+    
+    console.log('[Navigation] 📊 节点分析:', {
+        hasChildren: hasChildren,
+        hasChapters: hasChapters,
+        childrenCount: node.children?.length || 0,
+        chaptersCount: node.chapters?.length || 0,
+        nodeType: node.type
+    });
+    
+    // 🆕 增强逻辑：处理新的节点类型
+    if (node.type === 'category-with-submenu' && hasChildren) {
+        console.log('[Navigation] 🔄 显示对齐子菜单');
+        this.showAlignedSubmenu(node, clickedElement);
+    } else if (hasChildren && node.level === 0) {
+        console.log('[Navigation] 📁 顶级分类 - 显示对齐子菜单');
+        this.showAlignedSubmenu(node, clickedElement);
+    } else if (hasChildren) {
+        console.log('[Navigation] 📁 进入子级别');
+        this.navigateToLevel(node);
+    } else if (node.type === 'series' && hasChapters) {
+        console.log('[Navigation] 📚 系列类型 - 在主内容区显示章节');
+        this.handleDirectNavigation(node);
+    } else if (hasChapters) {
+        console.log('[Navigation] 📚 显示章节列表（侧边栏）');
+        this.showChaptersList(node);
+    } else {
+        console.log('[Navigation] 🔗 直接导航');
+        this.handleDirectNavigation(node);
+    }
+}
         // 🆕 核心新功能：显示位置对齐的子菜单
         showAlignedSubmenu(node, clickedElement) {
             console.log('[Navigation] 🚀 显示位置对齐的子菜单:', node.title);
