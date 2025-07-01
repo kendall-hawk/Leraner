@@ -276,5 +276,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 3000);
 });
 </script>
+<script>
+  const version = Date.now(); // 当前时间戳
+  if (!location.search.includes('v=')) {
+    location.href = location.pathname + '?v=' + version;
+  }
+</script>
 </body>
 </html>
