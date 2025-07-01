@@ -522,8 +522,7 @@ class Navigation {
             console.log('[Navigation] 🔗 直接导航');
             this.handleDirectNavigation(node);
         }
-
-
+      ｝
         // 🆕 核心新功能：显示位置对齐的子菜单
         showAlignedSubmenu(node, clickedElement) {
             console.log('[Navigation] 🚀 显示位置对齐的子菜单:', node.title);
