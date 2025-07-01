@@ -435,7 +435,7 @@ class Navigation {
             this.navigateToLevel(node);
         } else if (hasChapters) {
             console.log('[Navigation] 📚 显示章节列表');
-            this.showChaptersList(node);
+            this.handleSeriesNavigation(node);
         } else {
             console.log('[Navigation] 🔗 直接导航');
             this.handleDirectNavigation(node);
@@ -600,14 +600,30 @@ class Navigation {
         this.dispatchEvent('toolPageLoaded', { toolId: node.id, toolUrl: node.url, chapterData: node });
     }
 
-    handleSeriesNavigation(node) {
-        this.dispatchEvent('seriesSelected', { 
-            seriesId: node.id, 
-            chapters: node.chapters,
-            item: node
-        });
-        this.updateTitle(`系列: ${node.title}`);
-    }
+handleSeriesNavigation(node) {
+    console.log(`[Navigation] 📋 显示系列章节卡片: ${node.title}`);
+    
+    // 🔧 关键：关闭侧边栏
+    this.close();
+    this.state.isMainPage = false;
+    
+    // 🔧 关键：触发显示章节列表事件
+    this.dispatchEvent('seriesSelected', { 
+        seriesId: node.id, 
+        chapters: node.chapters,
+        item: node,
+        seriesTitle: node.title,
+        seriesDescription: node.description
+    });
+    
+    // 更新页面标题
+    this.updateTitle(`${node.title}`);
+    
+    // 设置激活状态
+    this.setActiveLink(node.id);
+    
+    console.log(`[Navigation] ✅ 已触发显示 ${node.chapters.length} 个章节的卡片列表`);
+}
 
     handleCustomNavigation(node) {
         if (node.customProps.customAction) {
