@@ -1277,7 +1277,7 @@ this.elements.content.innerHTML = `
     `;
     description.textContent = chapter.description || 'Explore this English learning topic';
 
-    // 🎨 底部标签行
+// 🎨 底部标签行（智能难度版本）
     const tagsRow = document.createElement('div');
     tagsRow.className = 'chapter-tags-row';
     tagsRow.style.cssText = `
@@ -1290,16 +1290,49 @@ this.elements.content.innerHTML = `
         flex-wrap: wrap !important;
     `;
 
-    // 星星难度（硬编码3星）
+    // 🎯 智能难度计算
+    const getDifficulty = () => {
+        // 检查词频管理器是否已初始化
+        if (window.app?.wordFreqManager?.isInitialized) {
+            try {
+                const difficulty = window.app.wordFreqManager.getArticleDifficulty(chapter.id);
+                if (difficulty) {
+                    return {
+                        stars: difficulty.stars,
+                        tooltip: difficulty.tooltip || `难度评级：${difficulty.label}`
+                    };
+                }
+            } catch (error) {
+                console.warn('智能难度计算失败，使用默认值:', error);
+            }
+        }
+        
+        // 降级方案：基于章节ID或标题长度的简单推断
+        const titleLength = chapter.title?.length || 30;
+        let stars;
+        if (titleLength < 25) stars = 2;
+        else if (titleLength < 40) stars = 3;
+        else stars = 4;
+        
+        return { 
+            stars, 
+            tooltip: "智能分析中，当前为预估难度" 
+        };
+    };
+
+    const { stars, tooltip } = getDifficulty();
+
+    // 星星难度（智能计算）
     const difficultyTag = document.createElement('span');
     difficultyTag.style.cssText = `
         display: flex !important;
         align-items: center !important;
         color: #ffc107 !important;
+        cursor: help !important;
     `;
-    difficultyTag.textContent = '⭐⭐⭐';
+    difficultyTag.innerHTML = `<span title="${tooltip}">${'⭐'.repeat(stars)}</span>`;
 
-    // 阅读时间
+    // 阅读时间（智能推断）
     const timeTag = document.createElement('span');
     timeTag.style.cssText = `
         display: flex !important;
@@ -1307,12 +1340,13 @@ this.elements.content.innerHTML = `
         gap: 4px !important;
         color: #666 !important;
     `;
+    const estimatedTime = chapter.audio ? '6 min' : '4 min';
     timeTag.innerHTML = `
         <span>📖</span>
-        <span>6 min</span>
+        <span>${estimatedTime}</span>
     `;
 
-    // 媒体类型（根据是否有audio决定）
+    // 媒体类型（根据实际数据判断）
     const mediaTag = document.createElement('span');
     mediaTag.style.cssText = `
         display: flex !important;
