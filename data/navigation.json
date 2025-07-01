@@ -1,43 +1,386 @@
-[
-  {
-    "id": "all-articles",
-    "series": "所有文章",
-    "seriesId": "all-articles",
-    "description": "浏览所有学习文章和章节",
-    "type": "all-articles",
-    "icon": "📚"
-  },
-  {
-    "series": "BBC English",
-    "seriesId": "beginner",
-    "description": "BBC English learning series for beginners",
-    "type": "series",
-    "icon": "🎓",
-    "chapters": [
-      {
-        "id": "chap1",
-        "title": "What's your favourite kind of noodle?",
-        "description": "Learn about food preferences and cultural differences",
-        "audio": "audio/chap1.mp3",
-        "thumbnail": "https://img.youtube.com/vi/aOiuSsnWEik/maxresdefault.jpg",
-        "type": "chapter"
-      },
-      {
-        "id": "chap2",
-        "title": "How important is politeness?",
-        "description": "Explore the role of politeness in communication",
-        "audio": "audio/chap2.mp3",
-        "thumbnail": "https://img.youtube.com/vi/5wynL5ttotw/maxresdefault.jpg",
-        "type": "chapter"
-      }
-    ]
-  },
-  {
-    "id": "tools",
-    "series": "学习工具",
-    "seriesId": "tools",
-    "description": "各种英语学习工具和资源",
-    "type": "tools",
-    "icon": "🛠️"
-  }
-]
+{
+  "navigationData": [
+    {
+      "seriesId": "learning-series",
+      "series": "📚 学习系列",
+      "type": "category-with-submenu",
+      "icon": "📚",
+      "description": "系统化的英语学习内容",
+      "children": [
+        {
+          "id": "beginner-series",
+          "title": "初级系列",
+          "type": "series",
+          "icon": "🌱",
+          "description": "适合英语初学者的基础内容",
+          "thumbnail": "images/beginner-thumb.jpg",
+          "chapters": [
+            {
+              "id": "basics-greeting",
+              "title": "基础问候语",
+              "description": "学习基本的英语问候表达",
+              "audio": true,
+              "audioFile": "audio/basics-greeting.mp3",
+              "srtFile": "srt/basics-greeting.srt",
+              "duration": "5:30",
+              "difficulty": "beginner",
+              "tags": ["greeting", "conversation", "basics"]
+            },
+            {
+              "id": "numbers-time",
+              "title": "数字与时间",
+              "description": "掌握数字和时间的英语表达",
+              "audio": true,
+              "audioFile": "audio/numbers-time.mp3",
+              "srtFile": "srt/numbers-time.srt",
+              "duration": "8:15",
+              "difficulty": "beginner",
+              "tags": ["numbers", "time", "basics"]
+            }
+          ]
+        },
+        {
+          "id": "intermediate-series",
+          "title": "中级系列",
+          "type": "category",
+          "icon": "🚀",
+          "description": "进阶英语学习内容",
+          "children": [
+            {
+              "id": "business-english",
+              "title": "商务英语",
+              "type": "series",
+              "icon": "💼",
+              "chapters": [
+                {
+                  "id": "business-meeting",
+                  "title": "商务会议英语",
+                  "description": "学习商务会议中的常用表达",
+                  "audio": true,
+                  "difficulty": "intermediate",
+                  "tags": ["business", "meeting", "professional"]
+                },
+                {
+                  "id": "email-writing",
+                  "title": "商务邮件写作",
+                  "description": "掌握专业的英语邮件写作技巧",
+                  "difficulty": "intermediate",
+                  "tags": ["business", "writing", "email"]
+                }
+              ]
+            },
+            {
+              "id": "travel-english",
+              "title": "旅游英语",
+              "type": "series",
+              "icon": "✈️",
+              "chapters": [
+                {
+                  "id": "airport-phrases",
+                  "title": "机场常用语",
+                  "description": "机场和飞行相关的英语表达",
+                  "audio": true,
+                  "difficulty": "intermediate",
+                  "tags": ["travel", "airport", "conversation"]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "advanced-series",
+          "title": "高级系列",
+          "type": "series",
+          "icon": "🎓",
+          "description": "高级英语学习内容",
+          "chapters": [
+            {
+              "id": "academic-writing",
+              "title": "学术写作",
+              "description": "英语学术写作技巧和规范",
+              "difficulty": "advanced",
+              "tags": ["academic", "writing", "advanced"]
+            },
+            {
+              "id": "literature-analysis",
+              "title": "文学分析",
+              "description": "英语文学作品分析方法",
+              "difficulty": "advanced",
+              "tags": ["literature", "analysis", "critical-thinking"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seriesId": "grammar-focus",
+      "series": "📝 语法专题",
+      "type": "category-with-submenu",
+      "icon": "📝",
+      "description": "深入学习英语语法知识",
+      "children": [
+        {
+          "id": "tenses",
+          "title": "时态专题",
+          "type": "category",
+          "icon": "⏰",
+          "description": "全面掌握英语时态系统",
+          "children": [
+            {
+              "id": "present-tenses",
+              "title": "现在时态",
+              "type": "series",
+              "chapters": [
+                {
+                  "id": "simple-present",
+                  "title": "一般现在时",
+                  "description": "一般现在时的用法和练习",
+                  "difficulty": "beginner"
+                },
+                {
+                  "id": "present-continuous",
+                  "title": "现在进行时",
+                  "description": "现在进行时的构成和应用",
+                  "difficulty": "beginner"
+                }
+              ]
+            },
+            {
+              "id": "past-tenses",
+              "title": "过去时态",
+              "type": "series",
+              "chapters": [
+                {
+                  "id": "simple-past",
+                  "title": "一般过去时",
+                  "description": "一般过去时的规则和不规则变化",
+                  "difficulty": "beginner"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "sentence-structure",
+          "title": "句型结构",
+          "type": "series",
+          "icon": "🏗️",
+          "chapters": [
+            {
+              "id": "basic-sentences",
+              "title": "基本句型",
+              "description": "英语五大基本句型详解",
+              "difficulty": "intermediate"
+            },
+            {
+              "id": "complex-sentences",
+              "title": "复合句",
+              "description": "并列句和复合句的构成",
+              "difficulty": "intermediate"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seriesId": "vocabulary",
+      "series": "🔤 词汇学习",
+      "type": "series",
+      "icon": "🔤",
+      "description": "系统化的词汇学习和记忆",
+      "chapters": [
+        {
+          "id": "daily-vocabulary",
+          "title": "日常词汇",
+          "description": "日常生活中的常用英语词汇",
+          "difficulty": "beginner",
+          "tags": ["vocabulary", "daily-life", "common-words"]
+        },
+        {
+          "id": "academic-vocabulary",
+          "title": "学术词汇",
+          "description": "学术写作和研究中的专业词汇",
+          "difficulty": "advanced",
+          "tags": ["vocabulary", "academic", "professional"]
+        }
+      ]
+    },
+    {
+      "seriesId": "listening-practice",
+      "series": "👂 听力练习",
+      "type": "series",
+      "icon": "👂",
+      "description": "提高英语听力理解能力",
+      "chapters": [
+        {
+          "id": "news-listening",
+          "title": "新闻听力",
+          "description": "通过英语新闻提高听力水平",
+          "audio": true,
+          "audioFile": "audio/news-listening.mp3",
+          "srtFile": "srt/news-listening.srt",
+          "difficulty": "intermediate",
+          "tags": ["listening", "news", "current-events"]
+        },
+        {
+          "id": "conversation-practice",
+          "title": "对话练习",
+          "description": "实用对话场景听力训练",
+          "audio": true,
+          "difficulty": "beginner",
+          "tags": ["listening", "conversation", "practical"]
+        }
+      ]
+    },
+    {
+      "seriesId": "speaking-skills",
+      "series": "🗣️ 口语技能",
+      "type": "category",
+      "icon": "🗣️",
+      "description": "提升英语口语表达能力",
+      "children": [
+        {
+          "id": "pronunciation",
+          "title": "发音练习",
+          "type": "series",
+          "icon": "🎤",
+          "chapters": [
+            {
+              "id": "vowel-sounds",
+              "title": "元音发音",
+              "description": "英语元音的正确发音方法",
+              "audio": true,
+              "difficulty": "beginner",
+              "tags": ["pronunciation", "vowels", "phonetics"]
+            },
+            {
+              "id": "consonant-sounds",
+              "title": "辅音发音",
+              "description": "英语辅音的发音技巧",
+              "audio": true,
+              "difficulty": "beginner",
+              "tags": ["pronunciation", "consonants", "phonetics"]
+            }
+          ]
+        },
+        {
+          "id": "fluency-practice",
+          "title": "流利度训练",
+          "type": "series",
+          "icon": "⚡",
+          "chapters": [
+            {
+              "id": "tongue-twisters",
+              "title": "绕口令练习",
+              "description": "通过绕口令提高发音流利度",
+              "audio": true,
+              "difficulty": "intermediate",
+              "tags": ["fluency", "pronunciation", "practice"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seriesId": "tools",
+      "series": "🛠️ 学习工具",
+      "type": "tools",
+      "icon": "🛠️",
+      "description": "实用的英语学习工具",
+      "children": [
+        {
+          "id": "word-frequency",
+          "title": "词频分析",
+          "type": "tool",
+          "icon": "📊",
+          "description": "分析文本中的词汇频率",
+          "url": "word-frequency.html",
+          "tags": ["tool", "analysis", "vocabulary"]
+        },
+        {
+          "id": "grammar-checker",
+          "title": "语法检查",
+          "type": "tool",
+          "icon": "✅",
+          "description": "检查英语语法错误",
+          "url": "grammar-checker.html",
+          "tags": ["tool", "grammar", "writing"]
+        },
+        {
+          "id": "pronunciation-guide",
+          "title": "发音指南",
+          "type": "tool",
+          "icon": "🔊",
+          "description": "单词发音查询和练习",
+          "url": "pronunciation.html",
+          "tags": ["tool", "pronunciation", "phonetics"]
+        }
+      ]
+    },
+    {
+      "seriesId": "external-resources",
+      "series": "🌐 外部资源",
+      "type": "category",
+      "icon": "🌐",
+      "description": "优质的外部学习资源",
+      "children": [
+        {
+          "id": "online-dictionaries",
+          "title": "在线词典",
+          "type": "external",
+          "icon": "📖",
+          "description": "权威的在线英语词典",
+          "url": "https://www.merriam-webster.com/",
+          "openInNewTab": true,
+          "tags": ["external", "dictionary", "reference"]
+        },
+        {
+          "id": "language-exchange",
+          "title": "语言交换平台",
+          "type": "external",
+          "icon": "💬",
+          "description": "与母语者练习口语的平台",
+          "url": "https://www.tandem.net/",
+          "openInNewTab": true,
+          "tags": ["external", "speaking", "practice"]
+        },
+        {
+          "id": "english-news",
+          "title": "英语新闻",
+          "type": "external",
+          "icon": "📰",
+          "description": "英语新闻网站，提高阅读能力",
+          "url": "https://www.bbc.com/news",
+          "openInNewTab": true,
+          "tags": ["external", "news", "reading"]
+        }
+      ]
+    },
+    {
+      "seriesId": "all-articles",
+      "series": "📑 所有文章",
+      "type": "all-articles",
+      "icon": "📑",
+      "description": "浏览所有学习内容",
+      "customAction": "showAllArticles"
+    },
+    {
+      "seriesId": "study-plan",
+      "series": "📅 学习计划",
+      "type": "page",
+      "icon": "📅",
+      "description": "制定个性化学习计划",
+      "url": "study-plan.html",
+      "tags": ["planning", "personalized", "schedule"]
+    },
+    {
+      "seriesId": "progress-tracking",
+      "series": "📈 学习进度",
+      "type": "page",
+      "icon": "📈",
+      "description": "跟踪你的学习进度和成就",
+      "url": "progress.html",
+      "tags": ["progress", "tracking", "achievement"]
+    }
+  ]
+}
