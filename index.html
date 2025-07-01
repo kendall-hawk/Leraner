@@ -234,31 +234,40 @@ function loadDebugTool() {
     
     <!-- 主应用（最后加载） -->
     <script src="js/main.js" defer></script>
+    <!-- 替换你HTML底部的调试代码为这个 -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(() => {
-        const debug = document.createElement('div');
-        debug.style.cssText = `
-            position: fixed; top: 10px; right: 10px; z-index: 99999;
-            background: red; color: white; padding: 10px; font-size: 12px;
-            max-width: 200px; border-radius: 5px;
-        `;
+    setTimeout(function() {
+        var debug = document.createElement('div');
+        debug.style.position = 'fixed';
+        debug.style.top = '10px';
+        debug.style.right = '10px';
+        debug.style.zIndex = '99999';
+        debug.style.background = 'red';
+        debug.style.color = 'white';
+        debug.style.padding = '10px';
+        debug.style.fontSize = '12px';
+        debug.style.maxWidth = '200px';
+        debug.style.borderRadius = '5px';
         
-        const sidebar = document.querySelector('.sidebar-container');
-        const mainNav = document.querySelector('#main-nav');
+        var sidebar = document.querySelector('.sidebar-container');
+        var mainNav = document.querySelector('#main-nav');
+        var hamburger = document.querySelector('.nav-toggle');
         
-        debug.innerHTML = `
-            🔍调试信息:<br>
-            侧边栏存在: ${sidebar ? '✅' : '❌'}<br>
-            主导航存在: ${mainNav ? '✅' : '❌'}<br>
-            内容位置: ${sidebar ? '侧边栏' : '主导航'}
-        `;
+        debug.innerHTML = '🔍调试:<br>' +
+            '侧边栏: ' + (sidebar ? '✅' : '❌') + '<br>' +
+            '主导航: ' + (mainNav ? '✅' : '❌') + '<br>' +
+            '汉堡包: ' + (hamburger ? '✅' : '❌') + '<br>' +
+            '点击关闭';
         
+        debug.onclick = function() { debug.remove(); };
         document.body.appendChild(debug);
         
         // 5秒后自动隐藏
-        setTimeout(() => debug.remove(), 5000);
-    }, 2000);
+        setTimeout(function() { 
+            if (debug.parentNode) debug.remove(); 
+        }, 5000);
+    }, 3000);
 });
 </script>
 </body>
