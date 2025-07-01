@@ -1,5 +1,13 @@
 [
   {
+    "id": "all-articles",
+    "series": "所有文章",
+    "seriesId": "all-articles",
+    "description": "浏览所有学习文章和章节",
+    "type": "all-articles",
+    "icon": "📚"
+  },
+  {
     "id": "bbc-english",
     "title": "BBC English", 
     "type": "category",
