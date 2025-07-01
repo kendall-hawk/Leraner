@@ -1,33 +1,154 @@
 [
     {
-        "id": "Tools",
-        "title": "快速开始",
-        "type": "custom",
-        "customAction": "show-quick-start",
-        "description": "新手入门指南",
-        "icon": "🚀"
+        "seriesId": "quick-start",
+        "series": "快速开始",
+        "icon": "🚀",
+        "type": "all-articles"
     },
     {
-        "id": "bbc-english",
-        "title": "BBC English", 
-        "type": "series",
-        "description": "BBC英语学习系列",
+        "seriesId": "bbc-english",
+        "series": "BBC English",
         "icon": "📺",
-        "chapters": [
+        "type": "category",
+        "description": "BBC英语学习资源",
+        "children": [
             {
-                "id": "chap1",
-                "title": "What's your favourite kind of noodle?",
-                "description": "Learn about food preferences",
-                "audio": "audio/chap1.mp3",
-                "thumbnail": "https://img.youtube.com/vi/aOiuSsnWEik/maxresdefault.jpg"
+                "seriesId": "6-minutes-english",
+                "series": "6 Minutes English",
+                "icon": "⏰",
+                "type": "series",
+                "description": "6分钟英语学习节目",
+                "chapters": [
+                    {
+                        "id": "chap1",
+                        "title": "What's your favourite kind of noodle?",
+                        "description": "Learn about food preferences and cultural differences in eating habits",
+                        "url": "chapters/chap1.html",
+                        "audio": "audio/chap1.mp3",
+                        "srtFile": "srt/chap1.srt",
+                        "thumbnail": "https://img.youtube.com/vi/aOiuSsnWEik/maxresdefault.jpg",
+                        "difficulty": "intermediate",
+                        "duration": "6:00",
+                        "publishDate": "2024-01-15",
+                        "tags": ["food", "culture", "preferences"]
+                    },
+                    {
+                        "id": "chap2",
+                        "title": "How important is politeness?",
+                        "description": "Explore the role of politeness in different cultures and social situations",
+                        "url": "chapters/chap2.html", 
+                        "audio": "audio/chap2.mp3",
+                        "srtFile": "srt/chap2.srt",
+                        "thumbnail": "https://img.youtube.com/vi/5wynL5ttotw/maxresdefault.jpg",
+                        "difficulty": "intermediate",
+                        "duration": "6:00",
+                        "publishDate": "2024-01-10",
+                        "tags": ["politeness", "culture", "social skills"]
+                    },
+                    {
+                        "id": "chap3",
+                        "title": "Climate change and food",
+                        "description": "Discuss how climate change affects our food choices and production",
+                        "url": "chapters/chap3.html",
+                        "audio": "audio/chap3.mp3", 
+                        "srtFile": "srt/chap3.srt",
+                        "thumbnail": "https://img.youtube.com/vi/example3/maxresdefault.jpg",
+                        "difficulty": "intermediate",
+                        "duration": "6:00",
+                        "publishDate": "2024-01-05",
+                        "tags": ["climate change", "environment", "food"]
+                    },
+                    {
+                        "id": "chap4",
+                        "title": "Why do we need to sleep?",
+                        "description": "Learn about the science behind sleep and why it's essential for health",
+                        "url": "chapters/chap4.html",
+                        "audio": "audio/chap4.mp3",
+                        "srtFile": "srt/chap4.srt", 
+                        "thumbnail": "https://img.youtube.com/vi/example4/maxresdefault.jpg",
+                        "difficulty": "intermediate",
+                        "duration": "6:00",
+                        "publishDate": "2023-12-28",
+                        "tags": ["health", "science", "sleep"]
+                    }
+                ]
             },
             {
-                "id": "chap2", 
-                "title": "How important is politeness?",
-                "description": "Explore the role of politeness",
-                "audio": "audio/chap2.mp3",
-                "thumbnail": "https://img.youtube.com/vi/5wynL5ttotw/maxresdefault.jpg"
+                "seriesId": "learning-english",
+                "series": "Learning English",
+                "icon": "🎓",
+                "type": "series", 
+                "description": "BBC Learning English 系列节目",
+                "chapters": [
+                    {
+                        "id": "grammar-tips-1",
+                        "title": "Grammar Tips: Present Perfect",
+                        "description": "Master the present perfect tense with practical examples",
+                        "url": "chapters/grammar-tips-1.html",
+                        "audio": "audio/grammar-tips-1.mp3",
+                        "srtFile": "srt/grammar-tips-1.srt",
+                        "thumbnail": "https://img.youtube.com/vi/grammar1/maxresdefault.jpg",
+                        "difficulty": "beginner",
+                        "duration": "8:00",
+                        "publishDate": "2024-01-12",
+                        "tags": ["grammar", "present perfect", "tenses"]
+                    },
+                    {
+                        "id": "vocabulary-business",
+                        "title": "Business English Vocabulary",
+                        "description": "Essential vocabulary for professional communication",
+                        "url": "chapters/vocabulary-business.html",
+                        "audio": "audio/vocabulary-business.mp3",
+                        "srtFile": "srt/vocabulary-business.srt",
+                        "thumbnail": "https://img.youtube.com/vi/business1/maxresdefault.jpg", 
+                        "difficulty": "intermediate",
+                        "duration": "10:00",
+                        "publishDate": "2024-01-08",
+                        "tags": ["vocabulary", "business", "professional"]
+                    }
+                ]
+            },
+            {
+                "seriesId": "news-review",
+                "series": "News Review",
+                "icon": "📰",
+                "type": "series",
+                "description": "学习新闻英语词汇和表达",
+                "chapters": [
+                    {
+                        "id": "news-ai-robots",
+                        "title": "AI and robots in the workplace",
+                        "description": "Learn vocabulary about artificial intelligence and automation",
+                        "url": "chapters/news-ai-robots.html",
+                        "audio": "audio/news-ai-robots.mp3",
+                        "srtFile": "srt/news-ai-robots.srt",
+                        "thumbnail": "https://img.youtube.com/vi/ai-robots/maxresdefault.jpg",
+                        "difficulty": "upper-intermediate", 
+                        "duration": "7:00",
+                        "publishDate": "2024-01-20",
+                        "tags": ["technology", "AI", "workplace", "robots"]
+                    },
+                    {
+                        "id": "news-climate-summit",
+                        "title": "Climate summit vocabulary",
+                        "description": "Key words and phrases from international climate discussions",
+                        "url": "chapters/news-climate-summit.html",
+                        "audio": "audio/news-climate-summit.mp3", 
+                        "srtFile": "srt/news-climate-summit.srt",
+                        "thumbnail": "https://img.youtube.com/vi/climate-summit/maxresdefault.jpg",
+                        "difficulty": "advanced",
+                        "duration": "8:00", 
+                        "publishDate": "2024-01-18",
+                        "tags": ["environment", "politics", "climate", "summit"]
+                    }
+                ]
             }
         ]
+    },
+    {
+        "seriesId": "tools",
+        "series": "学习工具",
+        "icon": "🛠️", 
+        "type": "tools"
     }
 ]
