@@ -1111,10 +1111,16 @@ body.sidebar-open {
     .chapter-info p { font-size: 17px; }
 }
 
-/* 📱 移动端 (≤768px) */
+/* ==========================================================================
+   移动端导航修复 - 保持大屏幕的主-从菜单格式
+   替换现有的移动端响应式样式
+   ========================================================================== */
+
+/* === 📱 移动端修复 (≤768px) === */
 @media (max-width: 768px) {
     :root { 
-        --sidebar-width: min(90vw, 400px);
+        /* 🔧 修复：保持合理的侧边栏宽度，不要占满整屏 */
+        --sidebar-width: min(85vw, 400px);
     }
     
     body { 
@@ -1134,12 +1140,78 @@ body.sidebar-open {
     
     .brand-logo { font-size: 16px; }
     
-    /* 移动端遮罩从顶部开始 */
+    /* 🔧 修复：移动端遮罩从顶部开始但保持侧边栏格式 */
     .sidebar-overlay {
         top: 0;
         touch-action: manipulation;
     }
     
+    .sidebar-overlay.enhanced-overlay {
+        top: 0;
+    }
+    
+    /* 🔧 修复：移动端保持flex布局，不改为全屏 */
+    .sidebar-container {
+        /* 保持flex布局，不要改为grid或全屏 */
+        display: flex;
+        width: var(--sidebar-width); /* 使用变量，不要100vw */
+        /* 移除之前错误的grid-template-columns设置 */
+    }
+    
+    /* 🔧 修复：主导航面板保持固定宽度比例 */
+    .sidebar-main {
+        width: 60%; /* 保持60%的宽度比例 */
+        min-width: 200px; /* 最小宽度保证 */
+    }
+    
+    /* 🔧 修复：子菜单保持右侧显示，不要覆盖 */
+    .sidebar-submenu.enhanced-submenu {
+        width: 40%; /* 保持40%的宽度比例 */
+        min-width: 150px; /* 最小宽度保证 */
+        
+        /* 🔧 关键：不要设置position: absolute */
+        /* position: relative; 保持默认的flex项目行为 */
+        
+        /* 🔧 关键：保持从右侧滑入，不要覆盖主菜单 */
+        transform: translateX(-100%); /* 从右侧滑入 */
+        background: var(--nav-bg-secondary);
+        z-index: auto; /* 不要设置高z-index */
+    }
+    
+    /* 🔧 修复：展开时从右侧出现 */
+    .sidebar-submenu.enhanced-submenu.expanded {
+        transform: translateX(0); /* 滑入到正确位置 */
+    }
+    
+    /* 🔧 修复：移动端也支持位置对齐 */
+    .sidebar-submenu.enhanced-submenu.position-aligned {
+        /* 允许位置对齐在移动端工作 */
+        /* 移除 top: 0 !important; 的强制覆盖 */
+    }
+    
+    /* 🔧 修复：位置指示器在移动端也显示 */
+    .submenu-position-indicator {
+        /* 保持显示，不要隐藏 */
+        display: block;
+        left: -2px; /* 调整位置适应小屏幕 */
+        width: 3px; /* 稍微细一点 */
+        height: 30px; /* 稍微短一点 */
+    }
+    
+    /* 移动端子分类项优化 */
+    .subcategory-item {
+        padding: 12px; /* 减少内边距 */
+        margin-bottom: 6px;
+        min-height: 44px;
+        -webkit-tap-highlight-color: rgba(var(--nav-primary-rgb), 0.1);
+    }
+    
+    /* 移动端子菜单内容区优化 */
+    .submenu-content.enhanced-submenu-content {
+        padding: 10px; /* 减少内边距以适应小宽度 */
+    }
+    
+    /* 移动端导航项优化 */
     .nav-item {
         padding: 16px 20px;
         min-height: 44px;
@@ -1154,13 +1226,13 @@ body.sidebar-open {
         min-height: 44px;
     }
     
-    /* 🎯 移动端深层级缩进调整 */
-    .nav-item.level-3 { padding-left: 28px; }
-    .nav-item.level-4 { padding-left: 36px; }
-    .nav-item.level-5 { padding-left: 44px; }
-    .nav-item.level-6 { padding-left: 52px; }
-    .nav-item.level-7 { padding-left: 60px; }
-    .nav-item.level-8 { padding-left: 68px; }
+    /* 🎯 移动端深层级缩进调整（适应小宽度） */
+    .nav-item.level-3 { padding-left: 24px; }
+    .nav-item.level-4 { padding-left: 28px; }
+    .nav-item.level-5 { padding-left: 32px; }
+    .nav-item.level-6 { padding-left: 36px; }
+    .nav-item.level-7 { padding-left: 40px; }
+    .nav-item.level-8 { padding-left: 44px; }
     
     .nav-category-header {
         padding: 16px 20px 8px 20px;
@@ -1176,6 +1248,7 @@ body.sidebar-open {
         -webkit-tap-highlight-color: rgba(103, 126, 234, 0.1);
     }
     
+    /* 内容区域调整 */
     .content-area { 
         padding-bottom: calc(var(--audio-height) + 140px); 
         margin-top: var(--header-height);
@@ -1183,12 +1256,14 @@ body.sidebar-open {
         padding-right: 16px;
     }
     
+    /* 章节卡片优化 */
     .chapter-overview-item { height: 220px; }
     .chapter-thumbnail { height: 120px; }
     .chapter-info { padding: 10px; }
     .chapter-info h3 { font-size: 18px; }
     .chapter-info p { font-size: 16px; }
     
+    /* 词汇表弹窗优化 */
     #glossary-popup { 
         width: 95vw; 
         max-height: 85vh; 
@@ -1201,6 +1276,7 @@ body.sidebar-open {
         transform: translate(-50%, -50%) scale(1); 
     }
     
+    /* 章节导航优化 */
     .chapter-nav-link { 
         flex: 1; 
         min-width: auto; 
@@ -1215,17 +1291,57 @@ body.sidebar-open {
     .brand-en { font-size: 1.2rem; margin-left: -0.08em; }
 }
 
-/* 📱 超小屏幕 (≤480px) */
+/* === 📱 超小屏幕优化 (≤480px) === */
 @media (max-width: 480px) {
-    :root { --sidebar-width: min(95vw, 320px); }
+    :root { 
+        /* 超小屏幕稍微调整宽度 */
+        --sidebar-width: min(90vw, 350px); 
+    }
     
     .brand-logo { font-size: 14px; }
     
-    .nav-item { padding: 14px 16px; }
+    /* 超小屏幕的主从布局调整 */
+    .sidebar-main {
+        width: 65%; /* 主菜单稍微宽一点 */
+        min-width: 180px;
+    }
+    
+    .sidebar-submenu.enhanced-submenu {
+        width: 35%; /* 子菜单窄一点 */
+        min-width: 120px;
+    }
+    
+    .nav-item { 
+        padding: 14px 16px; 
+        font-size: 14px; /* 字体稍小 */
+    }
     
     .nav-category-header {
         padding: 14px 16px 6px 16px;
         font-size: 12px;
+    }
+    
+    /* 子分类项进一步优化 */
+    .subcategory-item {
+        padding: 10px;
+        margin-bottom: 4px;
+    }
+    
+    .nav-description {
+        font-size: 0.8em;
+        /* 超小屏幕可以考虑隐藏描述 */
+        display: none;
+    }
+    
+    .submenu-content.enhanced-submenu-content {
+        padding: 8px;
+    }
+    
+    /* 位置指示器进一步调整 */
+    .submenu-position-indicator {
+        left: -1px;
+        width: 2px;
+        height: 25px;
     }
     
     .content-area { 
@@ -1245,22 +1361,50 @@ body.sidebar-open {
     .brand-en { font-size: 1rem; margin-left: -0.06em; }
     
     /* 超小屏幕深层级缩进进一步调整 */
-    .nav-item.level-3 { padding-left: 24px; }
-    .nav-item.level-4 { padding-left: 32px; }
-    .nav-item.level-5 { padding-left: 40px; }
+    .nav-item.level-3 { padding-left: 20px; }
+    .nav-item.level-4 { padding-left: 24px; }
+    .nav-item.level-5 { padding-left: 28px; }
 }
 
-/* 📱 超超小屏幕 (≤320px) */
+/* === 📱 超超小屏幕优化 (≤320px) === */
 @media (max-width: 320px) {
+    :root { 
+        /* 极小屏幕最大限度优化空间 */
+        --sidebar-width: 95vw; 
+    }
+    
     .brand-title { font-size: 1.5rem; }
     .brand-en { font-size: 0.9rem; margin-left: -0.05em; }
     
+    /* 极小屏幕的特殊布局 */
+    .sidebar-main {
+        width: 70%; /* 主菜单更宽 */
+        min-width: 150px;
+    }
+    
+    .sidebar-submenu.enhanced-submenu {
+        width: 30%; /* 子菜单更窄 */
+        min-width: 100px;
+    }
+    
     /* 极小屏幕下简化层级缩进 */
-    .nav-item[class*="level-"] { padding-left: 16px !important; }
-    .nav-item.level-3 { padding-left: 20px !important; }
-    .nav-item.level-4 { padding-left: 24px !important; }
+    .nav-item[class*="level-"] { 
+        padding-left: 12px !important; 
+        font-size: 13px;
+    }
+    .nav-item.level-3 { padding-left: 16px !important; }
+    .nav-item.level-4 { padding-left: 20px !important; }
+    
+    /* 子分类项极简化 */
+    .subcategory-item {
+        padding: 8px;
+        font-size: 13px;
+    }
+    
+    .submenu-content.enhanced-submenu-content {
+        padding: 6px;
+    }
 }
-
 /* === 🎭 触摸设备优化 === */
 @media (hover: none) and (pointer: coarse) {
     .nav-item.clickable:hover,
