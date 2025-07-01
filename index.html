@@ -234,53 +234,5 @@ function loadDebugTool() {
     
     <!-- 主应用（最后加载） -->
     <script src="js/main.js" defer></script>
-<!-- 替换你HTML底部的调试代码为这个 -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(function() {
-        var debug = document.createElement('div');
-        debug.style.position = 'fixed';
-        debug.style.top = '10px';
-        debug.style.right = '10px';
-        debug.style.zIndex = '99999';
-        debug.style.background = 'red';
-        debug.style.color = 'white';
-        debug.style.padding = '10px';
-        debug.style.fontSize = '12px';
-        debug.style.maxWidth = '200px';
-        debug.style.borderRadius = '5px';
-        
-        var sidebar = document.querySelector('.sidebar-container');
-        var mainNav = document.querySelector('#main-nav');
-        var hamburger = document.querySelector('.nav-toggle');
-        
-        // 检查子菜单面板和点击事件
-        var submenu = document.querySelector('.sidebar-submenu');
-        var submenuContent = document.querySelector('.submenu-content');
-        var navContent = document.querySelector('.nav-content');
-        
-        debug.innerHTML = '🔍子菜单调试:<br>' +
-            '子菜单面板: ' + (submenu ? '✅' : '❌') + '<br>' +
-            '子菜单内容区: ' + (submenuContent ? '✅' : '❌') + '<br>' +
-            '主导航内容区: ' + (navContent ? '✅' : '❌') + '<br>' +
-            '点击BBC测试子菜单<br>' +
-            '点击关闭';
-        
-        debug.onclick = function() { debug.remove(); };
-        document.body.appendChild(debug);
-        
-        // 5秒后自动隐藏
-        setTimeout(function() { 
-            if (debug.parentNode) debug.remove(); 
-        }, 5000);
-    }, 3000);
-});
-</script>
-<script>
-  const version = Date.now(); // 当前时间戳
-  if (!location.search.includes('v=')) {
-    location.href = location.pathname + '?v=' + version;
-  }
-</script>
 </body>
 </html>
