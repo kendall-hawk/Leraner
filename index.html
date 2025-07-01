@@ -235,6 +235,7 @@ function loadDebugTool() {
     <!-- 主应用（最后加载） -->
     <script src="js/main.js" defer></script>
     <!-- 替换你HTML底部的调试代码为这个 -->
+<!-- 替换你HTML底部的调试代码为这个 -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
@@ -254,10 +255,16 @@ document.addEventListener('DOMContentLoaded', function() {
         var mainNav = document.querySelector('#main-nav');
         var hamburger = document.querySelector('.nav-toggle');
         
-        debug.innerHTML = '🔍调试:<br>' +
+        // 检查侧边栏位置和内容
+        var sidebarStyle = sidebar ? window.getComputedStyle(sidebar) : null;
+        var mainNavItems = mainNav ? mainNav.querySelectorAll('.nav-item').length : 0;
+        var sidebarItems = sidebar ? sidebar.querySelectorAll('.nav-item').length : 0;
+        
+        debug.innerHTML = '🔍详细调试:<br>' +
             '侧边栏: ' + (sidebar ? '✅' : '❌') + '<br>' +
-            '主导航: ' + (mainNav ? '✅' : '❌') + '<br>' +
-            '汉堡包: ' + (hamburger ? '✅' : '❌') + '<br>' +
+            '侧边栏位置: ' + (sidebarStyle ? sidebarStyle.left : 'N/A') + '<br>' +
+            '主导航项: ' + mainNavItems + '<br>' +
+            '侧边栏项: ' + sidebarItems + '<br>' +
             '点击关闭';
         
         debug.onclick = function() { debug.remove(); };
