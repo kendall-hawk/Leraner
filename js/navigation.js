@@ -710,6 +710,7 @@ class Navigation {
         }
     }
 
+    // 🔧 关键修复：createSidebarContainer方法
     createSidebarContainer() {
         const oldSidebar = document.querySelector('.sidebar-container');
         if (oldSidebar) oldSidebar.remove();
@@ -717,17 +718,49 @@ class Navigation {
         const sidebarContainer = document.createElement('div');
         sidebarContainer.className = 'sidebar-container';
         sidebarContainer.setAttribute('data-state', 'closed');
-        sidebarContainer.innerHTML = `
-            <nav class="sidebar-main">
-                <div class="nav-breadcrumb"></div>
-                <div class="nav-content"></div>
-            </nav>
-            <div class="sidebar-submenu">
-                <div class="submenu-content"></div>
-            </div>
-        `;
         
+        // 🔧 修复：使用DOM API分步创建，确保结构完整
+        
+        // 1. 创建主导航面板
+        const sidebarMain = document.createElement('nav');
+        sidebarMain.className = 'sidebar-main';
+        
+        const breadcrumb = document.createElement('div');
+        breadcrumb.className = 'nav-breadcrumb';
+        
+        const navContent = document.createElement('div');
+        navContent.className = 'nav-content';
+        
+        sidebarMain.appendChild(breadcrumb);
+        sidebarMain.appendChild(navContent);
+        
+        // 2. 🔧 关键修复：创建子菜单面板
+        const submenu = document.createElement('div');
+        submenu.className = 'sidebar-submenu';
+        
+        const submenuContent = document.createElement('div');
+        submenuContent.className = 'submenu-content';
+        
+        // 🔧 确保子菜单内容区被正确添加
+        submenu.appendChild(submenuContent);
+        
+        // 3. 组装整个容器
+        sidebarContainer.appendChild(sidebarMain);
+        sidebarContainer.appendChild(submenu);
+        
+        // 4. 添加到页面
         document.body.appendChild(sidebarContainer);
+        
+        // 5. 验证DOM结构 - 调试用
+        if (this.config.debug) {
+            console.log('[Navigation] ✅ DOM结构验证:');
+            console.log('- 侧边栏容器:', !!document.querySelector('.sidebar-container'));
+            console.log('- 主导航面板:', !!document.querySelector('.sidebar-main'));
+            console.log('- 子菜单面板:', !!document.querySelector('.sidebar-submenu'));
+            console.log('- 子菜单内容区:', !!document.querySelector('.submenu-content'));
+            console.log('- 面包屑:', !!document.querySelector('.nav-breadcrumb'));
+            console.log('- 导航内容:', !!document.querySelector('.nav-content'));
+        }
     }
 
     createOverlay() {
@@ -741,6 +774,7 @@ class Navigation {
         document.body.appendChild(overlay);
     }
 
+    // 🔧 关键修复：cacheElements方法
     cacheElements() {
         this.state.elements = {
             hamburger: document.querySelector('.nav-toggle'),
@@ -752,6 +786,15 @@ class Navigation {
             mainContent: document.querySelector('.nav-content'),
             submenuContent: document.querySelector('.submenu-content')
         };
+        
+        // 🔧 验证关键元素是否正确缓存
+        if (this.config.debug) {
+            console.log('[Navigation] 🔗 元素缓存验证:');
+            Object.keys(this.state.elements).forEach(key => {
+                const element = this.state.elements[key];
+                console.log(`- ${key}:`, element ? '✅' : '❌');
+            });
+        }
     }
 
     showSubmenu() {
