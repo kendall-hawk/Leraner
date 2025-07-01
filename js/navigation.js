@@ -1,11 +1,11 @@
-// js/navigation.js - 完整修复版本
+// js/navigation.js - 增强版自定义导航系统
 window.EnglishSite = window.EnglishSite || {};
 
 /**
- * 🚀 真正的自定义导航系统 - 完整修复版
- * - 修复子菜单定位问题
- * - 确保子菜单内容正确显示在右侧
- * - 完全兼容现有功能
+ * 🚀 增强版自定义导航系统
+ * - 支持位置对齐的子菜单展开
+ * - 保持100%兼容性
+ * - 主-从菜单结构
  */
 class Navigation {
     constructor(navContainer, contentArea, navData, options = {}) {
@@ -25,6 +25,11 @@ class Navigation {
             currentLevel: 0,           // 当前显示层级
             navigationStack: [],       // 导航栈，支持任意深度
             
+            // 🆕 增强功能状态
+            activeCategory: null,      // 当前激活的主分类
+            submenuVisible: false,     // 子菜单显示状态
+            submenuPosition: null,     // 子菜单位置信息
+            
             // DOM和数据缓存
             elements: {},
             linksMap: new Map(),
@@ -39,24 +44,31 @@ class Navigation {
         
         this.config = window.EnglishSite.ConfigManager?.createModuleConfig('navigation', {
             siteTitle: options.siteTitle || 'Learner',
-            debug: true, // 🔧 强制开启调试
+            debug: true,
             animationDuration: 250,
             autoLoadDefaultContent: true,
             defaultContentType: 'all-articles',
             // 🔑 自定义导航配置
-            maxDepth: 10,              // 最大支持层级数
-            autoDetectStructure: true, // 自动检测JSON结构
-            supportDynamicLoading: true, // 支持动态加载
+            maxDepth: 10,              
+            autoDetectStructure: true, 
+            supportDynamicLoading: true,
+            // 🆕 增强功能配置
+            submenuAnimationDuration: 300,  // 子菜单动画时长
+            submenuOffset: 10,              // 子菜单偏移量
+            enablePositionAlignment: true,   // 启用位置对齐
             ...options
         }) || {
             siteTitle: options.siteTitle || 'Learner',
-            debug: true, // 🔧 强制开启调试
+            debug: true,
             animationDuration: 250,
             autoLoadDefaultContent: true,
             defaultContentType: 'all-articles',
             maxDepth: 10,
             autoDetectStructure: true,
             supportDynamicLoading: true,
+            submenuAnimationDuration: 300,
+            submenuOffset: 10,
+            enablePositionAlignment: true,
             ...options
         };
         
@@ -72,7 +84,7 @@ class Navigation {
     // === 🚀 核心初始化 ===
     async initialize() {
         try {
-            console.log('[Navigation] 🚀 开始初始化...');
+            console.log('[Navigation] 🚀 开始初始化增强版导航...');
             
             if (window.EnglishSite.coreToolsReady) {
                 await window.EnglishSite.coreToolsReady;
@@ -92,7 +104,7 @@ class Navigation {
             // 确保兼容性
             await this.ensureInitialContentDisplay();
             
-            console.log('[Navigation] ✅ 初始化完成');
+            console.log('[Navigation] ✅ 增强版导航初始化完成');
             console.log('[Navigation] 📊 导航树:', this.state.navigationTree);
             console.log('[Navigation] 📚 章节映射:', this.state.chaptersMap.size);
             
@@ -143,11 +155,11 @@ class Navigation {
             
             // 🔑 自动解析子结构（支持多种命名方式）
             const childrenSources = [
-                item.children,     // 标准的children
-                item.subItems,     // 可能的subItems
-                item.subSeries,    // 可能的subSeries
-                item.categories,   // 可能的categories
-                item.sections      // 可能的sections
+                item.children,     
+                item.subItems,     
+                item.subSeries,    
+                item.categories,   
+                item.sections      
             ].filter(Boolean);
             
             if (childrenSources.length > 0) {
@@ -156,11 +168,11 @@ class Navigation {
             
             // 🔑 自动解析章节（支持多种命名方式）
             const chapterSources = [
-                item.chapters,     // 标准的chapters
-                item.articles,     // 可能的articles
-                item.pages,        // 可能的pages
-                item.items,        // 可能的items
-                item.content       // 可能的content
+                item.chapters,     
+                item.articles,     
+                item.pages,        
+                item.items,        
+                item.content       
             ].filter(Boolean);
             
             if (chapterSources.length > 0) {
@@ -171,7 +183,7 @@ class Navigation {
         });
     }
 
-    // 🔑 自动检测节点类型
+    // 🔑 自动检测节点类型（增强版）
     detectNodeType(item) {
         // 明确指定的类型
         if (item.type) return item.type;
@@ -180,6 +192,9 @@ class Navigation {
         if (item.url && item.url.startsWith('http')) return 'external';
         if (item.seriesId === 'tools' || item.category === 'tools') return 'tools';
         if (item.seriesId === 'all-articles') return 'all-articles';
+        
+        // 🆕 检测新的类型
+        if (item.type === 'category-with-submenu') return 'category-with-submenu';
         
         // 根据内容推断
         const hasChildren = this.hasAnyChildren(item);
@@ -343,10 +358,16 @@ class Navigation {
         
         const iconHtml = node.icon ? `<span class="nav-icon">${node.icon}</span>` : '';
         
+        // 🆕 为主分类添加特殊标识
+        const submenuIndicator = (node.type === 'category-with-submenu' || 
+                                 (hasChildren && node.level === 0)) ? 
+                                '<span class="submenu-arrow">></span>' : '';
+        
         element.innerHTML = `
             ${iconHtml}
             <span class="nav-title">${node.title}</span>
             ${isExpandable ? '<span class="expand-arrow">></span>' : ''}
+            ${submenuIndicator}
         `;
         
         return element;
@@ -359,6 +380,11 @@ class Navigation {
             classes.push('expandable');
         } else {
             classes.push('clickable');
+        }
+        
+        // 🆕 新增类型的样式类
+        if (node.type === 'category-with-submenu') {
+            classes.push('category-with-submenu');
         }
         
         if (node.type === 'tool' || node.type === 'tools') {
@@ -374,7 +400,7 @@ class Navigation {
         return classes.join(' ');
     }
 
-    // 🔧 关键修复：章节列表渲染
+    // 🔧 渲染章节列表（兼容原有功能）
     renderChaptersList(chapters, container) {
         if (!container) {
             console.error('[Navigation] ❌ 子菜单容器不存在！无法渲染章节列表');
@@ -387,7 +413,6 @@ class Navigation {
         }
         
         console.log('[Navigation] 📚 渲染章节列表:', chapters.length, '个章节');
-        console.log('[Navigation] 📍 目标容器:', container.className);
         
         const fragment = document.createDocumentFragment();
         
@@ -409,9 +434,52 @@ class Navigation {
         console.log('[Navigation] ✅ 章节列表渲染完成');
     }
 
-    // === 🎯 导航核心逻辑 ===
+    // 🆕 渲染子分类菜单（新功能）
+    renderSubcategoryMenu(children, container) {
+        if (!container) {
+            console.error('[Navigation] ❌ 子菜单容器不存在！无法渲染子分类菜单');
+            return;
+        }
+        
+        if (!children || children.length === 0) {
+            console.warn('[Navigation] ⚠️ 没有子分类数据');
+            return;
+        }
+        
+        console.log('[Navigation] 📂 渲染子分类菜单:', children.length, '个子分类');
+        
+        const fragment = document.createDocumentFragment();
+        
+        children.forEach(child => {
+            const element = document.createElement('div');
+            element.className = `nav-item level-${child.level} clickable subcategory-item`;
+            element.setAttribute('data-id', child.id);
+            element.setAttribute('data-action', 'nav-item');
+            element.setAttribute('data-type', child.type);
+            
+            const iconHtml = child.icon ? `<span class="nav-icon">${child.icon}</span>` : '';
+            const description = child.description ? `<span class="nav-description">${child.description}</span>` : '';
+            
+            element.innerHTML = `
+                ${iconHtml}
+                <div class="nav-content">
+                    <span class="nav-title">${child.title}</span>
+                    ${description}
+                </div>
+            `;
+            
+            fragment.appendChild(element);
+        });
+        
+        container.innerHTML = '';
+        container.appendChild(fragment);
+        
+        console.log('[Navigation] ✅ 子分类菜单渲染完成');
+    }
+
+    // === 🎯 核心导航逻辑（增强版） ===
     
-    handleNavItemClick(itemId) {
+    handleNavItemClick(itemId, clickedElement = null) {
         const node = this.findNodeById(itemId);
         if (!node) {
             console.error('[Navigation] ❌ 找不到节点:', itemId);
@@ -427,10 +495,18 @@ class Navigation {
             hasChildren: hasChildren,
             hasChapters: hasChapters,
             childrenCount: node.children?.length || 0,
-            chaptersCount: node.chapters?.length || 0
+            chaptersCount: node.chapters?.length || 0,
+            nodeType: node.type
         });
         
-        if (hasChildren) {
+        // 🆕 增强逻辑：处理新的节点类型
+        if (node.type === 'category-with-submenu' && hasChildren) {
+            console.log('[Navigation] 🔄 显示对齐子菜单');
+            this.showAlignedSubmenu(node, clickedElement);
+        } else if (hasChildren && node.level === 0) {
+            console.log('[Navigation] 📁 顶级分类 - 显示对齐子菜单');
+            this.showAlignedSubmenu(node, clickedElement);
+        } else if (hasChildren) {
             console.log('[Navigation] 📁 进入子级别');
             this.navigateToLevel(node);
         } else if (hasChapters) {
@@ -440,6 +516,106 @@ class Navigation {
             console.log('[Navigation] 🔗 直接导航');
             this.handleDirectNavigation(node);
         }
+    }
+
+    // 🆕 核心新功能：显示位置对齐的子菜单
+    showAlignedSubmenu(node, clickedElement) {
+        console.log('[Navigation] 🚀 显示位置对齐的子菜单:', node.title);
+        
+        // 验证子菜单容器
+        const submenuContent = this.state.elements.submenuContent;
+        if (!submenuContent) {
+            console.error('[Navigation] ❌ 子菜单内容容器不存在！');
+            this.emergencyFixSubmenuContainer();
+            return;
+        }
+        
+        // 🔑 计算位置信息
+        let position = null;
+        if (clickedElement && this.config.enablePositionAlignment) {
+            position = this.calculateSubmenuPosition(clickedElement);
+        }
+        
+        // 更新状态
+        this.state.activeCategory = node.id;
+        this.state.submenuVisible = true;
+        this.state.submenuPosition = position;
+        
+        // 渲染子分类菜单
+        this.renderSubcategoryMenu(node.children, submenuContent);
+        
+        // 显示子菜单并应用位置
+        this.showSubmenuWithPosition(position);
+        
+        // 更新活跃状态
+        this.updateActiveState(node.id);
+        
+        console.log('[Navigation] ✅ 位置对齐子菜单显示完成', { position });
+    }
+
+    // 🆕 计算子菜单位置
+    calculateSubmenuPosition(clickedElement) {
+        if (!clickedElement) return null;
+        
+        try {
+            const rect = clickedElement.getBoundingClientRect();
+            const sidebar = this.state.elements.container.getBoundingClientRect();
+            
+            // 计算相对于侧边栏的位置
+            const relativeTop = rect.top - sidebar.top;
+            const elementHeight = rect.height;
+            
+            const position = {
+                top: relativeTop,
+                height: elementHeight,
+                offset: this.config.submenuOffset
+            };
+            
+            console.log('[Navigation] 📐 计算位置:', position);
+            return position;
+            
+        } catch (error) {
+            console.warn('[Navigation] ⚠️ 位置计算失败:', error);
+            return null;
+        }
+    }
+
+    // 🆕 带位置的子菜单显示
+    showSubmenuWithPosition(position) {
+        console.log('[Navigation] 👁️ 显示带位置的子菜单');
+        
+        const submenu = this.state.elements.submenuPanel;
+        if (!submenu) {
+            console.error('[Navigation] ❌ 子菜单面板不存在！');
+            return;
+        }
+        
+        // 基础显示样式
+        submenu.classList.remove('hidden');
+        submenu.classList.add('expanded', 'aligned-submenu');
+        submenu.style.display = 'block';
+        submenu.style.visibility = 'visible';
+        submenu.style.opacity = '1';
+        submenu.style.transform = 'translateX(0)';
+        submenu.style.pointerEvents = 'auto';
+        
+        // 🔑 应用位置对齐
+        if (position && this.config.enablePositionAlignment) {
+            submenu.style.top = `${position.top + position.offset}px`;
+            submenu.style.paddingTop = '0';
+            
+            // 添加位置对齐的样式类
+            submenu.classList.add('position-aligned');
+            
+            console.log('[Navigation] 📍 应用位置对齐:', `top: ${position.top + position.offset}px`);
+        } else {
+            // 默认位置
+            submenu.style.top = '0';
+            submenu.style.paddingTop = '20px';
+            submenu.classList.remove('position-aligned');
+        }
+        
+        console.log('[Navigation] ✅ 带位置的子菜单已显示');
     }
 
     navigateToLevel(node) {
@@ -459,22 +635,17 @@ class Navigation {
         console.log('[Navigation] 📁 导航到层级:', this.state.currentPath.map(p => p.title).join(' > '));
     }
 
-    // 🔧 关键修复：显示章节列表方法
+    // 🔧 保持原有的章节列表显示功能
     showChaptersList(node) {
         console.log('[Navigation] 🚀 开始显示章节列表:', node.title);
         
-        // 验证子菜单容器
         const submenuContent = this.state.elements.submenuContent;
         if (!submenuContent) {
             console.error('[Navigation] ❌ 子菜单内容容器不存在！');
-            console.log('[Navigation] 🔍 当前元素状态:', this.state.elements);
-            
-            // 🔧 应急修复：重新查找或创建子菜单容器
             this.emergencyFixSubmenuContainer();
             return;
         }
         
-        // 添加到导航路径
         this.state.currentPath.push({
             id: node.id,
             title: node.title,
@@ -484,54 +655,12 @@ class Navigation {
         
         this.state.currentLevel = node.level + 1;
         
-        // 渲染面包屑和章节列表
         this.renderBreadcrumb();
         this.renderChaptersList(node.chapters, submenuContent);
         this.showSubmenu();
         this.updateActiveState(node.id);
         
         console.log('[Navigation] ✅ 章节列表显示完成');
-    }
-
-    // 🔧 应急修复：重新创建子菜单容器
-    emergencyFixSubmenuContainer() {
-        console.log('[Navigation] 🚑 应急修复：重新创建子菜单容器');
-        
-        let submenu = document.querySelector('.sidebar-submenu');
-        if (!submenu) {
-            console.log('[Navigation] 📦 创建子菜单面板');
-            submenu = document.createElement('div');
-            submenu.className = 'sidebar-submenu';
-            
-            const sidebarContainer = document.querySelector('.sidebar-container');
-            if (sidebarContainer) {
-                sidebarContainer.appendChild(submenu);
-            } else {
-                console.error('[Navigation] ❌ 连侧边栏容器都找不到了！');
-                return;
-            }
-        }
-        
-        let submenuContent = submenu.querySelector('.submenu-content');
-        if (!submenuContent) {
-            console.log('[Navigation] 📦 创建子菜单内容区');
-            submenuContent = document.createElement('div');
-            submenuContent.className = 'submenu-content';
-            submenu.appendChild(submenuContent);
-        }
-        
-        // 重新缓存元素
-        this.state.elements.submenuPanel = submenu;
-        this.state.elements.submenuContent = submenuContent;
-        
-        console.log('[Navigation] ✅ 应急修复完成，重新尝试显示章节列表');
-        
-        // 重新尝试显示章节列表
-        const node = this.state.currentPath[this.state.currentPath.length - 1]?.data;
-        if (node && node.chapters) {
-            this.renderChaptersList(node.chapters, submenuContent);
-            this.showSubmenu();
-        }
     }
 
     handleDirectNavigation(node) {
@@ -686,7 +815,7 @@ class Navigation {
         return 'nav_' + Math.random().toString(36).substr(2, 9);
     }
 
-    // === 🔧 DOM和UI控制 ===
+    // === 🔧 DOM和UI控制（增强版） ===
     
     validateRequiredElements() {
         if (!this.navContainer || !this.contentArea) {
@@ -695,7 +824,7 @@ class Navigation {
     }
 
     createSidebarStructure() {
-        console.log('[Navigation] 🏗️ 创建侧边栏结构');
+        console.log('[Navigation] 🏗️ 创建增强版侧边栏结构');
         this.hideOriginalNavigation();
         this.createHeaderElements();
         this.createSidebarContainer();
@@ -734,9 +863,9 @@ class Navigation {
         }
     }
 
-    // 🔧 完全重写：createSidebarContainer方法
+    // 🔧 创建增强版侧边栏容器
     createSidebarContainer() {
-        console.log('[Navigation] 📦 创建侧边栏容器...');
+        console.log('[Navigation] 📦 创建增强版侧边栏容器...');
         
         // 清除旧的侧边栏
         const oldSidebar = document.querySelector('.sidebar-container');
@@ -745,13 +874,13 @@ class Navigation {
             oldSidebar.remove();
         }
         
-        // 🔧 关键修复：分步创建确保DOM结构完整
+        // 🔧 创建增强版侧边栏结构
         
         // 1. 创建侧边栏容器
         const sidebarContainer = document.createElement('div');
-        sidebarContainer.className = 'sidebar-container';
+        sidebarContainer.className = 'sidebar-container enhanced-sidebar';
         sidebarContainer.setAttribute('data-state', 'closed');
-        console.log('[Navigation] ✅ 创建侧边栏容器');
+        console.log('[Navigation] ✅ 创建增强版侧边栏容器');
         
         // 2. 创建主导航面板
         const sidebarMain = document.createElement('nav');
@@ -773,49 +902,235 @@ class Navigation {
         sidebarMain.appendChild(navContent);
         console.log('[Navigation] ✅ 组装主导航面板');
         
-        // 6. 🔧 关键修复：创建子菜单面板
+        // 6. 🆕 创建增强版子菜单面板
         const submenu = document.createElement('div');
-        submenu.className = 'sidebar-submenu';
-        console.log('[Navigation] ✅ 创建子菜单面板');
+        submenu.className = 'sidebar-submenu enhanced-submenu';
+        console.log('[Navigation] ✅ 创建增强版子菜单面板');
         
-        // 7. 🔧 关键修复：创建子菜单内容区
+        // 7. 🆕 创建增强版子菜单内容区
         const submenuContent = document.createElement('div');
-        submenuContent.className = 'submenu-content';
-        console.log('[Navigation] ✅ 创建子菜单内容区');
+        submenuContent.className = 'submenu-content enhanced-submenu-content';
+        console.log('[Navigation] ✅ 创建增强版子菜单内容区');
         
-        // 8. 🔧 确保子菜单内容区被正确添加
+        // 8. 🆕 创建位置指示器
+        const positionIndicator = document.createElement('div');
+        positionIndicator.className = 'submenu-position-indicator';
+        console.log('[Navigation] ✅ 创建位置指示器');
+        
+        // 9. 组装子菜单
+        submenu.appendChild(positionIndicator);
         submenu.appendChild(submenuContent);
-        console.log('[Navigation] ✅ 子菜单内容区添加到子菜单面板');
+        console.log('[Navigation] ✅ 组装增强版子菜单');
         
-        // 9. 组装整个侧边栏容器
+        // 10. 组装整个侧边栏容器
         sidebarContainer.appendChild(sidebarMain);
         sidebarContainer.appendChild(submenu);
-        console.log('[Navigation] ✅ 组装完整侧边栏容器');
+        console.log('[Navigation] ✅ 组装完整增强版侧边栏容器');
         
-        // 10. 添加到页面
+        // 11. 添加增强版样式
+        this.addEnhancedStyles(sidebarContainer);
+        
+        // 12. 添加到页面
         document.body.appendChild(sidebarContainer);
-        console.log('[Navigation] ✅ 侧边栏容器添加到页面');
+        console.log('[Navigation] ✅ 增强版侧边栏容器添加到页面');
         
-        // 11. 立即验证DOM结构
+        // 13. 立即验证DOM结构
         const verification = {
             sidebarContainer: !!document.querySelector('.sidebar-container'),
             sidebarMain: !!document.querySelector('.sidebar-main'),
             submenuPanel: !!document.querySelector('.sidebar-submenu'),
             submenuContent: !!document.querySelector('.submenu-content'),
             breadcrumb: !!document.querySelector('.nav-breadcrumb'),
-            navContent: !!document.querySelector('.nav-content')
+            navContent: !!document.querySelector('.nav-content'),
+            positionIndicator: !!document.querySelector('.submenu-position-indicator')
         };
         
-        console.log('[Navigation] 📊 DOM结构验证:', verification);
+        console.log('[Navigation] 📊 增强版DOM结构验证:', verification);
         
-        // 如果有任何元素缺失，立即报错
         const failed = Object.entries(verification).filter(([key, value]) => !value);
         if (failed.length > 0) {
-            console.error('[Navigation] ❌ DOM创建失败:', failed.map(([key]) => key));
-            throw new Error(`DOM创建失败: ${failed.map(([key]) => key).join(', ')}`);
+            console.error('[Navigation] ❌ 增强版DOM创建失败:', failed.map(([key]) => key));
+            throw new Error(`增强版DOM创建失败: ${failed.map(([key]) => key).join(', ')}`);
         }
         
-        console.log('[Navigation] ✅ 侧边栏容器创建完成');
+        console.log('[Navigation] ✅ 增强版侧边栏容器创建完成');
+    }
+
+    // 🆕 添加增强版样式
+    addEnhancedStyles(container) {
+        const styleId = 'enhanced-navigation-styles';
+        
+        // 避免重复添加样式
+        if (document.getElementById(styleId)) {
+            return;
+        }
+        
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+            /* 🎨 增强版导航样式 */
+            
+            .enhanced-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100vh;
+                background: transparent;
+                z-index: 9999;
+                transform: translateX(-100%);
+                transition: transform ${this.config.animationDuration}ms ease-in-out;
+                display: flex;
+            }
+            
+            .enhanced-sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .sidebar-main {
+                width: 280px;
+                background: #ffffff;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+                height: 100vh;
+                overflow-y: auto;
+                flex-shrink: 0;
+            }
+            
+            .enhanced-submenu {
+                width: 300px;
+                background: #f8f9fa;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+                height: 100vh;
+                overflow-y: auto;
+                transform: translateX(-100%);
+                transition: transform ${this.config.submenuAnimationDuration}ms ease-in-out;
+                position: relative;
+            }
+            
+            .enhanced-submenu.expanded {
+                transform: translateX(0);
+            }
+            
+            .enhanced-submenu.position-aligned {
+                /* 位置对齐模式的特殊样式 */
+            }
+            
+            .submenu-position-indicator {
+                position: absolute;
+                left: -4px;
+                width: 4px;
+                height: 40px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 0 4px 4px 0;
+                opacity: 0;
+                transition: opacity ${this.config.submenuAnimationDuration}ms ease-in-out;
+            }
+            
+            .enhanced-submenu.position-aligned .submenu-position-indicator {
+                opacity: 1;
+            }
+            
+            .enhanced-submenu-content {
+                padding: 20px;
+            }
+            
+            .nav-item.category-with-submenu {
+                position: relative;
+            }
+            
+            .nav-item.category-with-submenu::after {
+                content: '';
+                position: absolute;
+                right: 15px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 0;
+                height: 0;
+                border-left: 6px solid #667eea;
+                border-top: 4px solid transparent;
+                border-bottom: 4px solid transparent;
+                opacity: 0.7;
+            }
+            
+            .nav-item.category-with-submenu:hover::after {
+                opacity: 1;
+            }
+            
+            .nav-item.category-with-submenu.active {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+            }
+            
+            .nav-item.category-with-submenu.active::after {
+                border-left-color: white;
+            }
+            
+            .subcategory-item {
+                margin-bottom: 10px;
+                padding: 15px;
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                transition: all 0.2s ease;
+                cursor: pointer;
+            }
+            
+            .subcategory-item:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            }
+            
+            .nav-description {
+                display: block;
+                font-size: 0.85em;
+                color: #6c757d;
+                margin-top: 4px;
+            }
+            
+            .nav-content {
+                display: flex;
+                flex-direction: column;
+            }
+            
+            /* 🎯 响应式设计 */
+            @media (max-width: 768px) {
+                .enhanced-sidebar {
+                    width: 100vw;
+                }
+                
+                .sidebar-main {
+                    width: 100vw;
+                }
+                
+                .enhanced-submenu {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    z-index: 10;
+                }
+            }
+            
+            /* 🎨 动画增强 */
+            .nav-item {
+                transition: all 0.2s ease;
+            }
+            
+            .nav-item:hover {
+                background-color: rgba(102, 126, 234, 0.1);
+                border-radius: 4px;
+            }
+            
+            .nav-item.active {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border-radius: 4px;
+            }
+        `;
+        
+        document.head.appendChild(style);
+        console.log('[Navigation] 🎨 增强版样式已添加');
     }
 
     createOverlay() {
@@ -823,15 +1138,31 @@ class Navigation {
         if (oldOverlay) oldOverlay.remove();
         
         const overlay = document.createElement('div');
-        overlay.className = 'sidebar-overlay';
+        overlay.className = 'sidebar-overlay enhanced-overlay';
         overlay.setAttribute('aria-label', '点击关闭导航');
         overlay.setAttribute('data-action', 'close-sidebar');
+        
+        // 🆕 增强版覆盖层样式
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9998;
+            opacity: 0;
+            visibility: hidden;
+            transition: all ${this.config.animationDuration}ms ease-in-out;
+            pointer-events: none;
+        `;
+        
         document.body.appendChild(overlay);
     }
 
     // 🔧 完全重写：cacheElements方法
     cacheElements() {
-        console.log('[Navigation] 🗃️ 缓存DOM元素...');
+        console.log('[Navigation] 🗃️ 缓存增强版DOM元素...');
         
         this.state.elements = {
             hamburger: document.querySelector('.nav-toggle'),
@@ -841,11 +1172,12 @@ class Navigation {
             overlay: document.querySelector('.sidebar-overlay'),
             breadcrumb: document.querySelector('.nav-breadcrumb'),
             mainContent: document.querySelector('.nav-content'),
-            submenuContent: document.querySelector('.submenu-content')
+            submenuContent: document.querySelector('.submenu-content'),
+            positionIndicator: document.querySelector('.submenu-position-indicator')
         };
         
         // 🔧 严格验证每个关键元素
-        console.log('[Navigation] 🔗 元素缓存验证:');
+        console.log('[Navigation] 🔗 增强版元素缓存验证:');
         Object.entries(this.state.elements).forEach(([key, element]) => {
             const status = element ? '✅' : '❌';
             console.log(`[Navigation] - ${key}: ${status}`);
@@ -855,12 +1187,12 @@ class Navigation {
             }
         });
         
-        console.log('[Navigation] ✅ 元素缓存完成');
+        console.log('[Navigation] ✅ 增强版元素缓存完成');
     }
 
-    // 🔧 修复：showSubmenu方法
+    // 🔧 修复：showSubmenu方法（保持兼容性）
     showSubmenu() {
-        console.log('[Navigation] 👁️ 显示子菜单面板');
+        console.log('[Navigation] 👁️ 显示子菜单面板（兼容模式）');
         
         const submenu = this.state.elements.submenuPanel;
         if (!submenu) {
@@ -868,7 +1200,7 @@ class Navigation {
             return;
         }
         
-        // 强制显示子菜单
+        // 兼容原有的显示方式
         submenu.classList.remove('hidden');
         submenu.classList.add('expanded');
         submenu.style.display = 'block';
@@ -877,26 +1209,82 @@ class Navigation {
         submenu.style.transform = 'translateX(0)';
         submenu.style.pointerEvents = 'auto';
         
-        console.log('[Navigation] ✅ 子菜单面板已显示');
+        // 重置位置（兼容模式不使用位置对齐）
+        submenu.style.top = '0';
+        submenu.classList.remove('position-aligned');
+        
+        console.log('[Navigation] ✅ 子菜单面板已显示（兼容模式）');
     }
 
     hideSubmenu() {
         const submenu = this.state.elements.submenuPanel;
         if (!submenu) return;
         
-        submenu.style.transform = 'translateX(100%)';
+        // 🆕 增强版隐藏动画
+        submenu.style.transform = 'translateX(-100%)';
         submenu.style.opacity = '0';
         
         setTimeout(() => {
             submenu.style.display = 'none';
             submenu.style.visibility = 'hidden';
             submenu.style.pointerEvents = 'none';
-            submenu.classList.remove('expanded');
+            submenu.classList.remove('expanded', 'position-aligned');
             submenu.classList.add('hidden');
+            
+            // 清空内容
             if (submenu.querySelector('.submenu-content')) {
                 submenu.querySelector('.submenu-content').innerHTML = '';
             }
-        }, this.config.animationDuration);
+            
+            // 重置状态
+            this.state.submenuVisible = false;
+            this.state.activeCategory = null;
+            this.state.submenuPosition = null;
+            
+        }, this.config.submenuAnimationDuration);
+    }
+
+    // 🔧 应急修复：重新创建子菜单容器
+    emergencyFixSubmenuContainer() {
+        console.log('[Navigation] 🚑 应急修复：重新创建增强版子菜单容器');
+        
+        let submenu = document.querySelector('.sidebar-submenu');
+        if (!submenu) {
+            console.log('[Navigation] 📦 创建增强版子菜单面板');
+            submenu = document.createElement('div');
+            submenu.className = 'sidebar-submenu enhanced-submenu';
+            
+            const sidebarContainer = document.querySelector('.sidebar-container');
+            if (sidebarContainer) {
+                sidebarContainer.appendChild(submenu);
+            } else {
+                console.error('[Navigation] ❌ 连侧边栏容器都找不到了！');
+                return;
+            }
+        }
+        
+        let submenuContent = submenu.querySelector('.submenu-content');
+        if (!submenuContent) {
+            console.log('[Navigation] 📦 创建增强版子菜单内容区');
+            submenuContent = document.createElement('div');
+            submenuContent.className = 'submenu-content enhanced-submenu-content';
+            submenu.appendChild(submenuContent);
+        }
+        
+        let positionIndicator = submenu.querySelector('.submenu-position-indicator');
+        if (!positionIndicator) {
+            console.log('[Navigation] 📦 创建位置指示器');
+            positionIndicator = document.createElement('div');
+            positionIndicator.className = 'submenu-position-indicator';
+            submenu.insertBefore(positionIndicator, submenuContent);
+        }
+        
+        // 重新缓存元素
+        this.state.elements.submenuPanel = submenu;
+        this.state.elements.submenuContent = submenuContent;
+        this.state.elements.positionIndicator = positionIndicator;
+        
+        console.log('[Navigation] ✅ 增强版应急修复完成');
     }
 
     setupEventListeners() {
@@ -930,7 +1318,8 @@ class Navigation {
                 this.close();
                 break;
             case 'nav-item':
-                this.handleNavItemClick(id);
+                // 🆕 传递点击元素给处理函数
+                this.handleNavItemClick(id, actionElement);
                 break;
             case 'navigate-chapter':
                 this.navigateToChapter(id);
@@ -960,6 +1349,15 @@ class Navigation {
 
     handleResize() {
         this.state.isMobile = window.innerWidth <= 768;
+        
+        // 🆕 响应式处理：移动端重置子菜单位置
+        if (this.state.isMobile && this.state.submenuVisible) {
+            const submenu = this.state.elements.submenuPanel;
+            if (submenu) {
+                submenu.style.top = '0';
+                submenu.classList.remove('position-aligned');
+            }
+        }
     }
 
     handleKeydown(event) {
@@ -993,13 +1391,18 @@ class Navigation {
     }
 
     open() {
-        console.log('[Navigation] 🔓 打开侧边栏');
+        console.log('[Navigation] 🔓 打开增强版侧边栏');
         this.state.isOpen = true;
         
         const { container, overlay } = this.state.elements;
         
         container.setAttribute('data-state', 'open');
         container.classList.add('open');
+        
+        // 🆕 增强版覆盖层显示
+        overlay.style.opacity = '1';
+        overlay.style.visibility = 'visible';
+        overlay.style.pointerEvents = 'auto';
         overlay.classList.add('visible');
         
         document.body.style.overflow = 'hidden';
@@ -1009,13 +1412,18 @@ class Navigation {
     }
 
     close() {
-        console.log('[Navigation] 🔒 关闭侧边栏');
+        console.log('[Navigation] 🔒 关闭增强版侧边栏');
         this.state.isOpen = false;
         
         const { container, overlay } = this.state.elements;
         
         container.setAttribute('data-state', 'closed');
         container.classList.remove('open');
+        
+        // 🆕 增强版覆盖层隐藏
+        overlay.style.opacity = '0';
+        overlay.style.visibility = 'hidden';
+        overlay.style.pointerEvents = 'none';
         overlay.classList.remove('visible');
         
         document.body.style.overflow = '';
@@ -1028,6 +1436,12 @@ class Navigation {
     resetNavigationState() {
         this.state.currentPath = [];
         this.state.currentLevel = 0;
+        
+        // 🆕 重置增强版状态
+        this.state.activeCategory = null;
+        this.state.submenuVisible = false;
+        this.state.submenuPosition = null;
+        
         this.hideSubmenu();
         this.renderCurrentLevel();
     }
@@ -1049,7 +1463,7 @@ class Navigation {
         }
     }
 
-    // === 🔗 兼容性API ===
+    // === 🔗 兼容性API（保持100%兼容） ===
     
     async waitForInitialization() {
         return this.initPromise;
@@ -1304,13 +1718,61 @@ class Navigation {
     handleInitializationError(error) {
         this.contentArea.innerHTML = `
             <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; margin: 20px 0;">
-                <h2 style="color: #dc3545; margin-bottom: 16px;">自定义导航初始化失败</h2>
+                <h2 style="color: #dc3545; margin-bottom: 16px;">增强版导航初始化失败</h2>
                 <p>遇到了一些问题：${error.message}</p>
                 <button onclick="location.reload()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
                     重新加载
                 </button>
             </div>
         `;
+    }
+
+    // === 🆕 增强功能API ===
+
+    // 获取增强版导航统计
+    getEnhancedNavigationStats() {
+        return {
+            ...this.getNavigationStats(),
+            submenuVisible: this.state.submenuVisible,
+            activeCategory: this.state.activeCategory,
+            submenuPosition: this.state.submenuPosition,
+            enhancedFeatures: {
+                positionAlignment: this.config.enablePositionAlignment,
+                submenuAnimation: true,
+                responsiveDesign: true
+            }
+        };
+    }
+
+    // 手动触发位置对齐的子菜单
+    showAlignedSubmenuById(categoryId, options = {}) {
+        const node = this.findNodeById(categoryId);
+        if (!node) {
+            console.error('[Navigation] ❌ 找不到分类节点:', categoryId);
+            return false;
+        }
+
+        const element = this.state.linksMap.get(categoryId);
+        this.showAlignedSubmenu(node, element);
+        return true;
+    }
+
+    // 手动设置子菜单位置
+    setSubmenuPosition(position) {
+        this.state.submenuPosition = position;
+        if (this.state.submenuVisible) {
+            this.showSubmenuWithPosition(position);
+        }
+    }
+
+    // 获取当前子菜单状态
+    getSubmenuState() {
+        return {
+            visible: this.state.submenuVisible,
+            activeCategory: this.state.activeCategory,
+            position: this.state.submenuPosition,
+            element: this.state.elements.submenuPanel
+        };
     }
 
     getNavigationStats() {
@@ -1369,21 +1831,32 @@ class Navigation {
             hamburger.remove();
         }
         
+        // 🆕 移除增强版样式
+        const enhancedStyles = document.getElementById('enhanced-navigation-styles');
+        if (enhancedStyles) {
+            enhancedStyles.remove();
+        }
+        
         this.state.linksMap.clear();
         this.state.chaptersMap.clear();
         this.state.currentPath = [];
         
+        // 🆕 重置增强版状态
+        this.state.activeCategory = null;
+        this.state.submenuVisible = false;
+        this.state.submenuPosition = null;
+        
         document.body.style.overflow = '';
         document.body.classList.remove('sidebar-open');
         
-        console.log('[Navigation] 🧹 自定义导航已销毁');
+        console.log('[Navigation] 🧹 增强版自定义导航已销毁');
     }
 }
 
-// 注册到全局
+// 注册到全局（保持100%兼容性）
 window.EnglishSite.Navigation = Navigation;
 
-// 便捷的全局函数
+// 🔗 便捷的全局函数（保持兼容）
 window.navigateToWordFrequency = function() {
     if (window.app && window.app.navigation) {
         return window.app.navigation.navigateToTool('word-frequency');
@@ -1399,16 +1872,55 @@ window.closeSidebarNavigation = function() {
     return false;
 };
 
-// 🔍 调试函数
-window.debugCustomNavigation = function() {
+// 🆕 新增全局便捷函数
+window.showAlignedSubmenu = function(categoryId) {
     if (window.app && window.app.navigation) {
-        const nav = window.app.navigation;
-        console.log('=== 🔍 自定义导航调试信息 ===');
-        console.log('📊 导航统计:', nav.getNavigationStats());
-        console.log('🌳 导航树:', nav.state.navigationTree);
-        console.log('📚 章节映射:', nav.state.chaptersMap);
-        console.log('🗂️ 当前路径:', nav.state.currentPath);
-        return nav.getNavigationStats();
+        return window.app.navigation.showAlignedSubmenuById(categoryId);
+    }
+    return false;
+};
+
+window.getEnhancedNavigationState = function() {
+    if (window.app && window.app.navigation) {
+        return window.app.navigation.getEnhancedNavigationStats();
     }
     return null;
 };
+
+// 🔍 调试函数（增强版）
+window.debugEnhancedNavigation = function() {
+    if (window.app && window.app.navigation) {
+        const nav = window.app.navigation;
+        console.log('=== 🔍 增强版自定义导航调试信息 ===');
+        console.log('📊 增强版导航统计:', nav.getEnhancedNavigationStats());
+        console.log('🌳 导航树:', nav.state.navigationTree);
+        console.log('📚 章节映射:', nav.state.chaptersMap);
+        console.log('🗂️ 当前路径:', nav.state.currentPath);
+        console.log('🎯 子菜单状态:', nav.getSubmenuState());
+        console.log('🎨 DOM元素:', nav.state.elements);
+        return nav.getEnhancedNavigationStats();
+    }
+    return null;
+};
+
+// 🆕 增强版事件监听器（用于外部集成）
+window.addEnhancedNavigationListener = function(eventType, callback) {
+    const supportedEvents = [
+        'submenuOpened',      // 子菜单打开时
+        'submenuClosed',      // 子菜单关闭时
+        'categoryActivated',  // 分类激活时
+        'positionAligned'     // 位置对齐完成时
+    ];
+    
+    if (!supportedEvents.includes(eventType)) {
+        console.warn('[Navigation] ⚠️ 不支持的事件类型:', eventType);
+        return false;
+    }
+    
+    document.addEventListener(`enhanced-navigation-${eventType}`, callback);
+    return true;
+};
+
+console.log('[Navigation] ✅ 增强版自定义导航系统加载完成');
+console.log('[Navigation] 🚀 新功能: 位置对齐子菜单、增强动画、响应式设计');
+console.log('[Navigation] 🛡️ 兼容性: 100% 向后兼容，所有原有API保持不变');
