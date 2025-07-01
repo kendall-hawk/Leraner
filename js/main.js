@@ -1307,6 +1307,43 @@ class App {
             description.textContent = chapter.description;
             contentContainer.appendChild(description);
         }
+        // 🆕 系列标签
+        if (chapter.seriesTitle || chapter.breadcrumb) {
+            const seriesLabel = document.createElement('div');
+            seriesLabel.className = 'chapter-series-label';
+
+            // 获取系列标题
+            const seriesText = chapter.seriesTitle ||
+                chapter.breadcrumb?.split(' > ').pop() ||
+                '未分类';
+
+            seriesLabel.style.cssText = `
+                margin-top: 8px !important;
+                padding: 4px 8px !important;
+                background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%) !important;
+                border: 1px solid #bbdefb !important;
+                border-radius: 12px !important;
+                font-size: ${isMobile ? '11px' : '12px'} !important;
+                font-weight: 500 !important;
+                color: #1976d2 !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 4px !important;
+                max-width: 100% !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                white-space: nowrap !important;
+                flex-shrink: 0 !important;
+            `;
+
+            // 添加图标和文本
+            seriesLabel.innerHTML = `
+                <span style="font-size: ${isMobile ? '10px' : '11px'};">📺</span>
+                <span>${seriesText}</span>
+            `;
+
+            contentContainer.appendChild(seriesLabel);
+        }
 
         // 组装
         imageContainer.appendChild(thumbnail);
