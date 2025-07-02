@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>LearnerEn Debug - 移动端调试平台</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .debug-header {
+            background: #2d2d2d;
+            padding: 12px 16px;
+            border-bottom: 1px solid #444;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .debug-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #00ff88;
+            margin-bottom: 4px;
+        }
+
+        .debug-subtitle {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .debug-container {
+            padding: 16px;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        .debug-section {
+            background: #2d2d2d;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+            border: 1px solid #444;
+        }
+
+        .debug-section-header {
+            background: #333;
+            padding: 12px 16px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .debug-section-title {
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .debug-section-badge {
+            background: #007AFF;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .debug-section-badge.error {
+            background: #ff3b30;
+        }
+
+        .debug-section-badge.warning {
+            background: #ff9500;
+        }
+
+        .debug-section-badge.success {
+            background: #30d158;
+        }
+
+        .debug-section-content {
+            padding: 16px;
+            display: block;
+        }
+
+        .debug-section.collapsed .debug-section-content {
+            display: none;
+        }
+
+        .debug-metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #444;
+        }
+
+        .debug-metric:last-child {
+            border-bottom: none;
+        }
+
+        .debug-metric-label {
+            color: #ccc;
+            flex: 1;
+        }
+
+        .debug-metric-value {
+            color: #fff;
+            font-weight: 500;
+            text-align: right;
+        }
+
+        .debug-metric-value.good {
+            color: #30d158;
+        }
+
+        .debug-metric-value.warning {
+            color: #ff9500;
+        }
+
+        .debug-metric-value.error {
+            color: #ff3b30;
+        }
+
+        .debug-log {
+            background: #1a1a1a;
+            border-radius: 4px;
+            padding: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            line-height: 1.3;
+        }
+
+        .debug-log-entry {
+            margin-bottom: 4px;
+            padding: 4px 0;
+        }
+
+        .debug-log-entry.error {
+            color: #ff6b6b;
+        }
+
+        .debug-log-entry.warn {
+            color: #ffa726;
+        }
+
+        .debug-log-entry.info {
+            color: #4fc3f7;
+        }
+
+        .debug-log-entry.success {
+            color: #66bb6a;
+        }
+
+        .debug-button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin: 4px 8px 4px 0;
+            transition: background 0.2s;
+            min-height: 44px;
+        }
+
+        .debug-button:active {
+            background: #0056b3;
+        }
+
+        .debug-button.secondary {
+            background: #666;
+        }
+
+        .debug-button.danger {
+            background: #ff3b30;
+        }
+
+        .debug-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .debug-card {
+            background: #333;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .debug-card-value {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .debug-card-label {
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+        }
+
+        .debug-progress {
+            background: #444;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .debug-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #30d158, #00ff88);
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .debug-status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .debug-status-indicator.online {
+            background: #30d158;
+        }
+
+        .debug-status-indicator.offline {
+            background: #ff3b30;
+        }
+
+        .debug-status-indicator.unknown {
+            background: #999;
+        }
+
+        .debug-expand-icon {
+            transition: transform 0.2s;
+        }
+
+        .debug-section.collapsed .debug-expand-icon {
+            transform: rotate(-90deg);
+        }
+
+        .debug-test-result {
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 4px 0;
+            font-size: 13px;
+        }
+
+        .debug-test-result.pass {
+            background: rgba(48, 209, 88, 0.2);
+            border: 1px solid #30d158;
+            color: #30d158;
+        }
+
+        .debug-test-result.fail {
+            background: rgba(255, 59, 48, 0.2);
+            border: 1px solid #ff3b30;
+            color: #ff3b30;
+        }
+
+        .debug-charts {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin: 12px 0;
+        }
+
+        .debug-chart {
+            background: #333;
+            padding: 12px;
+            border-radius: 6px;
+        }
+
+        .debug-chart-title {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .debug-chart-bars {
+            display: flex;
+            align-items: end;
+            height: 60px;
+            gap: 2px;
+        }
+
+        .debug-chart-bar {
+            background: #007AFF;
+            flex: 1;
+            min-height: 4px;
+            border-radius: 2px 2px 0 0;
+            transition: height 0.3s ease;
+        }
+
+        .floating-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: #ff3b30;
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .floating-button:active {
+            transform: scale(0.95);
+        }
+
+        @media (max-width: 480px) {
+            .debug-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .debug-container {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-header">
+        <div class="debug-title">LearnerEn Debug Platform</div>
+        <div class="debug-subtitle">移动端性能监控 v2.0</div>
+    </div>
+
+    <div class="debug-container">
+        <!-- 系统状态 -->
+        <div class="debug-section">
+            <div class="debug-section-header" onclick="toggleSection(this)">
+                <span class="debug-section-title">系统状态</span>
+                <span class="debug-section-badge success" id="system-status">运行中</span>
+                <span class="debug-expand-icon">▼</span>
+            </div>
+            <div class="debug-section-content">
+                <div class="debug-grid">
+                    <div class="debug-card">
+                        <div class="debug-card-value good" id="uptime">--</div>
+                        <div class="debug-card-label">运行时间</div>
+                    </div>
+                    <div class="debug-card">
+                        <div class="debug-card-value" id="load-time">--</div>
+                        <div class="debug-card-label">加载时间</div>
+                    </div>
+                </div>
+                <div class="debug-metric">
+                    <span class="debug-metric-label">
+                        <span class="debug-status-indicator" id="network-indicator"></span>
+                        网络状态
+                    </span>
+                    <span class="debug-metric-value" id="network-status">检测中...</span>
+                </div>
+                <div class="debug-metric">
+                    <span class="debug-metric-label">应用阶段</span>
+                    <span class="debug-metric-value" id="app-phase">初始化中</span>
+                </div>
+                <div class="debug-metric">
+                    <span class="debug-metric-label">错误计数</span>
+                    <span class="debug-metric-value" id="error-count">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 性能指标 -->
+        <div class="debug-section">
+            <div class="debug-section-header" onclick="toggleSection(this)">
+                <span class="debug-section-title">性能指标</span>
+                <span class="debug-section-badge" id="performance-badge">良好</span>
+                <span class="debug-expand-icon">▼</span>
+            </div>
+            <div class="debug-section-content">
+                <div class="debug-metric">
+                    <span class="debug-metric-label">内存使用</span>
+                    <span class="debug-metric-value" id="memory-usage">-- MB</span>
+                </div>
+                <div class="debug-progress">
+                    <div class="debug-progress-bar" id="memory-progress" style="width: 0%"></div>
+                </div>
+                
+                <div class="debug-charts">
+                    <div class="debug-chart">
+                        <div class="debug-chart-title">CPU使用历史</div>
+                        <div class="debug-chart-bars" id="cpu-chart">
+                            <!-- 动态生成 -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="debug-metric">
+                    <span class="debug-metric-label">FPS</span>
+                    <span class="debug-metric-value" id="fps-value">60</span>
+                </div>
+                <div class="debug-metric">
+                    <span class="debug-metric-label">响应时间</span>
+                    <span class="debug-metric-value" id="response-time">-- ms</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 模块状态 -->
+        <div class="debug-section">
+            <div class="debug-section-header" onclick="toggleSection(this)">
+                <span class="debug-section-title">模块状态</span>
+                <span class="debug-section-badge" id="modules-badge">9/9</span>
+                <span class="debug-expand-icon">▼</span>
+            </div>
+            <div class="debug-section-content" id="modules-status">
+                <!-- 动态加载模块状态 -->
+            </div>
+        </div>
+
+        <!-- 兼容性检测 -->
+        <div class="debug-section">
+            <div class="debug-section-header" onclick="toggleSection(this)">
+                <span class="debug-section-title">兼容性检测</span>
+                <span class="debug-section-badge" id="compatibility-badge">检测中</span>
+                <span class="debug-expand-icon">▼</span>
+            </div>
+            <div class="debug-section-content" id="compatibility-results">
+                <!-- 动态加载兼容性检测结果 -->
+            </div>
+        </div>
+
+        <!-- 交互测试 -->
+        <div class="debug-section">
+            <div class="debug-section-header" onclick="toggleSection(this)">
+                <span class="debug-section-title">交互测试</span>
+                <span class="debug-section-badge">工具</span>
+                <span class="debug-expand-icon">▼</span>
+            </div>
+            <div class="debug-section-content">
+                <button class="debug-button" onclick="testNavigation()">测试导航</button>
+                <button class="debug-button" onclick="testAudioSync()">测试音频同步</button>
+                <button class="debug-button" onclick="testGlossary()">测试词汇表</button>
+                <button class="debug-button secondary" onclick="testPerformance()">性能测试</button>
+                
+                <div id="test-results" style="margin-top: 12px;">
+                    <!-- 测试结果显示 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="debug-section">
+            <div class="debug-section-header" onclick="toggleSection(this)">
+                <span class="debug-section-title">控制面板</span>
+                <span class="debug-section-badge">控制</span>
+                <span class="debug-expand-icon">▼</span>
+            </div>
+            <div class="debug-section-content">
+                <button class="debug-button" onclick="refreshApp()">刷新应用</button>
+                <button class="debug-button secondary" onclick="clearCache()">清除缓存</button>
+                <button class="debug-button secondary" onclick="exportLogs()">导出日志</button>
+                <button class="debug-button danger" onclick="forceError()">强制错误</button>
+            </div>
+        </div>
+
+        <!-- 实时日志 -->
+        <div class="debug-section">
+            <div class="debug-section-header" onclick="toggleSection(this)">
+                <span class="debug-section-title">实时日志</span>
+                <span class="debug-section-badge" id="log-count">0</span>
+                <span class="debug-expand-icon">▼</span>
+            </div>
+            <div class="debug-section-content">
+                <button class="debug-button secondary" onclick="clearLogs()">清除日志</button>
+                <div class="debug-log" id="debug-log">
+                    <div class="debug-log-entry info">调试平台已启动</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 浮动清除按钮 -->
+    <button class="floating-button" onclick="clearAllData()" title="清除所有数据">🗑</button>
+
+    <script>
+        // 调试平台核心逻辑
+        class MobileDebugPlatform {
+            constructor() {
+                this.startTime = Date.now();
+                this.logCount = 0;
+                this.errorCount = 0;
+                this.performanceData = {
+                    memory: [],
+                    cpu: [],
+                    fps: 60
+                };
+                this.updateInterval = null;
+                this.testResults = {};
+                
+                this.init();
+            }
+            
+            init() {
+                this.setupLogger();
+                this.startMonitoring();
+                this.detectCompatibility();
+                this.checkModuleStatus();
+                this.log('info', '调试平台初始化完成');
+            }
+            
+            setupLogger() {
+                // 劫持console方法
+                const originalLog = console.log;
+                const originalWarn = console.warn;
+                const originalError = console.error;
+                
+                console.log = (...args) => {
+                    this.log('info', args.join(' '));
+                    originalLog.apply(console, args);
+                };
+                
+                console.warn = (...args) => {
+                    this.log('warn', args.join(' '));
+                    originalWarn.apply(console, args);
+                };
+                
+                console.error = (...args) => {
+                    this.log('error', args.join(' '));
+                    this.errorCount++;
+                    originalError.apply(console, args);
+                };
+            }
+            
+            startMonitoring() {
+                this.updateInterval = setInterval(() => {
+                    this.updateMetrics();
+                }, 1000);
+                
+                // 首次更新
+                setTimeout(() => this.updateMetrics(), 100);
+            }
+            
+            updateMetrics() {
+                // 更新运行时间
+                const uptime = Math.floor((Date.now() - this.startTime) / 1000);
+                const minutes = Math.floor(uptime / 60);
+                const seconds = uptime % 60;
+                document.getElementById('uptime').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                // 更新内存使用
+                this.updateMemoryUsage();
+                
+                // 更新网络状态
+                this.updateNetworkStatus();
+                
+                // 更新应用阶段
+                this.updateAppPhase();
+                
+                // 更新错误计数
+                document.getElementById('error-count').textContent = this.errorCount;
+                if (this.errorCount > 0) {
+                    document.getElementById('error-count').className = 'debug-metric-value error';
+                }
+                
+                // 更新性能图表
+                this.updatePerformanceCharts();
+                
+                // 更新FPS
+                this.measureFPS();
+            }
+            
+            updateMemoryUsage() {
+                let memoryMB = 0;
+                let memoryPercent = 0;
+                
+                if (performance && performance.memory) {
+                    memoryMB = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+                    memoryPercent = (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100;
+                    
+                    document.getElementById('memory-usage').textContent = `${memoryMB} MB`;
+                    document.getElementById('memory-progress').style.width = `${memoryPercent}%`;
+                    
+                    const memoryElement = document.getElementById('memory-usage');
+                    if (memoryMB > 100) {
+                        memoryElement.className = 'debug-metric-value error';
+                    } else if (memoryMB > 50) {
+                        memoryElement.className = 'debug-metric-value warning';
+                    } else {
+                        memoryElement.className = 'debug-metric-value good';
+                    }
+                    
+                    this.performanceData.memory.push(memoryMB);
+                    if (this.performanceData.memory.length > 20) {
+                        this.performanceData.memory.shift();
+                    }
+                } else {
+                    document.getElementById('memory-usage').textContent = '不支持';
+                }
+            }
+            
+            updateNetworkStatus() {
+                const indicator = document.getElementById('network-indicator');
+                const status = document.getElementById('network-status');
+                
+                if (navigator.onLine) {
+                    indicator.className = 'debug-status-indicator online';
+                    status.textContent = '在线';
+                    status.className = 'debug-metric-value good';
+                } else {
+                    indicator.className = 'debug-status-indicator offline';
+                    status.textContent = '离线';
+                    status.className = 'debug-metric-value error';
+                }
+                
+                // 检测网络连接速度
+                if (navigator.connection) {
+                    const connection = navigator.connection;
+                    const effectiveType = connection.effectiveType;
+                    status.textContent += ` (${effectiveType})`;
+                }
+            }
+            
+            updateAppPhase() {
+                let phase = '未知';
+                let phaseClass = 'debug-metric-value';
+                
+                if (window.LearnerApp) {
+                    const initializer = window.LearnerApp.getInitializer();
+                    if (initializer) {
+                        const appController = initializer.getAppController();
+                        if (appController) {
+                            const state = appController.getState();
+                            phase = state.phase;
+                            
+                            switch (phase) {
+                                case 'running':
+                                    phaseClass = 'debug-metric-value good';
+                                    break;
+                                case 'error':
+                                    phaseClass = 'debug-metric-value error';
+                                    break;
+                                case 'starting':
+                                case 'initializing':
+                                    phaseClass = 'debug-metric-value warning';
+                                    break;
+                            }
+                        }
+                    }
+                }
+                
+                const phaseElement = document.getElementById('app-phase');
+                phaseElement.textContent = phase;
+                phaseElement.className = phaseClass;
+            }
+            
+            measureFPS() {
+                // 简单的FPS测量
+                const now = performance.now();
+                if (this.lastFrameTime) {
+                    const fps = Math.round(1000 / (now - this.lastFrameTime));
+                    document.getElementById('fps-value').textContent = fps;
+                    this.performanceData.fps = fps;
+                    
+                    if (fps < 30) {
+                        document.getElementById('fps-value').className = 'debug-metric-value error';
+                    } else if (fps < 50) {
+                        document.getElementById('fps-value').className = 'debug-metric-value warning';
+                    } else {
+                        document.getElementById('fps-value').className = 'debug-metric-value good';
+                    }
+                }
+                this.lastFrameTime = now;
+                
+                requestAnimationFrame(() => this.measureFPS());
+            }
+            
+            updatePerformanceCharts() {
+                // 更新CPU使用图表
+                const cpuChart = document.getElementById('cpu-chart');
+                cpuChart.innerHTML = '';
+                
+                // 模拟CPU数据
+                for (let i = 0; i < 20; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'debug-chart-bar';
+                    const height = Math.random() * 100;
+                    bar.style.height = `${height}%`;
+                    cpuChart.appendChild(bar);
+                }
+            }
+            
+            detectCompatibility() {
+                const results = document.getElementById('compatibility-results');
+                const features = [
+                    { name: 'Map/Set', test: () => typeof Map !== 'undefined' && typeof Set !== 'undefined' },
+                    { name: 'Promise', test: () => typeof Promise !== 'undefined' },
+                    { name: 'localStorage', test: () => {
+                        try {
+                            localStorage.setItem('test', 'test');
+                            localStorage.removeItem('test');
+                            return true;
+                        } catch(e) { return false; }
+                    }},
+                    { name: 'TouchEvents', test: () => 'ontouchstart' in window },
+                    { name: 'requestAnimationFrame', test: () => typeof requestAnimationFrame !== 'undefined' },
+                    { name: 'fetch', test: () => typeof fetch !== 'undefined' },
+                    { name: 'WebAudio', test: () => typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined' },
+                    { name: 'classList', test: () => typeof document.createElement('div').classList !== 'undefined' },
+                    { name: 'flexbox', test: () => {
+                        const element = document.createElement('div');
+                        element.style.display = 'flex';
+                        return element.style.display === 'flex';
+                    }}
+                ];
+                
+                let passCount = 0;
+                results.innerHTML = '';
+                
+                features.forEach(feature => {
+                    const result = document.createElement('div');
+                    const isSupported = feature.test();
+                    
+                    result.className = `debug-test-result ${isSupported ? 'pass' : 'fail'}`;
+                    result.innerHTML = `${feature.name}: ${isSupported ? '✓ 支持' : '✗ 不支持'}`;
+                    results.appendChild(result);
+                    
+                    if (isSupported) passCount++;
+                });
+                
+                const badge = document.getElementById('compatibility-badge');
+                badge.textContent = `${passCount}/${features.length}`;
+                badge.className = passCount === features.length ? 'debug-section-badge success' : 
+                                 passCount >= features.length * 0.8 ? 'debug-section-badge warning' : 
+                                 'debug-section-badge error';
+            }
+            
+            checkModuleStatus() {
+                const container = document.getElementById('modules-status');
+                const modules = [
+                    'StateManager',
+                    'EventHub', 
+                    'CacheManager',
+                    'ErrorBoundary',
+                    'NavigationCore',
+                    'AudioSyncCore',
+                    'GlossaryCore',
+                    'WordFrequencyCore',
+                    'AppController'
+                ];
+                
+                let loadedCount = 0;
+                container.innerHTML = '';
+                
+                modules.forEach(moduleName => {
+                    const isLoaded = window.EnglishSite && window.EnglishSite[moduleName];
+                    const metric = document.createElement('div');
+                    metric.className = 'debug-metric';
+                    
+                    metric.innerHTML = `
+                        <span class="debug-metric-label">${moduleName}</span>
+                        <span class="debug-metric-value ${isLoaded ? 'good' : 'error'}">
+                            ${isLoaded ? '已加载' : '未加载'}
+                        </span>
+                    `;
+                    
+                    container.appendChild(metric);
+                    if (isLoaded) loadedCount++;
+                });
+                
+                const badge = document.getElementById('modules-badge');
+                badge.textContent = `${loadedCount}/${modules.length}`;
+                badge.className = loadedCount === modules.length ? 'debug-section-badge success' : 
+                                 'debug-section-badge error';
+            }
+            
+            log(level, message) {
+                const logContainer = document.getElementById('debug-log');
+                const entry = document.createElement('div');
+                entry.className = `debug-log-entry ${level}`;
+                
+                const timestamp = new Date().toLocaleTimeString();
+                entry.textContent = `[${timestamp}] ${message}`;
+                
+                logContainer.appendChild(entry);
+                logContainer.scrollTop = logContainer.scrollHeight;
+                
+                this.logCount++;
+                document.getElementById('log-count').textContent = this.logCount;
+                
+                // 限制日志数量
+                if (logContainer.children.length > 50) {
+                    logContainer.removeChild(logContainer.firstChild);
+                }
+            }
+            
+            addTestResult(testName, success, message) {
+                const container = document.getElementById('test-results');
+                const result = document.createElement('div');
+                result.className = `debug-test-result ${success ? 'pass' : 'fail'}`;
+                result.textContent = `${testName}: ${success ? '✓' : '✗'} ${message}`;
+                container.appendChild(result);
+                
+                this.testResults[testName] = { success, message, timestamp: Date.now() };
+            }
+        }
+        
+        // 全局函数
+        function toggleSection(header) {
+            const section = header.parentElement;
+            section.classList.toggle('collapsed');
+        }
+        
+        function testNavigation() {
+            debugPlatform.log('info', '开始测试导航功能...');
+            
+            try {
+                if (window.EnglishSite && window.EnglishSite.NavigationCore) {
+                    debugPlatform.addTestResult('导航模块', true, '模块已加载');
+                    
+                    // 测试导航数据加载
+                    fetch('data/navigation.json')
+                        .then(response => response.json())
+                        .then(data => {
+                            debugPlatform.addTestResult('导航数据', true, `加载了${data.length}个导航项`);
+                        })
+                        .catch(error => {
+                            debugPlatform.addTestResult('导航数据', false, error.message);
+                        });
+                } else {
+                    debugPlatform.addTestResult('导航模块', false, '模块未加载');
+                }
+            } catch (error) {
+                debugPlatform.addTestResult('导航测试', false, error.message);
+            }
+        }
+        
+        function testAudioSync() {
+            debugPlatform.log('info', '开始测试音频同步功能...');
+            
+            try {
+                if (window.EnglishSite && window.EnglishSite.AudioSyncCore) {
+                    debugPlatform.addTestResult('音频同步模块', true, '模块已加载');
+                    
+                    // 测试音频元素
+                    const audioPlayer = document.getElementById('audio-player');
+                    if (audioPlayer) {
+                        debugPlatform.addTestResult('音频播放器', true, '音频元素存在');
+                    } else {
+                        debugPlatform.addTestResult('音频播放器', false, '音频元素不存在');
+                    }
+                } else {
+                    debugPlatform.addTestResult('音频同步模块', false, '模块未加载');
+                }
+            } catch (error) {
+                debugPlatform.addTestResult('音频同步测试', false, error.message);
+            }
+        }
+        
+        function testGlossary() {
+            debugPlatform.log('info', '开始测试词汇表功能...');
+            
+            try {
+                if (window.EnglishSite && window.EnglishSite.GlossaryCore) {
+                    debugPlatform.addTestResult('词汇表模块', true, '模块已加载');
+                    
+                    // 测试词汇数据
+                    fetch('data/terms/common.json')
+                        .then(response => response.json())
+                        .then(data => {
+                            const wordCount = Array.isArray(data) ? data.length : Object.keys(data).length;
+                            debugPlatform.addTestResult('词汇数据', true, `加载了${wordCount}个词汇`);
+                        })
+                        .catch(error => {
+                            debugPlatform.addTestResult('词汇数据', false, error.message);
+                        });
+                } else {
+                    debugPlatform.addTestResult('词汇表模块', false, '模块未加载');
+                }
+            } catch (error) {
+                debugPlatform.addTestResult('词汇表测试', false, error.message);
+            }
+        }
+        
+        function testPerformance() {
+            debugPlatform.log('info', '开始性能测试...');
+            
+            const startTime = performance.now();
+            
+            // 测试DOM操作性能
+            const testElements = [];
+            for (let i = 0; i < 1000; i++) {
+                const element = document.createElement('div');
+                element.textContent = `测试元素 ${i}`;
+                testElements.push(element);
+            }
+            
+            const domTime = performance.now() - startTime;
+            debugPlatform.addTestResult('DOM性能', domTime < 50, `${domTime.toFixed(2)}ms`);
+            
+            // 测试响应时间
+            const responseStart = performance.now();
+            setTimeout(() => {
+                const responseTime = performance.now() - responseStart;
+                debugPlatform.addTestResult('响应时间', responseTime < 100, `${responseTime.toFixed(2)}ms`);
+                document.getElementById('response-time').textContent = `${responseTime.toFixed(2)} ms`;
+            }, 0);
+        }
+        
+        function refreshApp() {
+            debugPlatform.log('info', '刷新应用...');
+            location.reload();
+        }
+        
+        function clearCache() {
+            debugPlatform.log('info', '清除缓存...');
+            
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+                debugPlatform.addTestResult('清除缓存', true, '缓存已清除');
+            } catch (error) {
+                debugPlatform.addTestResult('清除缓存', false, error.message);
+            }
+        }
+        
+        function exportLogs() {
+            debugPlatform.log('info', '导出日志...');
+            
+            const logs = document.getElementById('debug-log').textContent;
+            const blob = new Blob([logs], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `learner-debug-${new Date().toISOString()}.txt`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+        }
+        
+        function forceError() {
+            debugPlatform.log('warn', '强制触发错误进行测试...');
+            throw new Error('调试平台测试错误');
+        }
+        
+        function clearLogs() {
+            document.getElementById('debug-log').innerHTML = '';
+            debugPlatform.logCount = 0;
+            document.getElementById('log-count').textContent = '0';
+            debugPlatform.log('info', '日志已清除');
+        }
+        
+        function clearAllData() {
+            if (confirm('确定要清除所有调试数据吗？这将重置所有统计信息。')) {
+                debugPlatform.log('warn', '清除所有调试数据...');
+                clearLogs();
+                clearCache();
+                debugPlatform.errorCount = 0;
+                debugPlatform.testResults = {};
+                document.getElementById('test-results').innerHTML = '';
+                debugPlatform.log('info', '所有数据已清除');
+            }
+        }
+        
+        // 启动调试平台
+        let debugPlatform;
+        document.addEventListener('DOMContentLoaded', () => {
+            debugPlatform = new MobileDebugPlatform();
+            
+            // 测试加载时间
+            window.addEventListener('load', () => {
+                if (performance && performance.timing) {
+                    const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+                    document.getElementById('load-time').textContent = `${loadTime}ms`;
+                    
+                    const loadElement = document.getElementById('load-time');
+                    if (loadTime > 3000) {
+                        loadElement.className = 'debug-card-value error';
+                    } else if (loadTime > 1500) {
+                        loadElement.className = 'debug-card-value warning';
+                    } else {
+                        loadElement.className = 'debug-card-value good';
+                    }
+                }
+            });
+        });
+        
+        // 监听应用错误
+        window.addEventListener('error', (e) => {
+            debugPlatform.log('error', `全局错误: ${e.message} 在 ${e.filename}:${e.lineno}`);
+        });
+        
+        // 监听Promise错误
+        window.addEventListener('unhandledrejection', (e) => {
+            debugPlatform.log('error', `未处理的Promise错误: ${e.reason}`);
+        });
+    </script>
+</body>
+</html>
