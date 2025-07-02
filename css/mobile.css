@@ -1,0 +1,885 @@
+/* css/mobile.css - iOS兼容版移动端样式 */
+/* 🚀 移动端优先设计，确保iOS Safari 12+完美显示 */
+
+/* ==========================================================================
+   基础重置和移动端优化
+   ========================================================================== */
+
+* {
+    box-sizing: border-box;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* 允许文本选择的元素 */
+p, span, div[contenteditable], input, textarea {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
+
+html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: #fff;
+    overflow-x: hidden;
+    /* iOS橡皮筋效果控制 */
+    overscroll-behavior-y: contain;
+}
+
+/* ==========================================================================
+   导航系统样式
+   ========================================================================== */
+
+/* 导航容器 */
+.nav-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    background: #fff;
+    border-right: 1px solid #e5e5e5;
+    z-index: 1000;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+    will-change: transform;
+}
+
+.nav-sidebar.open {
+    transform: translateX(0);
+}
+
+/* 导航覆盖层 */
+.nav-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+}
+
+.nav-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 导航切换按钮 */
+.nav-toggle {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    width: 44px;
+    height: 44px;
+    background: #007AFF;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    z-index: 1001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    /* 确保触摸区域足够大 */
+    min-width: 44px;
+    min-height: 44px;
+}
+
+.nav-toggle:active {
+    transform: scale(0.95);
+    background: #0056b3;
+}
+
+.nav-toggle-icon::before {
+    content: '☰';
+    font-size: 20px;
+}
+
+.nav-toggle.active .nav-toggle-icon::before {
+    content: '✕';
+}
+
+/* 搜索框 */
+.nav-search-container {
+    padding: 16px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.nav-search-box {
+    position: relative;
+}
+
+.nav-search-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    background: #f8f9fa;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.nav-search-input:focus {
+    border-color: #007AFF;
+    background: #fff;
+}
+
+.nav-search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 10;
+    display: none;
+}
+
+.nav-search-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-search-item {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.nav-search-link {
+    display: block;
+    padding: 12px 16px;
+    text-decoration: none;
+    color: #333;
+    transition: background 0.2s ease;
+}
+
+.nav-search-link:active {
+    background: #f0f0f0;
+}
+
+.nav-search-title {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.nav-search-path {
+    font-size: 14px;
+    color: #666;
+}
+
+/* 导航菜单 */
+.nav-menu-container {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.nav-menu {
+    list-style: none;
+    margin: 0;
+    padding: 8px 0;
+}
+
+.nav-menu-level-0 {
+    padding: 0;
+}
+
+.nav-menu-level-1 {
+    padding-left: 0;
+    background: #f8f9fa;
+}
+
+.nav-menu-level-2 {
+    padding-left: 0;
+    background: #f0f0f0;
+}
+
+.nav-item {
+    position: relative;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    text-decoration: none;
+    color: #333;
+    font-size: 16px;
+    line-height: 1.4;
+    transition: all 0.2s ease;
+    /* 确保触摸区域足够大 */
+    min-height: 48px;
+}
+
+.nav-link:active {
+    background: #e3f2fd;
+    color: #007AFF;
+}
+
+.nav-link.nav-link-active {
+    background: #007AFF;
+    color: white;
+}
+
+.nav-link.nav-link-disabled {
+    color: #999;
+    pointer-events: none;
+}
+
+.nav-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+    font-size: 16px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.nav-text {
+    flex: 1;
+    font-weight: 400;
+}
+
+.nav-expand {
+    width: 20px;
+    height: 20px;
+    margin-left: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.nav-expand::before {
+    content: '›';
+    font-size: 14px;
+    color: #666;
+}
+
+.nav-item-expanded .nav-expand {
+    transform: rotate(90deg);
+}
+
+/* 子菜单 */
+.nav-submenu {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.nav-item-expanded .nav-submenu {
+    max-height: 1000px;
+}
+
+/* 面包屑导航 */
+.nav-breadcrumb {
+    padding: 12px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e5e5e5;
+    font-size: 14px;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.breadcrumb-item {
+    display: flex;
+    align-items: center;
+}
+
+.breadcrumb-link {
+    color: #007AFF;
+    text-decoration: none;
+    padding: 4px 0;
+}
+
+.breadcrumb-link:active {
+    color: #0056b3;
+}
+
+.breadcrumb-separator {
+    margin: 0 8px;
+    color: #999;
+}
+
+.breadcrumb-current {
+    color: #333;
+    font-weight: 500;
+}
+
+/* ==========================================================================
+   内容区域样式
+   ========================================================================== */
+
+#main-content {
+    margin-left: 0;
+    transition: margin-left 0.3s ease;
+}
+
+#content-area {
+    padding: 20px;
+    min-height: calc(100vh - 80px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 文本高亮效果 */
+.highlighted-current {
+    background: linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%);
+    color: #333;
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin: 0 2px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    animation: highlightPulse 1.5s ease-in-out;
+}
+
+.highlighted-next {
+    background: linear-gradient(120deg, #ffeaa7 0%, #fab1a0 100%);
+    color: #333;
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin: 0 2px;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+}
+
+@keyframes highlightPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* ==========================================================================
+   音频播放器样式
+   ========================================================================== */
+
+#audio-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #f8f9fa;
+    border-top: 1px solid #e5e5e5;
+    padding: 12px 16px;
+    z-index: 900;
+    /* iOS安全区域适配 */
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+}
+
+#audio-player {
+    width: 100%;
+    height: 48px;
+    border-radius: 8px;
+    outline: none;
+}
+
+/* 自定义音频控件样式 */
+audio::-webkit-media-controls-panel {
+    background: white;
+    border-radius: 8px;
+}
+
+audio::-webkit-media-controls-play-button,
+audio::-webkit-media-controls-pause-button {
+    background: #007AFF;
+    border-radius: 50%;
+}
+
+/* ==========================================================================
+   词汇表弹窗样式
+   ========================================================================== */
+
+.glossary-popup {
+    position: absolute;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    max-width: 350px;
+    min-width: 280px;
+    z-index: 2000;
+    overflow: hidden;
+    transform: scale(0.95);
+    opacity: 0;
+    transition: all 0.2s ease;
+}
+
+.glossary-popup.show {
+    transform: scale(1);
+    opacity: 1;
+}
+
+.glossary-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 1999;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.glossary-overlay.show {
+    opacity: 1;
+}
+
+.glossary-content {
+    padding: 0;
+}
+
+.glossary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #f8f9fa;
+}
+
+.glossary-word-info {
+    flex: 1;
+}
+
+.glossary-word {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    color: #333;
+}
+
+.glossary-phonetic {
+    font-size: 14px;
+    color: #666;
+    font-style: italic;
+    margin-right: 8px;
+}
+
+.glossary-pos {
+    font-size: 12px;
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.glossary-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: 12px;
+}
+
+.glossary-audio-btn,
+.glossary-bookmark-btn,
+.glossary-close-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 8px;
+    background: #f0f0f0;
+    color: #666;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.glossary-audio-btn:active {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.glossary-bookmark-btn:active {
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+.glossary-bookmark-btn.bookmarked {
+    background: #ff9800;
+    color: white;
+}
+
+.glossary-close-btn:active {
+    background: #ffebee;
+    color: #d32f2f;
+}
+
+.glossary-body {
+    padding: 16px 20px 20px;
+    max-height: 300px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.glossary-definitions {
+    margin-bottom: 16px;
+}
+
+.glossary-definition {
+    display: flex;
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.glossary-def-number {
+    color: #666;
+    margin-right: 8px;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.glossary-def-text {
+    color: #333;
+}
+
+.glossary-examples h4,
+.glossary-related h4 {
+    font-size: 14px;
+    color: #666;
+    margin: 0 0 8px 0;
+    font-weight: 600;
+}
+
+.glossary-example {
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 3px solid #007AFF;
+}
+
+.glossary-example-text {
+    font-style: italic;
+    margin: 0 0 4px 0;
+    color: #333;
+}
+
+.glossary-example-translation {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
+}
+
+.glossary-related-group {
+    margin-bottom: 8px;
+}
+
+.glossary-related-label {
+    font-weight: 500;
+    color: #666;
+    margin-right: 8px;
+}
+
+.glossary-related-words {
+    color: #007AFF;
+}
+
+/* ==========================================================================
+   响应式断点
+   ========================================================================== */
+
+/* 大屏手机 */
+@media (min-width: 414px) {
+    .nav-sidebar {
+        width: 320px;
+    }
+    
+    #content-area {
+        padding: 24px;
+    }
+    
+    .glossary-popup {
+        max-width: 380px;
+        min-width: 320px;
+    }
+}
+
+/* 平板竖屏 */
+@media (min-width: 768px) {
+    .nav-toggle {
+        display: none;
+    }
+    
+    .nav-sidebar {
+        position: relative;
+        transform: translateX(0);
+        width: 280px;
+        height: auto;
+        min-height: 100vh;
+        border-right: 1px solid #e5e5e5;
+    }
+    
+    .nav-overlay {
+        display: none;
+    }
+    
+    #main-content {
+        margin-left: 280px;
+    }
+    
+    #content-area {
+        padding: 32px;
+    }
+    
+    #audio-container {
+        margin-left: 280px;
+    }
+    
+    .glossary-popup {
+        max-width: 420px;
+        min-width: 350px;
+    }
+}
+
+/* 平板横屏和桌面 */
+@media (min-width: 1024px) {
+    .nav-sidebar {
+        width: 320px;
+    }
+    
+    #main-content {
+        margin-left: 320px;
+    }
+    
+    #audio-container {
+        margin-left: 320px;
+    }
+    
+    #content-area {
+        padding: 40px;
+        max-width: 1200px;
+    }
+    
+    .glossary-popup {
+        max-width: 480px;
+        min-width: 380px;
+    }
+}
+
+/* ==========================================================================
+   暗色主题支持（可选）
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background: #121212;
+        color: #ffffff;
+    }
+    
+    .nav-sidebar {
+        background: #1e1e1e;
+        border-color: #333;
+    }
+    
+    .nav-link {
+        color: #ffffff;
+    }
+    
+    .nav-link:active {
+        background: #333;
+    }
+    
+    .nav-search-input {
+        background: #2c2c2c;
+        border-color: #444;
+        color: #ffffff;
+    }
+    
+    .glossary-popup {
+        background: #1e1e1e;
+        border-color: #333;
+    }
+    
+    .glossary-header {
+        background: #2c2c2c;
+        border-color: #333;
+    }
+    
+    .glossary-word {
+        color: #ffffff;
+    }
+}
+
+/* ==========================================================================
+   辅助功能支持
+   ========================================================================== */
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+    .nav-link {
+        border: 1px solid transparent;
+    }
+    
+    .nav-link:focus {
+        border-color: #007AFF;
+        outline: 2px solid #007AFF;
+    }
+    
+    .glossary-popup {
+        border-width: 2px;
+    }
+}
+
+/* 减少动画 */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ==========================================================================
+   触摸优化
+   ========================================================================== */
+
+/* 移除iOS默认样式 */
+input[type="text"],
+input[type="search"],
+textarea {
+    -webkit-appearance: none;
+    -webkit-border-radius: 0;
+    border-radius: 8px;
+}
+
+/* 提升触摸响应 */
+.nav-link,
+.glossary-audio-btn,
+.glossary-bookmark-btn,
+.glossary-close-btn,
+.nav-toggle {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+/* 确保最小触摸区域 */
+.nav-link,
+.nav-toggle {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* ==========================================================================
+   加载和错误状态
+   ========================================================================== */
+
+.loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007AFF;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.error-message {
+    color: #d32f2f;
+    background: #ffebee;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-size: 14px;
+}
+
+.success-message {
+    color: #388e3c;
+    background: #e8f5e8;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-size: 14px;
+}
+
+/* ==========================================================================
+   工具类
+   ========================================================================== */
+
+.hidden {
+    display: none !important;
+}
+
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-left {
+    text-align: left;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: 8px; }
+.mt-2 { margin-top: 16px; }
+.mt-3 { margin-top: 24px; }
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: 8px; }
+.mb-2 { margin-bottom: 16px; }
+.mb-3 { margin-bottom: 24px; }
+
+.p-0 { padding: 0; }
+.p-1 { padding: 8px; }
+.p-2 { padding: 16px; }
+.p-3 { padding: 24px; }
