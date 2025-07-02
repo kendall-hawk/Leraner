@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <title>English Learning Platform - Debug Mode</title>
+    
+    <!-- PWA配置 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2196F3">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    
+    <!-- 样式文件 -->
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="stylesheet" href="css/debug.css">
+    <link rel="stylesheet" href="css/mobile.css">
+</head>
+<body class="debug-mode">
+    <!-- 🔧 调试控制面板 -->
+    <div id="debug-panel" class="debug-panel">
+        <div class="debug-header">
+            <h3>🔧 调试控制台</h3>
+            <button id="toggle-debug" class="debug-toggle">收起</button>
+        </div>
+        
+        <div class="debug-content">
+            <!-- 系统状态 -->
+            <div class="debug-section">
+                <h4>📊 系统状态</h4>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">Foundation Layer:</span>
+                        <span id="foundation-status" class="status-value">加载中...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Core Modules:</span>
+                        <span id="modules-status" class="status-value">加载中...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">数据加载:</span>
+                        <span id="data-status" class="status-value">等待中...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">内存使用:</span>
+                        <span id="memory-status" class="status-value">检测中...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 快速测试 -->
+            <div class="debug-section">
+                <h4>🧪 功能测试</h4>
+                <div class="test-buttons">
+                    <button id="test-navigation" class="test-btn">测试导航</button>
+                    <button id="test-audio" class="test-btn">测试音频</button>
+                    <button id="test-glossary" class="test-btn">测试词汇表</button>
+                    <button id="test-wordfreq" class="test-btn">测试词频</button>
+                </div>
+            </div>
+            
+            <!-- 错误日志 -->
+            <div class="debug-section">
+                <h4>❌ 错误日志</h4>
+                <div id="error-log" class="error-log">
+                    <div class="log-item success">✅ 调试模式已启动</div>
+                </div>
+                <button id="clear-log" class="clear-btn">清空日志</button>
+            </div>
+            
+            <!-- 数据管理 -->
+            <div class="debug-section">
+                <h4>💾 数据管理</h4>
+                <div class="data-buttons">
+                    <button id="load-sample" class="data-btn">加载示例数据</button>
+                    <button id="clear-cache" class="data-btn">清空缓存</button>
+                    <button id="reset-state" class="data-btn">重置状态</button>
+                    <button id="export-logs" class="data-btn">导出日志</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 🔥 主应用区域 -->
+    <div id="app-container" class="app-container">
+        <!-- 导航容器 -->
+        <div id="nav-container" class="nav-container"></div>
+        
+        <!-- 内容区域 -->
+        <div id="content-area" class="content-area">
+            <div class="welcome-screen">
+                <h1>📚 English Learning Platform</h1>
+                <p class="debug-notice">🔧 调试模式已启用</p>
+                <div class="loading-indicator">
+                    <div class="spinner"></div>
+                    <p>正在初始化系统...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 音频播放器 -->
+        <div id="audio-container" class="audio-container">
+            <audio id="audio-player" controls preload="none">
+                您的浏览器不支持音频播放。
+            </audio>
+            <div class="audio-info">
+                <span id="audio-title">无音频文件</span>
+                <span id="audio-time">00:00 / 00:00</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 🚨 错误提示覆盖层 -->
+    <div id="error-overlay" class="error-overlay hidden">
+        <div class="error-content">
+            <h3>⚠️ 系统错误</h3>
+            <p id="error-message">发生了未知错误</p>
+            <div class="error-actions">
+                <button id="retry-btn" class="error-btn primary">重试</button>
+                <button id="reset-btn" class="error-btn">重置应用</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 🔄 加载覆盖层 -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h3>正在启动应用...</h3>
+            <p id="loading-message">初始化Foundation Layer...</p>
+            <div class="loading-progress">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <span id="progress-text">0%</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 📱 iOS Safari 调试助手 -->
+    <div id="ios-debug" class="ios-debug hidden">
+        <h4>📱 iOS Safari 信息</h4>
+        <div class="ios-info">
+            <div class="info-item">
+                <span>User Agent:</span>
+                <span id="user-agent"></span>
+            </div>
+            <div class="info-item">
+                <span>视口大小:</span>
+                <span id="viewport-size"></span>
+            </div>
+            <div class="info-item">
+                <span>像素比:</span>
+                <span id="pixel-ratio"></span>
+            </div>
+            <div class="info-item">
+                <span>音频支持:</span>
+                <span id="audio-support"></span>
+            </div>
+            <div class="info-item">
+                <span>存储支持:</span>
+                <span id="storage-support"></span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript 模块加载 -->
+    <!-- Foundation Layer - 基础设施层 -->
+    <script src="js/foundation/state-manager.js"></script>
+    <script src="js/foundation/event-hub.js"></script>
+    <script src="js/foundation/cache-manager.js"></script>
+    <script src="js/foundation/error-boundary.js"></script>
+    
+    <!-- Core Modules Layer - 核心模块层 -->
+    <script src="js/modules/navigation-core.js"></script>
+    <script src="js/modules/audio-sync-core.js"></script>
+    <script src="js/modules/glossary-core.js"></script>
+    <script src="js/modules/word-frequency-core.js"></script>
+    <script src="js/modules/app-controller.js"></script>
+    
+    <!-- 调试工具和数据 -->
+    <script src="js/debug-tools.js"></script>
+    <script src="js/sample-data.js"></script>
+    
+    <!-- 应用初始化 -->
+    <script>
+        // 🚀 调试模式应用初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查所有模块是否加载完成
+            const requiredModules = [
+                'StateManager', 'EventHub', 'CacheManager', 'ErrorBoundary',
+                'NavigationCore', 'AudioSyncCore', 'GlossaryCore', 
+                'WordFrequencyCore', 'AppController'
+            ];
+            
+            const missingModules = requiredModules.filter(module => 
+                !window.EnglishSite || !window.EnglishSite[module]
+            );
+            
+            if (missingModules.length > 0) {
+                console.error('❌ 缺少模块:', missingModules);
+                document.getElementById('loading-message').textContent = 
+                    '❌ 模块加载失败: ' + missingModules.join(', ');
+                return;
+            }
+            
+            // 初始化调试工具
+            if (window.DebugTools) {
+                window.debugTools = new DebugTools();
+                window.debugTools.init();
+            }
+            
+            // 启动应用
+            try {
+                window.app = new AppController({
+                    name: 'EnglishLearningPlatform',
+                    debug: true,
+                    autoStart: true,
+                    modules: {
+                        navigation: {
+                            container: 'nav-container',
+                            data: window.SampleData ? window.SampleData.navigation : null
+                        },
+                        audioSync: {
+                            contentArea: 'content-area',
+                            audioPlayer: 'audio-player'
+                        },
+                        glossary: {
+                            container: 'content-area',
+                            data: window.SampleData ? window.SampleData.glossary : null
+                        },
+                        wordFrequency: {
+                            enablePersonalization: true,
+                            enableRealTimeAnalysis: true
+                        }
+                    }
+                });
+                
+                console.log('✅ 应用启动成功');
+                
+                // 隐藏加载覆盖层
+                setTimeout(() => {
+                    document.getElementById('loading-overlay').style.display = 'none';
+                }, 2000);
+                
+            } catch (error) {
+                console.error('❌ 应用启动失败:', error);
+                document.getElementById('loading-message').textContent = 
+                    '❌ 应用启动失败: ' + error.message;
+            }
+        });
+        
+        // iOS Safari 调试信息
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            document.getElementById('ios-debug').classList.remove('hidden');
+            document.getElementById('user-agent').textContent = navigator.userAgent;
+            document.getElementById('viewport-size').textContent = 
+                window.innerWidth + 'x' + window.innerHeight;
+            document.getElementById('pixel-ratio').textContent = window.devicePixelRatio;
+        }
+    </script>
+</body>
+</html>
