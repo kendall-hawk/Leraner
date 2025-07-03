@@ -1,8 +1,13 @@
 // js/modules/welcome-modal.js - iOS兼容版欢迎弹窗模块
 // 🚀 独立欢迎弹窗系统，确保iOS Safari 12+兼容性
-
+// 在文件最开始添加这几行
 (function(global) {
     'use strict';
+    
+    // 确保命名空间存在
+    if (!global.EnglishSite) {
+        global.EnglishSite = {};
+    }
 
     /**
      * 🎯 WelcomeModal - 欢迎弹窗模块
