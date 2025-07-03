@@ -11,187 +11,1101 @@
     
     <title>LearnerEn - 英语学习平台</title>
     
-    <!-- 预加载关键资源 -->
-    <link rel="preload" href="css/base.css" as="style">
-    <link rel="preload" href="js/main.js" as="script">
-    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
-    
-    <!-- PWA支持 -->
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
-    
-    <!-- 样式文件 -->
-    <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/components.css">
-    <link rel="stylesheet" href="css/mobile.css">
-    <link rel="stylesheet" href="css/compatibility.css">
-    
-    <!-- 内联关键CSS防闪烁 -->
     <style>
-        /* 关键渲染路径CSS */
-        body { 
-            margin: 0; 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-            background: #f5f5f7;
-            overflow-x: hidden;
+        /* 基础样式 - 基于您的base.css */
+        :root {
+            --primary-color: #007AFF;
+            --secondary-color: #5856D6;
+            --success-color: #34C759;
+            --warning-color: #FF9500;
+            --error-color: #FF3B30;
+            
+            --text-primary: #000000;
+            --text-secondary: #3C3C43;
+            --text-tertiary: #8E8E93;
+            --text-disabled: #C7C7CC;
+            
+            --bg-primary: #FFFFFF;
+            --bg-secondary: #F2F2F7;
+            --bg-tertiary: #FFFFFF;
+            --bg-overlay: rgba(0, 0, 0, 0.3);
+            
+            --separator: #C6C6C8;
+            
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            --font-size-xs: 12px;
+            --font-size-sm: 14px;
+            --font-size-base: 16px;
+            --font-size-lg: 18px;
+            --font-size-xl: 20px;
+            --font-size-2xl: 24px;
+            
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+            
+            --duration-fast: 200ms;
+            --duration-normal: 300ms;
+            --easing: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            
+            --z-dropdown: 100;
+            --z-sticky: 200;
+            --z-fixed: 300;
+            --z-modal: 400;
+            --z-popover: 500;
+            --z-toast: 700;
         }
-        #loading-screen { 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            right: 0; 
-            bottom: 0; 
-            background: white; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--font-family);
+            font-size: var(--font-size-base);
+            line-height: 1.5;
+            color: var(--text-primary);
+            background-color: var(--bg-secondary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* 应用布局 */
+        .app-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        /* 导航样式 */
+        .nav-container {
+            position: relative;
+            z-index: var(--z-fixed);
+        }
+
+        .nav-sidebar {
+            background: var(--bg-primary);
+            border-right: 1px solid var(--separator);
+            height: 100vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            position: relative;
+            z-index: var(--z-fixed);
+            transition: transform var(--duration-normal) var(--easing);
+            width: 280px;
+        }
+
+        .nav-menu {
+            margin: 0;
+            padding: var(--spacing-sm) 0;
+            list-style: none;
+        }
+
+        .nav-item {
+            position: relative;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: var(--spacing-sm) var(--spacing-md);
+            color: var(--text-primary);
+            text-decoration: none;
+            min-height: 44px;
+            transition: background-color var(--duration-fast);
+            position: relative;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-secondary);
+        }
+
+        .nav-link-active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .nav-text {
+            flex: 1;
+            font-size: var(--font-size-base);
+            font-weight: 500;
+        }
+
+        .nav-toggle {
+            position: fixed;
+            top: var(--spacing-md);
+            left: var(--spacing-md);
+            width: 44px;
+            height: 44px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-lg);
+            z-index: var(--z-fixed);
+            display: none;
+            transition: all var(--duration-fast);
+            cursor: pointer;
+        }
+
+        .nav-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-overlay);
+            z-index: var(--z-modal);
+            display: none;
+            opacity: 0;
+            transition: opacity var(--duration-normal);
+        }
+
+        /* 内容区域 */
+        .content-area {
+            flex: 1;
+            padding: var(--spacing-md);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .content-placeholder {
+            text-align: center;
+            padding: var(--spacing-xl);
+            color: var(--text-secondary);
+        }
+
+        /* 音频容器 */
+        .audio-container {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--separator);
+            padding: var(--spacing-md);
+            position: sticky;
+            top: 0;
+            z-index: var(--z-sticky);
+        }
+
+        .audio-player {
+            width: 100%;
+            height: 40px;
+            outline: none;
+        }
+
+        /* 词汇表弹窗 */
+        .glossary-popup {
+            position: absolute;
+            background: var(--bg-primary);
+            border: 1px solid var(--separator);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            z-index: var(--z-popover);
+            max-width: 350px;
+            min-width: 250px;
+            overflow: hidden;
+            transform-origin: top left;
+            transition: all var(--duration-fast) var(--easing);
+            visibility: hidden;
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        .glossary-popup.show {
+            visibility: visible;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .glossary-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--separator);
+            background: var(--bg-secondary);
+        }
+
+        .glossary-word {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .glossary-phonetic {
+            font-size: var(--font-size-sm);
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .glossary-close-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            font-size: var(--font-size-base);
+            cursor: pointer;
+            transition: all var(--duration-fast);
+        }
+
+        .glossary-close-btn:hover {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .glossary-body {
+            padding: var(--spacing-md);
+            max-height: 300px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .glossary-definition {
+            margin-bottom: var(--spacing-sm);
+            font-size: var(--font-size-sm);
+            line-height: 1.4;
+        }
+
+        /* 高亮样式 */
+        .highlighted-current {
+            background: var(--primary-color);
+            color: white;
+            padding: 2px 4px;
+            border-radius: var(--radius-sm);
+            transition: all var(--duration-fast);
+            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+        }
+
+        .word-clickable {
+            cursor: pointer;
+            padding: 2px;
+            border-radius: var(--radius-sm);
+            transition: background-color var(--duration-fast);
+        }
+
+        .word-clickable:hover {
+            background: rgba(0, 122, 255, 0.1);
+        }
+
+        /* 加载指示器 */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             z-index: 9999;
             flex-direction: column;
         }
+
         .loading-spinner {
             width: 40px;
             height: 40px;
             border: 4px solid #f3f3f3;
-            border-top: 4px solid #007AFF;
+            border-top: 4px solid var(--primary-color);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-bottom: 20px;
         }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
         .loading-text {
-            color: #666;
-            font-size: 16px;
+            color: var(--text-secondary);
+            font-size: var(--font-size-base);
         }
+
+        /* 移动端适配 */
+        @media (max-width: 767px) {
+            .app-container {
+                flex-direction: column;
+            }
+
+            .nav-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                transform: translateX(-100%);
+                z-index: var(--z-modal);
+                box-shadow: var(--shadow-lg);
+            }
+
+            .nav-sidebar.open {
+                transform: translateX(0);
+            }
+
+            .nav-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .nav-overlay.show {
+                display: block;
+                opacity: 1;
+            }
+
+            .main-content {
+                width: 100%;
+            }
+
+            .content-area {
+                padding: var(--spacing-sm);
+            }
+
+            .glossary-popup {
+                position: fixed !important;
+                top: 50% !important;
+                left: 50% !important;
+                transform: translate(-50%, -50%) scale(0.95);
+                width: calc(100vw - 32px);
+                max-width: none;
+                max-height: calc(100vh - 64px);
+            }
+
+            .glossary-popup.show {
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
         /* iOS安全区域适配 */
         @supports (padding: max(0px)) {
-            .safe-area-top { padding-top: max(20px, env(safe-area-inset-top)); }
-            .safe-area-bottom { padding-bottom: max(20px, env(safe-area-inset-bottom)); }
-            .safe-area-left { padding-left: max(20px, env(safe-area-inset-left)); }
-            .safe-area-right { padding-right: max(20px, env(safe-area-inset-right)); }
+            .nav-sidebar {
+                padding-top: max(0px, env(safe-area-inset-top));
+            }
+        }
+
+        /* 示例内容样式 */
+        .sample-text {
+            font-size: var(--font-size-base);
+            line-height: 1.6;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .sample-text p {
+            margin-bottom: var(--spacing-md);
+        }
+
+        .demo-section {
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .demo-section h2 {
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-md);
+            font-size: var(--font-size-xl);
+        }
+
+        .demo-section h3 {
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-sm);
+            font-size: var(--font-size-lg);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+        }
+
+        .feature-card {
+            background: var(--bg-primary);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--separator);
+        }
+
+        .feature-card h4 {
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: var(--font-size-sm);
+            margin: 0;
         }
     </style>
 </head>
 <body>
     <!-- 加载屏幕 -->
-    <div id="loading-screen">
+    <div id="loading-screen" class="loading-screen">
         <div class="loading-spinner"></div>
-        <div class="loading-text">正在加载...</div>
+        <div class="loading-text">正在加载LearnerEn...</div>
     </div>
-    
+
     <!-- 应用容器 -->
-    <div id="app-container" class="app-container">
+    <div id="app-container" class="app-container" style="display: none;">
         <!-- 导航容器 -->
-        <div id="nav-container" class="nav-container safe-area-top safe-area-left"></div>
-        
-        <!-- 主内容区域 -->
-        <main id="main-content" class="main-content">
-            <!-- 面包屑导航 -->
-            <div id="breadcrumb-container" class="breadcrumb-container"></div>
+        <div class="nav-container">
+            <nav class="nav-sidebar" id="nav-sidebar">
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="#home" class="nav-link nav-link-active">
+                            <span class="nav-text">首页</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#lessons" class="nav-link">
+                            <span class="nav-text">课程</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#vocabulary" class="nav-link">
+                            <span class="nav-text">词汇表</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#practice" class="nav-link">
+                            <span class="nav-text">练习</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#progress" class="nav-link">
+                            <span class="nav-text">学习进度</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#settings" class="nav-link">
+                            <span class="nav-text">设置</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
             
+            <!-- 移动端导航切换按钮 -->
+            <button class="nav-toggle" id="nav-toggle" aria-label="切换导航菜单">
+                <span>≡</span>
+            </button>
+            
+            <!-- 导航覆盖层 -->
+            <div class="nav-overlay" id="nav-overlay"></div>
+        </div>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
             <!-- 音频播放器 -->
-            <div id="audio-container" class="audio-container">
-                <audio id="audio-player" class="audio-player" preload="metadata" controls>
-                    <source src="" type="audio/mpeg">
-                    <p>您的浏览器不支持音频播放</p>
+            <div class="audio-container">
+                <audio class="audio-player" id="audio-player" preload="metadata" controls>
+                    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhDTGH1O/ITSELLIzX8N15HwwYfM709YlrQwIR" type="audio/wav">
+                    您的浏览器不支持音频播放
                 </audio>
             </div>
-            
+
             <!-- 内容显示区域 -->
-            <div id="content-area" class="content-area safe-area-bottom">
-                <div class="content-placeholder">
-                    <h2>欢迎使用 LearnerEn</h2>
-                    <p>请选择一个章节开始学习</p>
+            <div class="content-area" id="content-area">
+                <div class="demo-section">
+                    <h2>🎯 LearnerEn - 智能英语学习平台</h2>
+                    <p>这是一个完整的移动端优先的英语学习PWA应用演示，具有以下核心功能：</p>
+                    
+                    <div class="feature-grid">
+                        <div class="feature-card">
+                            <h4>📱 移动端优先</h4>
+                            <p>专为移动设备设计，支持iOS Safari 12+，完美适配iPhone X系列安全区域</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🎵 音频同步</h4>
+                            <p>实时字幕高亮，SRT字幕解析，智能滚动定位</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>📚 智能词汇表</h4>
+                            <p>点击任意单词查看释义，支持触摸和手势操作</p>
+                        </div>
+                        <div class="feature-card">
+                            <h4>🧠 AI词频分析</h4>
+                            <p>智能分析文章难度，个性化学习推荐</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="demo-section">
+                    <h3>📖 交互式文本示例</h3>
+                    <p>点击下面文本中的任意单词来体验词汇表功能：</p>
+                    
+                    <div class="sample-text">
+                        <p>
+                            <span class="word-clickable" data-word="technology">Technology</span> has 
+                            <span class="word-clickable" data-word="revolutionized">revolutionized</span> the way we 
+                            <span class="word-clickable" data-word="learn">learn</span> and 
+                            <span class="word-clickable" data-word="communicate">communicate</span>. In the 
+                            <span class="word-clickable" data-word="modern">modern</span> world, 
+                            <span class="word-clickable" data-word="digital">digital</span> platforms provide 
+                            <span class="word-clickable" data-word="unprecedented">unprecedented</span> access to 
+                            <span class="word-clickable" data-word="knowledge">knowledge</span> and 
+                            <span class="word-clickable" data-word="resources">resources</span>.
+                        </p>
+                        
+                        <p>
+                            <span class="word-clickable" data-word="mobile">Mobile</span> applications have become 
+                            <span class="word-clickable" data-word="essential">essential</span> tools for 
+                            <span class="word-clickable" data-word="education">education</span>, offering 
+                            <span class="word-clickable" data-word="interactive">interactive</span> and 
+                            <span class="word-clickable" data-word="personalized">personalized</span> learning 
+                            <span class="word-clickable" data-word="experiences">experiences</span>. Students can now 
+                            <span class="word-clickable" data-word="access">access</span> high-quality 
+                            <span class="word-clickable" data-word="content">content</span> anytime, anywhere.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="demo-section">
+                    <h3>🎯 核心架构特性</h3>
+                    <ul>
+                        <li><strong>Foundation Layer:</strong> StateManager, EventHub, CacheManager, ErrorBoundary</li>
+                        <li><strong>Core Modules:</strong> NavigationCore, AudioSyncCore, GlossaryCore, WordFrequencyCore</li>
+                        <li><strong>Utils Layer:</strong> CompatibilityUtils, PerformanceUtils, DOMUtils, MobileUtils</li>
+                        <li><strong>Progressive Enhancement:</strong> 渐进式增强，优雅降级</li>
+                        <li><strong>iOS Compatibility:</strong> 确保iOS Safari 12+完美兼容</li>
+                    </ul>
                 </div>
             </div>
         </main>
-        
-        <!-- 返回顶部按钮 -->
-        <button id="back-to-top" class="back-to-top" aria-label="返回顶部">↑</button>
-        
-        <!-- 离线提示 -->
-        <div id="offline-notice" class="offline-notice" style="display: none;">
-            <span>您当前处于离线状态</span>
+    </div>
+
+    <!-- 词汇表弹窗 -->
+    <div class="glossary-popup" id="glossary-popup">
+        <div class="glossary-header">
+            <div>
+                <h3 class="glossary-word" id="glossary-word">Word</h3>
+                <div class="glossary-phonetic" id="glossary-phonetic">/wɜːrd/</div>
+            </div>
+            <button class="glossary-close-btn" id="glossary-close-btn">×</button>
+        </div>
+        <div class="glossary-body" id="glossary-body">
+            <div class="glossary-definition">Loading definition...</div>
         </div>
     </div>
-    
-    <!-- 全局错误边界 -->
-    <div id="error-boundary" class="error-boundary" style="display: none;">
-        <div class="error-content">
-            <h3>应用遇到问题</h3>
-            <p id="error-message">正在尝试恢复...</p>
-            <button id="error-retry" class="error-retry-btn">重试</button>
-        </div>
-    </div>
-    
-    <!-- 脚本加载 -->
-    <!-- Foundation Layer -->
-    <script src="js/foundation/state-manager.js" defer></script>
-    <script src="js/foundation/event-hub.js" defer></script>
-    <script src="js/foundation/cache-manager.js" defer></script>
-    <script src="js/foundation/error-boundary.js" defer></script>
-    
-    <!-- Utils -->
-    <script src="js/utils/compatibility.js" defer></script>
-    <script src="js/utils/dom-utils.js" defer></script>
-    <script src="js/utils/mobile-utils.js" defer></script>
-    <script src="js/utils/performance.js" defer></script>
-    
-    <!-- Core Modules -->
-    <script src="js/modules/navigation-core.js" defer></script>
-    <script src="js/modules/audio-sync-core.js" defer></script>
-    <script src="js/modules/glossary-core.js" defer></script>
-    <script src="js/modules/word-frequency-core.js" defer></script>
-    <script src="js/modules/app-controller.js" defer></script>
-    
-    <!-- Main Application -->
-    <script src="js/main.js" defer></script>
-    
-    <!-- 错误处理脚本 -->
+
     <script>
-        // 全局错误捕获
-        window.onerror = function(message, source, lineno, colno, error) {
-            console.error('Global Error:', { message, source, lineno, colno, error });
-            return false;
-        };
-        
-        // Promise错误捕获
-        window.addEventListener('unhandledrejection', function(event) {
-            console.error('Unhandled Promise Rejection:', event.reason);
-        });
-        
-        // 网络状态监听
-        window.addEventListener('online', function() {
-            var notice = document.getElementById('offline-notice');
-            if (notice) notice.style.display = 'none';
-        });
-        
-        window.addEventListener('offline', function() {
-            var notice = document.getElementById('offline-notice');
-            if (notice) notice.style.display = 'block';
-        });
-        
-        // 返回顶部功能
-        document.addEventListener('DOMContentLoaded', function() {
-            var backToTop = document.getElementById('back-to-top');
-            var mainContent = document.getElementById('main-content');
-            
-            if (backToTop && mainContent) {
-                backToTop.addEventListener('click', function() {
-                    mainContent.scrollTo({ top: 0, behavior: 'smooth' });
-                });
-                
-                mainContent.addEventListener('scroll', function() {
-                    if (mainContent.scrollTop > 300) {
-                        backToTop.style.display = 'block';
-                    } else {
-                        backToTop.style.display = 'none';
+        // 简化的应用初始化逻辑
+        class LearnerEnDemo {
+            constructor() {
+                this.isNavOpen = false;
+                this.currentGlossaryWord = null;
+                this.vocabularyData = {
+                    technology: {
+                        phonetic: "/tekˈnɒlədʒi/",
+                        definitions: [
+                            "The application of scientific knowledge for practical purposes",
+                            "Advanced electronic and digital equipment"
+                        ]
+                    },
+                    revolutionized: {
+                        phonetic: "/ˌrevəˈluːʃənaɪzd/",
+                        definitions: [
+                            "Changed something completely and fundamentally",
+                            "Transformed dramatically"
+                        ]
+                    },
+                    learn: {
+                        phonetic: "/lɜːrn/",
+                        definitions: [
+                            "Acquire knowledge or skills through study or experience",
+                            "Become aware of something through information or observation"
+                        ]
+                    },
+                    communicate: {
+                        phonetic: "/kəˈmjuːnɪkeɪt/",
+                        definitions: [
+                            "Share or exchange information, ideas, or feelings",
+                            "Convey or express thoughts effectively"
+                        ]
+                    },
+                    modern: {
+                        phonetic: "/ˈmɒdərn/",
+                        definitions: [
+                            "Relating to the present or recent times",
+                            "Contemporary; up-to-date"
+                        ]
+                    },
+                    digital: {
+                        phonetic: "/ˈdɪdʒɪtəl/",
+                        definitions: [
+                            "Relating to computer technology and the internet",
+                            "Information stored in binary format"
+                        ]
+                    },
+                    unprecedented: {
+                        phonetic: "/ʌnˈpresɪdentɪd/",
+                        definitions: [
+                            "Never done or known before",
+                            "Without previous example"
+                        ]
+                    },
+                    knowledge: {
+                        phonetic: "/ˈnɒlɪdʒ/",
+                        definitions: [
+                            "Information and skills acquired through experience or education",
+                            "Awareness or familiarity gained by experience"
+                        ]
+                    },
+                    resources: {
+                        phonetic: "/rɪˈzɔːrsɪz/",
+                        definitions: [
+                            "Materials or assets that can be used effectively",
+                            "Available means or supplies"
+                        ]
+                    },
+                    mobile: {
+                        phonetic: "/ˈmoʊbaɪl/",
+                        definitions: [
+                            "Able to move or be moved freely or easily",
+                            "Relating to mobile phones or portable devices"
+                        ]
+                    },
+                    essential: {
+                        phonetic: "/ɪˈsenʃəl/",
+                        definitions: [
+                            "Absolutely necessary; extremely important",
+                            "Fundamental or basic"
+                        ]
+                    },
+                    education: {
+                        phonetic: "/ˌɛdʒʊˈkeɪʃən/",
+                        definitions: [
+                            "The process of receiving or giving systematic instruction",
+                            "An enlightening experience"
+                        ]
+                    },
+                    interactive: {
+                        phonetic: "/ˌɪntərˈæktɪv/",
+                        definitions: [
+                            "Allowing a two-way flow of information",
+                            "Responsive to user input"
+                        ]
+                    },
+                    personalized: {
+                        phonetic: "/ˈpɜːrsənəlaɪzd/",
+                        definitions: [
+                            "Designed or produced to meet individual requirements",
+                            "Customized for a particular person"
+                        ]
+                    },
+                    experiences: {
+                        phonetic: "/ɪkˈspɪriənsɪz/",
+                        definitions: [
+                            "Practical contact with and observation of facts or events",
+                            "Events or occurrences that leave an impression"
+                        ]
+                    },
+                    access: {
+                        phonetic: "/ˈækses/",
+                        definitions: [
+                            "The ability to enter, approach, or pass to and from",
+                            "The right to use or obtain"
+                        ]
+                    },
+                    content: {
+                        phonetic: "/ˈkɒntent/",
+                        definitions: [
+                            "The things that are contained in something",
+                            "Information made available by a website or other medium"
+                        ]
                     }
+                };
+                
+                this.init();
+            }
+
+            init() {
+                // 模拟加载过程
+                setTimeout(() => {
+                    this.hideLoading();
+                    this.bindEvents();
+                    this.setupMobileFeatures();
+                }, 2000);
+            }
+
+            hideLoading() {
+                const loadingScreen = document.getElementById('loading-screen');
+                const appContainer = document.getElementById('app-container');
+                
+                loadingScreen.style.display = 'none';
+                appContainer.style.display = 'flex';
+            }
+
+            bindEvents() {
+                // 导航切换
+                const navToggle = document.getElementById('nav-toggle');
+                const navOverlay = document.getElementById('nav-overlay');
+                const navSidebar = document.getElementById('nav-sidebar');
+
+                navToggle.addEventListener('click', () => this.toggleNavigation());
+                navOverlay.addEventListener('click', () => this.closeNavigation());
+
+                // 导航链接
+                const navLinks = document.querySelectorAll('.nav-link');
+                navLinks.forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        this.handleNavigation(link);
+                    });
+                });
+
+                // 词汇表功能
+                const wordElements = document.querySelectorAll('.word-clickable');
+                wordElements.forEach(element => {
+                    element.addEventListener('click', (e) => {
+                        const word = e.target.getAttribute('data-word');
+                        this.showGlossary(word, e.target);
+                    });
+                });
+
+                // 词汇表关闭
+                const glossaryCloseBtn = document.getElementById('glossary-close-btn');
+                glossaryCloseBtn.addEventListener('click', () => this.hideGlossary());
+
+                // 音频播放器事件
+                const audioPlayer = document.getElementById('audio-player');
+                audioPlayer.addEventListener('play', () => this.onAudioPlay());
+                audioPlayer.addEventListener('pause', () => this.onAudioPause());
+            }
+
+            setupMobileFeatures() {
+                // 检测移动设备
+                if (window.innerWidth <= 767) {
+                    document.body.classList.add('mobile-device');
+                }
+
+                // 监听屏幕方向变化
+                window.addEventListener('orientationchange', () => {
+                    setTimeout(() => {
+                        this.handleOrientationChange();
+                    }, 100);
+                });
+
+                // 监听窗口大小变化
+                window.addEventListener('resize', () => {
+                    this.handleResize();
                 });
             }
+
+            toggleNavigation() {
+                const navSidebar = document.getElementById('nav-sidebar');
+                const navOverlay = document.getElementById('nav-overlay');
+                const navToggle = document.getElementById('nav-toggle');
+
+                this.isNavOpen = !this.isNavOpen;
+
+                if (this.isNavOpen) {
+                    navSidebar.classList.add('open');
+                    navOverlay.classList.add('show');
+                    navToggle.innerHTML = '×';
+                } else {
+                    navSidebar.classList.remove('open');
+                    navOverlay.classList.remove('show');
+                    navToggle.innerHTML = '≡';
+                }
+            }
+
+            closeNavigation() {
+                if (this.isNavOpen) {
+                    this.toggleNavigation();
+                }
+            }
+
+            handleNavigation(link) {
+                // 移除所有活跃状态
+                document.querySelectorAll('.nav-link').forEach(navLink => {
+                    navLink.classList.remove('nav-link-active');
+                });
+
+                // 添加活跃状态到当前链接
+                link.classList.add('nav-link-active');
+
+                // 移动端自动关闭导航
+                if (window.innerWidth <= 767) {
+                    this.closeNavigation();
+                }
+
+                // 这里可以添加页面切换逻辑
+                console.log('导航到:', link.href);
+            }
+
+            showGlossary(word, triggerElement) {
+                const glossaryPopup = document.getElementById('glossary-popup');
+                const glossaryWord = document.getElementById('glossary-word');
+                const glossaryPhonetic = document.getElementById('glossary-phonetic');
+                const glossaryBody = document.getElementById('glossary-body');
+
+                // 获取词汇数据
+                const wordData = this.vocabularyData[word.toLowerCase()];
+                
+                if (!wordData) {
+                    console.warn('词汇数据未找到:', word);
+                    return;
+                }
+
+                // 更新弹窗内容
+                glossaryWord.textContent = word;
+                glossaryPhonetic.textContent = wordData.phonetic;
+                
+                // 生成定义HTML
+                const definitionsHtml = wordData.definitions.map((def, index) => 
+                    `<div class="glossary-definition">${index + 1}. ${def}</div>`
+                ).join('');
+                
+                glossaryBody.innerHTML = definitionsHtml;
+
+                // 计算弹窗位置
+                const rect = triggerElement.getBoundingClientRect();
+                const popupRect = glossaryPopup.getBoundingClientRect();
+                
+                let top, left;
+
+                if (window.innerWidth <= 767) {
+                    // 移动端居中显示
+                    top = window.innerHeight / 2;
+                    left = window.innerWidth / 2;
+                    glossaryPopup.style.position = 'fixed';
+                    glossaryPopup.style.transform = 'translate(-50%, -50%) scale(0.95)';
+                } else {
+                    // 桌面端智能定位
+                    top = rect.bottom + window.scrollY + 10;
+                    left = rect.left + window.scrollX;
+                    
+                    // 边界检查
+                    if (left + 350 > window.innerWidth) {
+                        left = window.innerWidth - 360;
+                    }
+                    if (top + 300 > window.innerHeight + window.scrollY) {
+                        top = rect.top + window.scrollY - 310;
+                    }
+                    
+                    glossaryPopup.style.position = 'absolute';
+                    glossaryPopup.style.transform = 'scale(0.95)';
+                }
+
+                glossaryPopup.style.top = top + 'px';
+                glossaryPopup.style.left = left + 'px';
+
+                // 显示弹窗
+                setTimeout(() => {
+                    glossaryPopup.classList.add('show');
+                    if (window.innerWidth <= 767) {
+                        glossaryPopup.style.transform = 'translate(-50%, -50%) scale(1)';
+                    } else {
+                        glossaryPopup.style.transform = 'scale(1)';
+                    }
+                }, 10);
+
+                this.currentGlossaryWord = word;
+
+                // 添加点击外部关闭功能
+                setTimeout(() => {
+                    document.addEventListener('click', this.handleOutsideClick.bind(this));
+                }, 100);
+            }
+
+            hideGlossary() {
+                const glossaryPopup = document.getElementById('glossary-popup');
+                
+                glossaryPopup.classList.remove('show');
+                if (window.innerWidth <= 767) {
+                    glossaryPopup.style.transform = 'translate(-50%, -50%) scale(0.95)';
+                } else {
+                    glossaryPopup.style.transform = 'scale(0.95)';
+                }
+
+                this.currentGlossaryWord = null;
+
+                // 移除点击外部关闭事件
+                document.removeEventListener('click', this.handleOutsideClick.bind(this));
+            }
+
+            handleOutsideClick(e) {
+                const glossaryPopup = document.getElementById('glossary-popup');
+                
+                if (!glossaryPopup.contains(e.target) && !e.target.classList.contains('word-clickable')) {
+                    this.hideGlossary();
+                }
+            }
+
+            onAudioPlay() {
+                console.log('音频开始播放');
+                // 这里可以添加字幕同步逻辑
+                this.simulateSubtitleHighlight();
+            }
+
+            onAudioPause() {
+                console.log('音频暂停');
+                // 清除高亮效果
+                document.querySelectorAll('.highlighted-current').forEach(element => {
+                    element.classList.remove('highlighted-current');
+                });
+            }
+
+            simulateSubtitleHighlight() {
+                // 模拟字幕高亮效果
+                const wordElements = document.querySelectorAll('.word-clickable');
+                let currentIndex = 0;
+
+                const highlightNext = () => {
+                    // 清除之前的高亮
+                    document.querySelectorAll('.highlighted-current').forEach(element => {
+                        element.classList.remove('highlighted-current');
+                    });
+
+                    // 高亮当前词汇
+                    if (currentIndex < wordElements.length) {
+                        wordElements[currentIndex].classList.add('highlighted-current');
+                        
+                        // 滚动到当前位置
+                        wordElements[currentIndex].scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+
+                        currentIndex++;
+                        
+                        // 继续下一个词汇（如果音频还在播放）
+                        const audioPlayer = document.getElementById('audio-player');
+                        if (!audioPlayer.paused) {
+                            setTimeout(highlightNext, 800 + Math.random() * 400);
+                        }
+                    }
+                };
+
+                highlightNext();
+            }
+
+            handleOrientationChange() {
+                // 处理屏幕方向变化
+                console.log('屏幕方向已变化');
+                
+                // 如果词汇表弹窗打开，重新计算位置
+                if (this.currentGlossaryWord) {
+                    this.hideGlossary();
+                }
+                
+                // 移动端导航自动关闭
+                if (this.isNavOpen && window.innerWidth > 767) {
+                    this.closeNavigation();
+                }
+            }
+
+            handleResize() {
+                // 处理窗口大小变化
+                if (window.innerWidth > 767 && this.isNavOpen) {
+                    this.closeNavigation();
+                }
+            }
+        }
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            new LearnerEnDemo();
         });
+
+        // 添加一些演示用的辅助功能
+        
+        // 防止iOS双击缩放
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function (event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
+        // 添加触摸反馈
+        document.addEventListener('touchstart', function(e) {
+            if (e.target.classList.contains('word-clickable') || 
+                e.target.classList.contains('nav-link') ||
+                e.target.classList.contains('glossary-close-btn')) {
+                e.target.style.opacity = '0.7';
+            }
+        }, {passive: true});
+
+        document.addEventListener('touchend', function(e) {
+            if (e.target.classList.contains('word-clickable') || 
+                e.target.classList.contains('nav-link') ||
+                e.target.classList.contains('glossary-close-btn')) {
+                setTimeout(() => {
+                    e.target.style.opacity = '1';
+                }, 150);
+            }
+        }, {passive: true});
+
+        // 性能监控示例
+        if (typeof performance !== 'undefined' && performance.mark) {
+            performance.mark('app-start');
+            
+            window.addEventListener('load', function() {
+                performance.mark('app-loaded');
+                performance.measure('app-load-time', 'app-start', 'app-loaded');
+                
+                const measure = performance.getEntriesByName('app-load-time')[0];
+                console.log(`应用加载时间: ${measure.duration.toFixed(2)}ms`);
+            });
+        }
+
+        // PWA安装提示
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // 可以在这里显示自定义的安装提示
+            console.log('PWA安装提示已准备好');
+        });
+
+        // 检测PWA模式
+        if (window.navigator.standalone === true || 
+            window.matchMedia('(display-mode: standalone)').matches) {
+            console.log('应用正在PWA模式下运行');
+            document.body.classList.add('pwa-mode');
+        }
+
+        // 网络状态监听
+        window.addEventListener('online', function() {
+            console.log('网络已连接');
+            document.body.classList.remove('offline');
+        });
+
+        window.addEventListener('offline', function() {
+            console.log('网络已断开');
+            document.body.classList.add('offline');
+        });
+
+        // Service Worker注册（如果支持）
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                // 这里可以注册Service Worker
+                console.log('Service Worker支持已检测到');
+            });
+        }
     </script>
 </body>
 </html>
