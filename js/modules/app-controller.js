@@ -879,7 +879,24 @@
             foundation.EventHub.on('glossary:shown', function(data) {
                 trackUserInteraction('glossary_lookup', data.word);
             });
+            foundation.EventHub.on('articleLoader:articlesIndexLoaded', function(data) {
+                console.log('[AppController] 文章索引加载完成:', data);
+                updateNavigationWithArticles(data);
+            });
+
+            foundation.EventHub.on('articleLoader:articleLoaded', function(data) {
+                console.log('[AppController] 文章加载完成:', data.id);
+                displayArticle(data);
+            });
+
+            foundation.EventHub.on('showGlossary', function(data) {
+                if (coreModules.GlossaryCore) {
+                    coreModules.GlossaryCore.show(data.word, data.element);
+                }
+            });
         }
+
+
 
         function setupModuleCommunication() {
             if (!foundation.EventHub) return;
@@ -1410,6 +1427,53 @@
                     }
 
                     foundation.StateManager.setState('app.interactions', interactions);
+                }
+            }
+        }
+
+        function updateNavigationWithArticles(articlesData) {
+            // 可以在这里更新导航，添加文章分类
+            if (foundation.StateManager) {
+                foundation.StateManager.setState('articles.index', articlesData);
+            }
+        }
+
+        function displayArticle(articleData) {
+            // 显示文章内容
+            if (coreModules.ArticleLoader) {
+                var contentArea = document.getElementById('content-area');
+                if (contentArea) {
+                    coreModules.ArticleLoader.renderArticleContent(articleData.data, contentArea);
+
+                    // 如果有音频，设置音频同步
+                    if (articleData.data.audioSync && coreModules.AudioSyncCore) {
+                        setupAudioForArticle(articleData.data);
+                    }
+                }
+            }
+        }
+
+        function setupAudioForArticle(articleData) {
+            var audioPlayer = document.getElementById('audio-player');
+            var audioContainer = document.getElementById('audio-container');
+
+            if (audioPlayer && articleData.audioFile) {
+                // 显示音频容器
+                audioContainer.style.display = 'block';
+
+                // 设置音频源
+                audioPlayer.src = articleData.audioFile;
+
+                // 加载SRT字幕
+                if (articleData.srtFile && coreModules.AudioSyncCore) {
+                    fetch(articleData.srtFile)
+                        .then(response => response.text())
+                        .then(srtContent => {
+                            coreModules.AudioSyncCore.loadSRT(srtContent);
+                        })
+                        .catch(error => {
+                            console.warn('SRT文件加载失败:', error);
+                        });
                 }
             }
         }
