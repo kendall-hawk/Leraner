@@ -64,7 +64,8 @@
         var coreModules = {
             NavigationCore: null,
             AudioSyncCore: null,
-            GlossaryCore: null
+            GlossaryCore: null,
+            WelcomeModal: null
         };
 
         // 定时器和监控
@@ -708,10 +709,6 @@
                     loadTime: appState.loadTime,
                     modules: Object.keys(moduleInstances)
                 });
-
-                if (appConfig.debug) {
-                    console.log('[AppController] 应用启动完成，耗时:', appState.loadTime + 'ms');
-                }
 
                 // 显示欢迎弹窗
                 setTimeout(function() {
