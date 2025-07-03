@@ -223,7 +223,7 @@
                     html.push(' - ' + feature.description);
                 }
                 html.push('</div></div>');
-            });
+            })
             
             html.push('</div>');
             return html.join('');
