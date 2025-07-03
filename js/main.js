@@ -9,7 +9,7 @@
      * 功能：系统初始化、模块集成、用户体验优化
      * 兼容：iOS Safari 12+, Android Chrome 80+
      */
-    
+
     // 全局配置
     var APP_CONFIG = {
         name: 'LearnerEn',
@@ -23,18 +23,18 @@
             analytics: false
         }
     };
-    
+
     // DOM就绪检测
     var isReady = false;
     var readyCallbacks = [];
-    
+
     function checkReady() {
         if (document.readyState === 'loading') {
             return false;
         }
         return true;
     }
-    
+
     function onReady(callback) {
         if (isReady || checkReady()) {
             callback();
@@ -42,7 +42,7 @@
             readyCallbacks.push(callback);
         }
     }
-    
+
     function fireReady() {
         isReady = true;
         readyCallbacks.forEach(function(callback) {
@@ -54,14 +54,14 @@
         });
         readyCallbacks = [];
     }
-    
+
     // 监听DOM就绪
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', fireReady);
     } else {
         setTimeout(fireReady, 0);
     }
-    
+
     /**
      * 🎯 应用初始化器
      */
@@ -69,33 +69,33 @@
         var appController = null;
         var startTime = Date.now();
         var initPromises = [];
-        
+
         // 兼容性检查
         function checkCompatibility() {
             var issues = [];
-            
+
             // 检查基本JS支持
             if (typeof Array.prototype.forEach === 'undefined') {
                 issues.push('Array.forEach not supported');
             }
-            
+
             if (typeof JSON === 'undefined') {
                 issues.push('JSON not supported');
             }
-            
+
             // 检查DOM API
             if (typeof document.querySelector === 'undefined') {
                 issues.push('querySelector not supported');
             }
-            
+
             if (issues.length > 0) {
                 showCompatibilityError(issues);
                 return false;
             }
-            
+
             return true;
         }
-        
+
         function showCompatibilityError(issues) {
             var errorHtml = [
                 '<div style="padding: 20px; background: #fee; border: 1px solid #fcc; margin: 20px; border-radius: 4px;">',
@@ -109,10 +109,10 @@
                 '<p>检测到的问题：' + issues.join(', ') + '</p>',
                 '</div>'
             ].join('');
-            
+
             document.body.innerHTML = errorHtml;
         }
-        
+
         // 初始化应用配置
         function initializeConfig() {
             try {
@@ -121,30 +121,37 @@
                 if (urlParams.debug === 'true') {
                     APP_CONFIG.debug = true;
                 }
-                
+
                 // 从localStorage读取用户配置
                 var userConfig = getUserConfig();
                 if (userConfig) {
                     Object.assign(APP_CONFIG, userConfig);
                 }
-                
+
                 // 设置全局配置
                 global.LEARNER_CONFIG = APP_CONFIG;
-                
+
                 return true;
             } catch (error) {
                 console.error('[Main] Config initialization failed:', error);
                 return false;
             }
         }
-        
+
         // 预加载关键资源
         function preloadResources() {
-            var resources = [
-                { type: 'data', url: 'data/navigation.json', critical: true },
-                { type: 'data', url: 'data/terms/common.json', critical: false }
+            var resources = [{
+                    type: 'data',
+                    url: 'data/navigation.json',
+                    critical: true
+                },
+                {
+                    type: 'data',
+                    url: 'data/terms/common.json',
+                    critical: false
+                }
             ];
-            
+
             resources.forEach(function(resource) {
                 if (resource.critical) {
                     // 关键资源立即加载
@@ -157,13 +164,13 @@
                 }
             });
         }
-        
+
         function loadResource(resource) {
             if (resource.type === 'data') {
                 loadDataResource(resource.url);
             }
         }
-        
+
         function loadDataResource(url) {
             try {
                 var xhr = new XMLHttpRequest();
@@ -183,32 +190,34 @@
                 console.warn('[Main] Resource load failed:', url, error);
             }
         }
-        
+
         function cacheResource(url, data) {
             if (global.EnglishSite && global.EnglishSite.CacheManager) {
                 try {
                     var cache = new global.EnglishSite.CacheManager();
-                    cache.set('preload:' + url, data, { ttl: 24 * 60 * 60 * 1000 });
+                    cache.set('preload:' + url, data, {
+                        ttl: 24 * 60 * 60 * 1000
+                    });
                 } catch (error) {
                     console.warn('[Main] Resource cache failed:', error);
                 }
             }
         }
-        
+
         // 初始化应用控制器
         function initializeAppController() {
             try {
                 if (!global.EnglishSite || !global.EnglishSite.AppController) {
                     throw new Error('AppController not available');
                 }
-                
+
                 appController = new global.EnglishSite.AppController({
                     name: APP_CONFIG.name,
                     version: APP_CONFIG.version,
                     debug: APP_CONFIG.debug,
                     autoStart: false // 手动控制启动
                 });
-                
+
                 return true;
             } catch (error) {
                 console.error('[Main] AppController initialization failed:', error);
@@ -216,7 +225,7 @@
                 return false;
             }
         }
-        
+
         // 配置模块选项
         function getModuleConfigs() {
             return {
@@ -239,43 +248,51 @@
                     enableTouch: true,
                     enableAudio: true,
                     dataUrl: 'data/terms/common.json'
+                },
+                // 【新增】文章配置
+                articles: {
+                    indexUrl: '/data/articles/index.json',
+                    contentContainer: 'content-area',
+                    enableAudioSync: true,
+                    enableGlossary: true
                 }
+
             };
         }
-        
+
         // 启动应用
         function startApplication() {
             try {
                 if (!appController) {
                     throw new Error('AppController not initialized');
                 }
-                
+
                 var moduleConfigs = getModuleConfigs();
-                
+
                 appController.start({
                     modules: moduleConfigs
                 });
-                
+
                 // 设置应用事件处理
                 setupApplicationEvents();
-                
+
                 // 性能监控
                 monitorPerformance();
-                
+
                 return true;
             } catch (error) {
                 console.error('[Main] Application start failed:', error);
                 return false;
             }
         }
-        
+
         // 设置应用级事件处理
         function setupApplicationEvents() {
             if (!appController) return;
-            
+
             var eventHub = appController.getModule('EventHub');
             if (!eventHub) return;
-            
+
             // 全局错误处理
             eventHub.on('app:error', function(errorInfo) {
                 if (APP_CONFIG.debug) {
@@ -283,18 +300,18 @@
                 }
                 handleApplicationError(errorInfo);
             });
-            
+
             // 应用状态变化
             eventHub.on('app:started', function(data) {
                 hideLoadingScreen();
                 console.log('[Main] Application started in', data.loadTime + 'ms');
             });
-            
+
             // 模块错误处理
             eventHub.on('*:error', function(data) {
                 handleModuleError(data);
             });
-            
+
             // 性能警告
             eventHub.on('app:performanceWarning', function(data) {
                 if (APP_CONFIG.debug) {
@@ -302,7 +319,7 @@
                 }
             });
         }
-        
+
         // 错误处理
         function handleApplicationError(errorInfo) {
             // 收集错误信息
@@ -313,11 +330,11 @@
                 userAgent: navigator.userAgent,
                 url: window.location.href
             };
-            
+
             // 用户友好的错误提示
             if (errorInfo.severity === 'critical') {
                 showErrorDialog('系统遇到问题，正在尝试恢复...');
-                
+
                 // 尝试自动恢复
                 setTimeout(function() {
                     if (appController && appController.recover) {
@@ -326,59 +343,59 @@
                 }, 2000);
             }
         }
-        
+
         function handleModuleError(data) {
             if (APP_CONFIG.debug) {
                 console.warn('[Module Error]', data.context, data.message);
             }
-            
+
             // 模块级降级处理
             var module = data.context.split(':')[0];
             disableModule(module);
         }
-        
+
         function disableModule(moduleName) {
             APP_CONFIG.features[moduleName] = false;
             showModuleDisabledNotice(moduleName);
         }
-        
+
         function showModuleDisabledNotice(moduleName) {
             var notice = document.createElement('div');
             notice.className = 'module-disabled-notice';
             notice.style.cssText = 'position: fixed; top: 10px; right: 10px; background: #ffa; padding: 10px; border-radius: 4px; z-index: 10000;';
             notice.textContent = moduleName + ' 功能暂时不可用';
             document.body.appendChild(notice);
-            
+
             setTimeout(function() {
                 if (notice.parentNode) {
                     notice.parentNode.removeChild(notice);
                 }
             }, 5000);
         }
-        
+
         // 性能监控
         function monitorPerformance() {
             var perfData = {
                 startTime: startTime,
                 loadTime: Date.now() - startTime
             };
-            
+
             // 内存使用监控（如果支持）
             if (performance && performance.memory) {
                 perfData.memoryUsed = performance.memory.usedJSHeapSize;
                 perfData.memoryLimit = performance.memory.jsHeapSizeLimit;
             }
-            
+
             // 性能警告
             if (perfData.loadTime > 5000) {
                 console.warn('[Performance] Slow startup:', perfData.loadTime + 'ms');
             }
-            
+
             if (APP_CONFIG.debug) {
                 console.log('[Performance]', perfData);
             }
         }
-        
+
         // 降级界面
         function showFallbackInterface() {
             var fallbackHtml = [
@@ -392,11 +409,11 @@
                 '</div>',
                 '</div>'
             ].join('');
-            
+
             var container = document.getElementById('app-container') || document.body;
             container.innerHTML = fallbackHtml;
         }
-        
+
         // 工具函数
         function getUrlParams() {
             var params = {};
@@ -409,7 +426,7 @@
             }
             return params;
         }
-        
+
         function getUserConfig() {
             try {
                 var stored = localStorage.getItem('learner_config');
@@ -418,18 +435,18 @@
                 return null;
             }
         }
-        
+
         function showErrorDialog(message) {
             alert(message); // 简单降级实现
         }
-        
+
         function hideLoadingScreen() {
             var loader = document.getElementById('loading-screen');
             if (loader) {
                 loader.style.display = 'none';
             }
         }
-        
+
         // 公开API
         this.initialize = function() {
             try {
@@ -437,25 +454,25 @@
                 if (!checkCompatibility()) {
                     return false;
                 }
-                
+
                 // 初始化配置
                 if (!initializeConfig()) {
                     return false;
                 }
-                
+
                 // 预加载资源
                 preloadResources();
-                
+
                 // 初始化应用控制器
                 if (!initializeAppController()) {
                     return false;
                 }
-                
+
                 // 启动应用
                 if (!startApplication()) {
                     return false;
                 }
-                
+
                 return true;
             } catch (error) {
                 console.error('[Main] Initialization failed:', error);
@@ -463,30 +480,30 @@
                 return false;
             }
         };
-        
+
         this.getAppController = function() {
             return appController;
         };
     }
-    
+
     // 🎯 应用启动流程
     var appInitializer = null;
-    
+
     function startApp() {
         try {
             console.log('[Main] Starting LearnerEn v' + APP_CONFIG.version);
-            
+
             appInitializer = new AppInitializer();
-            
+
             if (appInitializer.initialize()) {
                 console.log('[Main] Application initialized successfully');
             } else {
                 console.error('[Main] Application initialization failed');
             }
-            
+
         } catch (error) {
             console.error('[Main] Critical startup error:', error);
-            
+
             // 最后的降级方案
             setTimeout(function() {
                 document.body.innerHTML = [
@@ -501,17 +518,19 @@
             }, 100);
         }
     }
-    
+
     // 🚀 启动应用
     onReady(startApp);
-    
+
     // 全局导出
     global.LearnerApp = {
         version: APP_CONFIG.version,
         config: APP_CONFIG,
-        getInitializer: function() { return appInitializer; }
+        getInitializer: function() {
+            return appInitializer;
+        }
     };
-    
+
     // 调试支持
     if (APP_CONFIG.debug) {
         global.LearnerDebug = {
@@ -520,10 +539,10 @@
                 location.reload();
             },
             getStats: function() {
-                return appInitializer && appInitializer.getAppController() ? 
-                       appInitializer.getAppController().getState() : null;
+                return appInitializer && appInitializer.getAppController() ?
+                    appInitializer.getAppController().getState() : null;
             }
         };
     }
-    
+
 })(typeof window !== 'undefined' ? window : this);
