@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WelcomeModal测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-btn {
+            padding: 12px 24px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 8px;
+            font-size: 16px;
+        }
+        .test-btn:hover {
+            background: #0056b3;
+        }
+        .status {
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 6px;
+            font-family: monospace;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f1b0b7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #b8daff; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>WelcomeModal 测试页面</h1>
+        
+        <div class="status info">
+            <strong>测试说明：</strong><br>
+            1. 点击下面的按钮测试各个功能<br>
+            2. 查看浏览器控制台的详细信息<br>
+            3. 如果有错误，请截图并提供错误信息
+        </div>
+        
+        <div>
+            <button class="test-btn" onclick="testModuleLoad()">1. 测试模块加载</button>
+            <button class="test-btn" onclick="testCreateModal()">2. 创建弹窗实例</button>
+            <button class="test-btn" onclick="testShowModal()">3. 显示弹窗</button>
+            <button class="test-btn" onclick="testResetModal()">4. 重置状态</button>
+        </div>
+        
+        <div id="test-results"></div>
+    </div>
+
+    <!-- 只加载必要的模块 -->
+    <script src="/js/modules/welcome-modal.js"></script>
+    
+    <script>
+        var testResults = document.getElementById('test-results');
+        var modalInstance = null;
+        
+        function addResult(message, type = 'info') {
+            var div = document.createElement('div');
+            div.className = 'status ' + type;
+            div.innerHTML = '<strong>' + new Date().toLocaleTimeString() + ':</strong> ' + message;
+            testResults.appendChild(div);
+            console.log(message);
+        }
+        
+        function testModuleLoad() {
+            try {
+                if (window.EnglishSite && window.EnglishSite.WelcomeModal) {
+                    addResult('✅ WelcomeModal模块加载成功', 'success');
+                    addResult('模块类型: ' + typeof window.EnglishSite.WelcomeModal, 'info');
+                } else {
+                    addResult('❌ WelcomeModal模块未找到', 'error');
+                    addResult('window.EnglishSite: ' + (window.EnglishSite ? '存在' : '不存在'), 'error');
+                }
+            } catch (error) {
+                addResult('❌ 测试模块加载时出错: ' + error.message, 'error');
+            }
+        }
+        
+        function testCreateModal() {
+            try {
+                if (!window.EnglishSite?.WelcomeModal) {
+                    addResult('❌ 请先确保模块加载成功', 'error');
+                    return;
+                }
+                
+                modalInstance = new window.EnglishSite.WelcomeModal({
+                    showOnce: false,  // 允许多次显示，方便测试
+                    content: {
+                        icon: '🎯',
+                        title: '测试弹窗',
+                        description: '这是一个测试弹窗，确认功能正常工作',
+                        features: [
+                            {
+                                icon: '✅',
+                                title: '模块加载',
+                                description: 'WelcomeModal模块已成功加载'
+                            },
+                            {
+                                icon: '🎨',
+                                title: '样式应用',
+                                description: 'CSS样式已自动注入'
+                            }
+                        ],
+                        startButtonText: '测试完成 ✨',
+                        hint: '这是测试模式，可以反复显示'
+                    },
+                    onStart: function() {
+                        addResult('✅ 用户点击了开始按钮', 'success');
+                    },
+                    onShow: function() {
+                        addResult('✅ 弹窗显示回调触发', 'success');
+                    },
+                    onHide: function() {
+                        addResult('✅ 弹窗隐藏回调触发', 'success');
+                    }
+                });
+                
+                addResult('✅ WelcomeModal实例创建成功', 'success');
+                addResult('实例方法: ' + Object.getOwnPropertyNames(modalInstance).join(', '), 'info');
+                
+            } catch (error) {
+                addResult('❌ 创建实例时出错: ' + error.message, 'error');
+                console.error('详细错误:', error);
+            }
+        }
+        
+        function testShowModal() {
+            try {
+                if (!modalInstance) {
+                    addResult('❌ 请先创建模块实例', 'error');
+                    return;
+                }
+                
+                var result = modalInstance.show();
+                if (result) {
+                    addResult('✅ 弹窗显示命令执行成功', 'success');
+                } else {
+                    addResult('⚠️ 弹窗显示命令返回false', 'error');
+                }
+                
+                // 检查DOM元素
+                setTimeout(function() {
+                    var popupElement = document.querySelector('.welcome-modal-overlay');
+                    if (popupElement) {
+                        addResult('✅ 弹窗DOM元素已创建', 'success');
+                        addResult('元素样式: ' + popupElement.style.cssText, 'info');
+                    } else {
+                        addResult('❌ 未找到弹窗DOM元素', 'error');
+                    }
+                }, 500);
+                
+            } catch (error) {
+                addResult('❌ 显示弹窗时出错: ' + error.message, 'error');
+                console.error('详细错误:', error);
+            }
+        }
+        
+        function testResetModal() {
+            try {
+                if (!modalInstance) {
+                    addResult('❌ 请先创建模块实例', 'error');
+                    return;
+                }
+                
+                modalInstance.reset();
+                addResult('✅ 弹窗状态已重置', 'success');
+                
+            } catch (error) {
+                addResult('❌ 重置状态时出错: ' + error.message, 'error');
+            }
+        }
+        
+        // 页面加载完成后自动测试模块加载
+        window.addEventListener('load', function() {
+            addResult('🚀 页面加载完成，开始测试...', 'info');
+            setTimeout(testModuleLoad, 100);
+        });
+        
+        // 全局错误捕获
+        window.addEventListener('error', function(e) {
+            addResult('❌ 全局错误: ' + e.message + ' (' + e.filename + ':' + e.lineno + ')', 'error');
+        });
+    </script>
+</body>
+</html>
