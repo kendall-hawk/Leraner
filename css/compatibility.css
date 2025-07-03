@@ -1,0 +1,538 @@
+/* css/compatibility.css - iOS兼容版兼容性样式 */
+/* 🚀 全面兼容性样式，确保iOS Safari 12+完美显示 */
+
+/* ===== CSS变量降级支持 ===== */
+/* 为不支持CSS变量的浏览器提供降级方案 */
+
+/* 主要颜色降级 */
+.fallback-colors {
+  --primary-color: #007AFF;
+  --secondary-color: #5856D6;
+  --success-color: #34C759;
+  --warning-color: #FF9500;
+  --error-color: #FF3B30;
+}
+
+/* 不支持CSS变量时的降级样式 */
+.nav-link {
+  color: #000000; /* 降级文本颜色 */
+  background-color: transparent;
+}
+
+.nav-link:hover,
+.nav-link:focus {
+  background-color: #F2F2F7; /* 降级背景色 */
+}
+
+.nav-link-active {
+  background-color: #007AFF; /* 降级主色 */
+  color: #FFFFFF;
+}
+
+.glossary-popup {
+  background-color: #FFFFFF; /* 降级背景 */
+  border-color: #C6C6C8; /* 降级边框 */
+}
+
+.highlighted-current {
+  background-color: #007AFF; /* 降级高亮色 */
+  color: #FFFFFF;
+}
+
+.highlighted-next {
+  background-color: #FF9500; /* 降级次要高亮 */
+  color: #FFFFFF;
+}
+
+/* ===== Flexbox降级支持 ===== */
+/* 为不完全支持flexbox的浏览器提供降级 */
+
+.flex-fallback {
+  display: block;
+}
+
+.flex-fallback::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+.flex-fallback > * {
+  float: left;
+  margin-right: 1%;
+}
+
+.flex-fallback > *:last-child {
+  margin-right: 0;
+}
+
+/* 媒体查询中的flexbox支持检测 */
+@supports not (display: flex) {
+  .nav-sidebar {
+    width: 280px;
+    float: left;
+  }
+  
+  .main-content {
+    margin-left: 280px;
+  }
+  
+  .glossary-header {
+    display: block;
+  }
+  
+  .glossary-word-info {
+    float: left;
+    width: 70%;
+  }
+  
+  .glossary-actions {
+    float: right;
+    width: 25%;
+  }
+  
+  .glossary-actions::after {
+    content: "";
+    display: table;
+    clear: both;
+  }
+}
+
+/* ===== Transform降级支持 ===== */
+/* 为不支持transform的浏览器提供位置降级 */
+
+@supports not (transform: translateX(0)) {
+  .nav-sidebar {
+    left: -280px;
+    transition: left 0.3s ease-out;
+  }
+  
+  .nav-sidebar.open {
+    left: 0;
+  }
+  
+  .glossary-popup {
+    transform: none;
+    top: 50px !important;
+    left: 20px !important;
+  }
+}
+
+/* ===== 边框圆角降级 ===== */
+/* 为不支持border-radius的浏览器保持可用性 */
+
+@supports not (border-radius: 4px) {
+  .nav-sidebar,
+  .glossary-popup,
+  .audio-control-btn,
+  .nav-toggle {
+    border-radius: 0;
+  }
+}
+
+/* ===== 阴影降级 ===== */
+/* 为不支持box-shadow的浏览器提供边框替代 */
+
+@supports not (box-shadow: 0 2px 4px rgba(0,0,0,0.1)) {
+  .glossary-popup {
+    border: 2px solid #C6C6C8;
+  }
+  
+  .nav-sidebar {
+    border-right: 2px solid #C6C6C8;
+  }
+  
+  .back-to-top {
+    border: 2px solid #007AFF;
+  }
+}
+
+/* ===== 透明度降级 ===== */
+/* 为不支持rgba的浏览器提供实色替代 */
+
+@supports not (background-color: rgba(0,0,0,0.5)) {
+  .nav-overlay {
+    background-color: #000000;
+    filter: alpha(opacity=30); /* IE降级 */
+  }
+  
+  .glossary-overlay {
+    background-color: #000000;
+    filter: alpha(opacity=30); /* IE降级 */
+  }
+}
+
+/* ===== 字体降级栈 ===== */
+/* 确保字体在所有设备上正确显示 */
+
+body,
+.nav-text,
+.glossary-word,
+.content-area {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, 
+               "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+               "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+               "Noto Color Emoji";
+}
+
+/* 等宽字体降级 */
+code,
+pre,
+.debug-info {
+  font-family: "SF Mono", Monaco, Inconsolata, "Roboto Mono", 
+               "Source Code Pro", Menlo, Consolas, monospace;
+}
+
+/* ===== iOS特殊兼容性修复 ===== */
+
+/* 修复iOS Safari的100vh问题 */
+@supports (-webkit-appearance: none) {
+  .nav-sidebar,
+  .main-content {
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+  }
+}
+
+/* 修复iOS Safari的position: fixed问题 */
+@media screen and (-webkit-min-device-pixel-ratio: 1) {
+  .nav-toggle,
+  .back-to-top,
+  .offline-notice {
+    position: absolute;
+  }
+  
+  /* 滚动时重新定位 */
+  .fixed-repositioning {
+    position: fixed;
+  }
+}
+
+/* 修复iOS Safari的overflow scrolling */
+.nav-sidebar,
+.content-area,
+.glossary-body {
+  -webkit-overflow-scrolling: touch;
+  overflow-scrolling: touch;
+}
+
+/* 修复iOS Safari的input zoom */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+textarea {
+  font-size: 16px; /* 防止iOS自动缩放 */
+}
+
+/* 修复iOS Safari的button样式 */
+button,
+input[type="button"],
+input[type="submit"] {
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: 0;
+}
+
+/* 修复iOS Safari的select样式 */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'><path fill='%23666' d='M2 0L0 2h4zm0 5L0 3h4z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px;
+  padding-right: 30px;
+}
+
+/* ===== Android浏览器兼容性修复 ===== */
+
+/* 修复Android 4.x的flexbox bug */
+@media screen and (-webkit-min-device-pixel-ratio: 1) {
+  .android-flex-fix {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+  }
+  
+  .android-flex-fix > * {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1;
+    flex: 1;
+  }
+}
+
+/* 修复Android浏览器的动画性能 */
+.nav-sidebar,
+.glossary-popup {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* ===== 旧版浏览器降级支持 ===== */
+
+/* IE11及以下降级支持 */
+@media screen and (-ms-high-contrast: active), (-ms-high-contrast: none) {
+  .ie-flex-fix {
+    display: -ms-flexbox;
+  }
+  
+  .ie-flex-fix > * {
+    -ms-flex: 1;
+  }
+  
+  /* IE的position: sticky降级 */
+  .audio-container {
+    position: relative;
+  }
+}
+
+/* Firefox降级支持 */
+@-moz-document url-prefix() {
+  .firefox-scrollbar-fix {
+    scrollbar-width: thin;
+    scrollbar-color: #C6C6C8 transparent;
+  }
+}
+
+/* ===== 高对比度模式支持 ===== */
+@media (prefers-contrast: high) {
+  .nav-link {
+    border: 1px solid currentColor;
+  }
+  
+  .glossary-popup {
+    border: 2px solid currentColor;
+  }
+  
+  .highlighted-current {
+    outline: 2px solid currentColor;
+  }
+}
+
+/* ===== 减少动画偏好支持 ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .app-spinner {
+    animation: none;
+  }
+  
+  .app-spinner::after {
+    content: "Loading...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* ===== 暗色模式兼容性 ===== */
+@media (prefers-color-scheme: dark) {
+  /* 为不支持CSS变量的浏览器提供暗色方案 */
+  .dark-mode-fallback {
+    background-color: #000000;
+    color: #FFFFFF;
+  }
+  
+  .dark-mode-fallback .nav-sidebar {
+    background-color: #1C1C1E;
+    border-color: #38383A;
+  }
+  
+  .dark-mode-fallback .nav-link {
+    color: #FFFFFF;
+  }
+  
+  .dark-mode-fallback .nav-link:hover {
+    background-color: #2C2C2E;
+  }
+  
+  .dark-mode-fallback .glossary-popup {
+    background-color: #1C1C1E;
+    border-color: #38383A;
+    color: #FFFFFF;
+  }
+}
+
+/* ===== 打印样式兼容性 ===== */
+@media print {
+  /* 隐藏交互元素 */
+  .nav-toggle,
+  .nav-overlay,
+  .glossary-popup,
+  .back-to-top,
+  .audio-container {
+    display: none !important;
+  }
+  
+  /* 强制显示内容 */
+  .nav-sidebar,
+  .content-area {
+    position: static !important;
+    transform: none !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  
+  /* 黑白打印优化 */
+  * {
+    background-color: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  a {
+    text-decoration: underline;
+  }
+  
+  /* 显示链接地址 */
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 12px;
+    color: #666;
+  }
+}
+
+/* ===== 无障碍访问增强 ===== */
+
+/* 高对比度文本 */
+@media (-ms-high-contrast: active) {
+  .nav-link,
+  .glossary-popup,
+  .audio-control-btn {
+    border: 1px solid;
+  }
+}
+
+/* 焦点可见性增强 */
+.nav-link:focus,
+.audio-control-btn:focus,
+.glossary-audio-btn:focus {
+  outline: 2px solid #007AFF;
+  outline-offset: 2px;
+}
+
+/* 为screen reader优化 */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* ===== 性能优化样式 ===== */
+
+/* 硬件加速 */
+.gpu-accelerated {
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  perspective: 1000;
+}
+
+/* 避免重排重绘 */
+.no-reflow {
+  contain: layout style paint;
+}
+
+/* 字体渲染优化 */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeSpeed;
+}
+
+/* 图片加载优化 */
+img {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* ===== 旧iOS版本特殊修复 ===== */
+
+/* iOS 9-11特殊修复 */
+@supports (-webkit-overflow-scrolling: touch) {
+  .ios-scroll-fix {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+  }
+  
+  /* 修复iOS sticky元素问题 */
+  .ios-sticky-fix {
+    position: -webkit-sticky;
+    position: sticky;
+  }
+}
+
+/* iOS 12+特殊修复 */
+@supports (padding: max(0px)) {
+  .ios-safe-area {
+    padding-top: max(0px, env(safe-area-inset-top));
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+}
+
+/* ===== 网络状态相关样式 ===== */
+
+/* 离线状态 */
+.offline {
+  filter: grayscale(0.5);
+}
+
+.offline .nav-link[href^="http"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 慢速网络状态 */
+@media (connection: slow) {
+  .slow-connection * {
+    animation-duration: 2s !important;
+    transition-duration: 0.5s !important;
+  }
+}
+
+/* ===== 调试辅助样式 ===== */
+
+/* 调试模式边框 */
+.debug-mode * {
+  outline: 1px solid red !important;
+}
+
+.debug-mode .nav-sidebar {
+  outline-color: blue !important;
+}
+
+.debug-mode .glossary-popup {
+  outline-color: green !important;
+}
+
+/* 性能监控指示器 */
+.performance-warning {
+  border: 3px dashed orange !important;
+}
+
+.performance-critical {
+  border: 3px dashed red !important;
+}
