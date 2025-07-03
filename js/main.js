@@ -255,6 +255,67 @@
                     contentContainer: 'content-area',
                     enableAudioSync: true,
                     enableGlossary: true
+                },
+
+                welcomeModal: {
+                    // 显示设置
+                    showDelay: 1500,
+                    showOnce: true,
+                    autoHide: false,
+
+                    // 动画设置
+                    animationDuration: 300,
+
+                    // 交互设置
+                    closeOnBackdropClick: true,
+                    closeOnEscape: true,
+
+                    // 内容配置
+                    content: {
+                        icon: '🎯',
+                        title: '欢迎来到 LearnerEn!',
+                        description: '开始您的智能英语学习之旅',
+                        features: [{
+                                icon: '🎵',
+                                title: '智能音频同步',
+                                description: '实时字幕高亮，跟读更轻松'
+                            },
+                            {
+                                icon: '📚',
+                                title: '一键词汇查询',
+                                description: '点击任意单词即可查看释义'
+                            },
+                            {
+                                icon: '🧠',
+                                title: '个性化学习',
+                                description: 'AI分析词频，定制学习计划'
+                            },
+                            {
+                                icon: '📱',
+                                title: '移动端优化',
+                                description: '专为手机学习设计'
+                            }
+                        ],
+                        startButtonText: 'Reading Start 🚀',
+                        hint: '点击任意地方或按ESC键也可关闭'
+                    },
+
+                    // 样式配置
+                    theme: 'default', // default, dark, minimal, gradient
+
+                    // 回调函数
+                    onStart: function() {
+                        // 用户点击开始按钮后的逻辑
+                        var firstContent = document.querySelector('.sample-text');
+                        if (firstContent) {
+                            setTimeout(function() {
+                                firstContent.scrollIntoView({
+                                    behavior: 'smooth',
+                                    block: 'start'
+                                });
+                            }, 300);
+                        }
+                    }
                 }
 
             };
