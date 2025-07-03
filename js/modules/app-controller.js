@@ -597,6 +597,20 @@
                     moduleInstances.ArticleLoader = coreModules.ArticleLoader;
                 }
 
+
+                // 初始化WelcomeModal
+                if (global.EnglishSite && global.EnglishSite.WelcomeModal && moduleConfigs.welcomeModal) {
+                    coreModules.WelcomeModal = new global.EnglishSite.WelcomeModal(
+                        Object.assign({}, moduleConfigs.welcomeModal, {
+                            stateManager: foundation.StateManager,
+                            eventHub: foundation.EventHub,
+                            cacheManager: foundation.CacheManager,
+                            errorBoundary: foundation.ErrorBoundary
+                        })
+                    );
+                    moduleInstances.WelcomeModal = coreModules.WelcomeModal;
+                }
+
                 return true;
             } catch (error) {
                 throw new Error('Core modules initialization failed: ' + error.message);
@@ -698,6 +712,18 @@
                 if (appConfig.debug) {
                     console.log('[AppController] 应用启动完成，耗时:', appState.loadTime + 'ms');
                 }
+
+                // 显示欢迎弹窗
+                setTimeout(function() {
+                    if (coreModules.WelcomeModal) {
+                        coreModules.WelcomeModal.show();
+                    }
+                }, 1500);
+
+                if (appConfig.debug) {
+                    console.log('[AppController] 应用启动完成，耗时:', appState.loadTime + 'ms');
+                }
+
 
             } catch (error) {
                 handleCriticalError('completeStartup', error);
