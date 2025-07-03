@@ -1,401 +1,197 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="LearnerEn">
     <meta name="format-detection" content="telephone=no">
-    <meta name="description" content="Professional English Learning Platform with Audio Sync and Smart Vocabulary">
-    <title>English Learning Platform</title>
+    <meta name="theme-color" content="#007AFF">
     
-    <!-- PWA配置 -->
+    <title>LearnerEn - 英语学习平台</title>
+    
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="css/base.css" as="style">
+    <link rel="preload" href="js/main.js" as="script">
+    <link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+    
+    <!-- PWA支持 -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2196F3">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
     
     <!-- 样式文件 -->
     <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="css/compatibility.css">
     
-    <!-- 在index.html的<head>中添加兼容性脚本 -->
-    <script src="js/utils/compatibility.js"></script>
-    
-    <!-- 预加载关键资源 -->
-    <link rel="preload" href="js/foundation/state-manager.js" as="script">
-    <link rel="preload" href="js/foundation/event-hub.js" as="script">
-    <link rel="preload" href="data/config/app-config.json" as="fetch">
+    <!-- 内联关键CSS防闪烁 -->
+    <style>
+        /* 关键渲染路径CSS */
+        body { 
+            margin: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+            background: #f5f5f7;
+            overflow-x: hidden;
+        }
+        #loading-screen { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            right: 0; 
+            bottom: 0; 
+            background: white; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 9999;
+            flex-direction: column;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007AFF;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-text {
+            color: #666;
+            font-size: 16px;
+        }
+        /* iOS安全区域适配 */
+        @supports (padding: max(0px)) {
+            .safe-area-top { padding-top: max(20px, env(safe-area-inset-top)); }
+            .safe-area-bottom { padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+            .safe-area-left { padding-left: max(20px, env(safe-area-inset-left)); }
+            .safe-area-right { padding-right: max(20px, env(safe-area-inset-right)); }
+        }
+    </style>
 </head>
 <body>
-    <!-- 🌟 主应用容器 -->
+    <!-- 加载屏幕 -->
+    <div id="loading-screen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">正在加载...</div>
+    </div>
+    
+    <!-- 应用容器 -->
     <div id="app-container" class="app-container">
-        <!-- 顶部导航栏 -->
-        <header class="app-header">
-            <div class="header-content">
-                <h1 class="app-title">📚 English Learning</h1>
-                <button id="menu-toggle" class="menu-toggle" aria-label="打开菜单">
-                    <span class="hamburger"></span>
-                </button>
-            </div>
-        </header>
-        
-        <!-- 导航侧边栏 -->
-        <nav id="nav-container" class="nav-container" aria-label="主导航"></nav>
+        <!-- 导航容器 -->
+        <div id="nav-container" class="nav-container safe-area-top safe-area-left"></div>
         
         <!-- 主内容区域 -->
-        <main id="content-area" class="content-area">
-            <!-- 欢迎屏幕 -->
-            <div class="welcome-screen">
-                <div class="welcome-content">
-                    <h2>🎯 Welcome to English Learning Platform</h2>
-                    <p>Professional language learning with audio synchronization and smart vocabulary tools.</p>
-                    
-                    <div class="feature-grid">
-                        <div class="feature-card">
-                            <div class="feature-icon">🎧</div>
-                            <h3>Audio Sync</h3>
-                            <p>Real-time text highlighting with audio playback</p>
-                        </div>
-                        
-                        <div class="feature-card">
-                            <div class="feature-icon">📖</div>
-                            <h3>Smart Vocabulary</h3>
-                            <p>Context-aware word definitions and examples</p>
-                        </div>
-                        
-                        <div class="feature-card">
-                            <div class="feature-icon">📊</div>
-                            <h3>Progress Tracking</h3>
-                            <p>Personalized learning analytics and recommendations</p>
-                        </div>
-                        
-                        <div class="feature-card">
-                            <div class="feature-icon">📱</div>
-                            <h3>Mobile Optimized</h3>
-                            <p>Perfect experience on all devices</p>
-                        </div>
-                    </div>
-                    
-                    <div class="action-buttons">
-                        <button id="start-learning" class="btn-primary">Start Learning</button>
-                        <button id="browse-content" class="btn-secondary">Browse Content</button>
-                    </div>
-                </div>
+        <main id="main-content" class="main-content">
+            <!-- 面包屑导航 -->
+            <div id="breadcrumb-container" class="breadcrumb-container"></div>
+            
+            <!-- 音频播放器 -->
+            <div id="audio-container" class="audio-container">
+                <audio id="audio-player" class="audio-player" preload="metadata" controls>
+                    <source src="" type="audio/mpeg">
+                    <p>您的浏览器不支持音频播放</p>
+                </audio>
             </div>
             
-            <!-- 文章内容区域 -->
-            <article id="article-content" class="article-content hidden">
-                <header class="article-header">
-                    <h1 id="article-title">Article Title</h1>
-                    <div class="article-meta">
-                        <span id="article-difficulty" class="difficulty-badge">⭐⭐⭐</span>
-                        <span id="article-time" class="time-badge">5 min read</span>
-                        <span id="article-words" class="words-badge">150 words</span>
-                    </div>
-                </header>
-                
-                <div id="article-body" class="article-body">
-                    <!-- 文章内容将在这里动态加载 -->
+            <!-- 内容显示区域 -->
+            <div id="content-area" class="content-area safe-area-bottom">
+                <div class="content-placeholder">
+                    <h2>欢迎使用 LearnerEn</h2>
+                    <p>请选择一个章节开始学习</p>
                 </div>
-                
-                <footer class="article-footer">
-                    <div class="article-actions">
-                        <button id="prev-article" class="nav-btn">← Previous</button>
-                        <button id="bookmark-article" class="bookmark-btn">🔖 Bookmark</button>
-                        <button id="next-article" class="nav-btn">Next →</button>
-                    </div>
-                </footer>
-            </article>
+            </div>
         </main>
         
-        <!-- 音频播放器 -->
-        <div id="audio-container" class="audio-container">
-            <div class="audio-player">
-                <audio id="audio-player" preload="none">
-                    Your browser does not support audio playback.
-                </audio>
-                
-                <div class="audio-controls">
-                    <button id="play-pause" class="control-btn" aria-label="播放/暂停">
-                        <span class="play-icon">▶️</span>
-                    </button>
-                    
-                    <div class="audio-progress">
-                        <input type="range" id="progress-slider" class="progress-slider" 
-                               min="0" max="100" value="0" aria-label="播放进度">
-                        <div class="time-display">
-                            <span id="current-time">0:00</span>
-                            <span id="duration">0:00</span>
-                        </div>
-                    </div>
-                    
-                    <div class="audio-settings">
-                        <button id="speed-control" class="control-btn" aria-label="播放速度">1x</button>
-                        <button id="volume-control" class="control-btn" aria-label="音量控制">🔊</button>
-                    </div>
-                </div>
-            </div>
+        <!-- 返回顶部按钮 -->
+        <button id="back-to-top" class="back-to-top" aria-label="返回顶部">↑</button>
+        
+        <!-- 离线提示 -->
+        <div id="offline-notice" class="offline-notice" style="display: none;">
+            <span>您当前处于离线状态</span>
         </div>
     </div>
     
-    <!-- 🔄 初始加载屏幕 -->
-    <div id="loading-screen" class="loading-screen">
-        <div class="loading-content">
-            <div class="app-logo">📚</div>
-            <h2>English Learning Platform</h2>
-            <div class="loading-animation">
-                <div class="loading-dots">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
-            </div>
-            <p id="loading-status">Initializing application...</p>
+    <!-- 全局错误边界 -->
+    <div id="error-boundary" class="error-boundary" style="display: none;">
+        <div class="error-content">
+            <h3>应用遇到问题</h3>
+            <p id="error-message">正在尝试恢复...</p>
+            <button id="error-retry" class="error-retry-btn">重试</button>
         </div>
     </div>
     
-    <!-- 🚨 错误提示 -->
-    <div id="error-toast" class="error-toast hidden">
-        <div class="toast-content">
-            <span id="toast-message">Error message</span>
-            <button id="toast-close" class="toast-close">×</button>
-        </div>
-    </div>
+    <!-- 脚本加载 -->
+    <!-- Foundation Layer -->
+    <script src="js/foundation/state-manager.js" defer></script>
+    <script src="js/foundation/event-hub.js" defer></script>
+    <script src="js/foundation/cache-manager.js" defer></script>
+    <script src="js/foundation/error-boundary.js" defer></script>
     
-    <!-- 🎯 返回顶部按钮 -->
-    <button id="back-to-top" class="back-to-top hidden" aria-label="返回顶部">↑</button>
+    <!-- Utils -->
+    <script src="js/utils/compatibility.js" defer></script>
+    <script src="js/utils/dom-utils.js" defer></script>
+    <script src="js/utils/mobile-utils.js" defer></script>
+    <script src="js/utils/performance.js" defer></script>
     
-    <!-- JavaScript 模块加载 -->
-    <!-- Foundation Layer - 按正确顺序加载 -->
-    <script src="js/foundation/state-manager.js"></script>
-    <script src="js/foundation/event-hub.js"></script>
-    <script src="js/foundation/cache-manager.js"></script>
-    <script src="js/foundation/error-boundary.js"></script>
+    <!-- Core Modules -->
+    <script src="js/modules/navigation-core.js" defer></script>
+    <script src="js/modules/audio-sync-core.js" defer></script>
+    <script src="js/modules/glossary-core.js" defer></script>
+    <script src="js/modules/word-frequency-core.js" defer></script>
+    <script src="js/modules/app-controller.js" defer></script>
     
-    <!-- Core Modules Layer -->
-    <script src="js/modules/navigation-core.js"></script>
-    <script src="js/modules/audio-sync-core.js"></script>
-    <script src="js/modules/glossary-core.js"></script>
-    <script src="js/modules/word-frequency-core.js"></script>
-    <script src="js/modules/app-controller.js"></script>
-    <script src="main.js" defer></script>
-    <!-- 应用初始化 -->
+    <!-- Main Application -->
+    <script src="js/main.js" defer></script>
+    
+    <!-- 错误处理脚本 -->
     <script>
-        // 🚀 生产模式应用初始化
-        (function() {
-            'use strict';
+        // 全局错误捕获
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Global Error:', { message, source, lineno, colno, error });
+            return false;
+        };
+        
+        // Promise错误捕获
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('Unhandled Promise Rejection:', event.reason);
+        });
+        
+        // 网络状态监听
+        window.addEventListener('online', function() {
+            var notice = document.getElementById('offline-notice');
+            if (notice) notice.style.display = 'none';
+        });
+        
+        window.addEventListener('offline', function() {
+            var notice = document.getElementById('offline-notice');
+            if (notice) notice.style.display = 'block';
+        });
+        
+        // 返回顶部功能
+        document.addEventListener('DOMContentLoaded', function() {
+            var backToTop = document.getElementById('back-to-top');
+            var mainContent = document.getElementById('main-content');
             
-            // 全局应用状态
-            window.appState = {
-                isInitialized: false,
-                currentArticle: null,
-                isLoading: false
-            };
-            
-            // 等待DOM加载完成
-            document.addEventListener('DOMContentLoaded', initializeApp);
-            
-            function initializeApp() {
-                console.log('🚀 Starting English Learning Platform...');
+            if (backToTop && mainContent) {
+                backToTop.addEventListener('click', function() {
+                    mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+                });
                 
-                try {
-                    // 检查必需模块
-                    if (!validateModules()) {
-                        throw new Error('Required modules not loaded');
+                mainContent.addEventListener('scroll', function() {
+                    if (mainContent.scrollTop > 300) {
+                        backToTop.style.display = 'block';
+                    } else {
+                        backToTop.style.display = 'none';
                     }
-                    
-                    // 配置应用
-                    const appConfig = {
-                        name: 'EnglishLearningPlatform',
-                        version: '2.0.0',
-                        debug: false,
-                        autoStart: true,
-                        startupTimeout: 10000,
-                        modules: {
-                            navigation: {
-                                container: 'nav-container',
-                                enableBreadcrumb: true,
-                                enableSearch: true,
-                                breakpoint: 768
-                            },
-                            audioSync: {
-                                contentArea: 'content-area',
-                                audioPlayer: 'audio-player',
-                                highlightClass: 'audio-highlight',
-                                scrollBehavior: 'smooth'
-                            },
-                            glossary: {
-                                container: 'content-area',
-                                triggerEvent: 'click',
-                                enableBookmark: true,
-                                enableAudio: true,
-                                maxWidth: 350,
-                                autoClose: true
-                            },
-                            wordFrequency: {
-                                enablePersonalization: true,
-                                enableRealTimeAnalysis: false,
-                                cacheTimeout: 24 * 60 * 60 * 1000
-                            }
-                        }
-                    };
-                    
-                    // 创建应用实例
-                    window.app = new AppController(appConfig);
-                    
-                    // 绑定UI事件
-                    bindUIEvents();
-                    
-                    // 加载初始数据
-                    loadInitialData();
-                    
-                    console.log('✅ Application initialized successfully');
-                    
-                } catch (error) {
-                    console.error('❌ Application initialization failed:', error);
-                    showErrorToast('应用初始化失败: ' + error.message);
-                    
-                    // 显示降级界面
-                    showFallbackUI();
-                }
+                });
             }
-            
-            function validateModules() {
-                const requiredModules = [
-                    'StateManager', 'EventHub', 'CacheManager', 'ErrorBoundary',
-                    'NavigationCore', 'AudioSyncCore', 'GlossaryCore', 
-                    'WordFrequencyCore', 'AppController'
-                ];
-                
-                for (let module of requiredModules) {
-                    if (!window.EnglishSite || !window.EnglishSite[module]) {
-                        console.error('❌ Missing module:', module);
-                        return false;
-                    }
-                }
-                
-                return true;
-            }
-            
-            function bindUIEvents() {
-                // 菜单切换
-                const menuToggle = document.getElementById('menu-toggle');
-                if (menuToggle) {
-                    menuToggle.addEventListener('click', function() {
-                        if (window.app && window.app.getModule('NavigationCore')) {
-                            window.app.getModule('NavigationCore').toggle();
-                        }
-                    });
-                }
-                
-                // 开始学习按钮
-                const startLearning = document.getElementById('start-learning');
-                if (startLearning) {
-                    startLearning.addEventListener('click', function() {
-                        loadFirstArticle();
-                    });
-                }
-                
-                // 浏览内容按钮
-                const browseContent = document.getElementById('browse-content');
-                if (browseContent) {
-                    browseContent.addEventListener('click', function() {
-                        if (window.app && window.app.getModule('NavigationCore')) {
-                            window.app.getModule('NavigationCore').open();
-                        }
-                    });
-                }
-                
-                // 返回顶部按钮
-                const backToTop = document.getElementById('back-to-top');
-                if (backToTop) {
-                    backToTop.addEventListener('click', function() {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    });
-                    
-                    // 滚动显示/隐藏返回顶部按钮
-                    window.addEventListener('scroll', function() {
-                        if (window.pageYOffset > 300) {
-                            backToTop.classList.remove('hidden');
-                        } else {
-                            backToTop.classList.add('hidden');
-                        }
-                    });
-                }
-                
-                // 错误提示关闭
-                const toastClose = document.getElementById('toast-close');
-                if (toastClose) {
-                    toastClose.addEventListener('click', function() {
-                        document.getElementById('error-toast').classList.add('hidden');
-                    });
-                }
-            }
-            
-            async function loadInitialData() {
-                try {
-                    // 隐藏加载屏幕
-                    setTimeout(() => {
-                        const loadingScreen = document.getElementById('loading-screen');
-                        if (loadingScreen) {
-                            loadingScreen.style.opacity = '0';
-                            setTimeout(() => {
-                                loadingScreen.style.display = 'none';
-                            }, 500);
-                        }
-                    }, 1500);
-                    
-                    // 标记应用已初始化
-                    window.appState.isInitialized = true;
-                    
-                } catch (error) {
-                    console.error('❌ Failed to load initial data:', error);
-                    showErrorToast('数据加载失败');
-                }
-            }
-            
-            function loadFirstArticle() {
-                // 这里将来会加载第一篇文章
-                showErrorToast('文章加载功能正在开发中...');
-            }
-            
-            function showErrorToast(message) {
-                const toast = document.getElementById('error-toast');
-                const messageEl = document.getElementById('toast-message');
-                
-                if (toast && messageEl) {
-                    messageEl.textContent = message;
-                    toast.classList.remove('hidden');
-                    
-                    // 3秒后自动隐藏
-                    setTimeout(() => {
-                        toast.classList.add('hidden');
-                    }, 3000);
-                }
-            }
-            
-            function showFallbackUI() {
-                const loadingScreen = document.getElementById('loading-screen');
-                const loadingStatus = document.getElementById('loading-status');
-                
-                if (loadingScreen && loadingStatus) {
-                    loadingStatus.textContent = '❌ 应用初始化失败，请刷新页面重试';
-                    loadingScreen.style.background = '#f44336';
-                }
-            }
-            
-            // 全局错误处理
-            window.addEventListener('error', function(event) {
-                console.error('Global error:', event.error);
-                showErrorToast('系统错误: ' + event.error.message);
-            });
-            
-            window.addEventListener('unhandledrejection', function(event) {
-                console.error('Unhandled promise rejection:', event.reason);
-                showErrorToast('系统错误: Promise rejected');
-            });
-            
-        })();
+        });
     </script>
 </body>
 </html>
