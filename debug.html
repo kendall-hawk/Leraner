@@ -1,1503 +1,265 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="LearnerEn">
-    <title>LearnerEn - 智能英语学习平台</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <title>English Learning Platform - Debug Mode</title>
     
-    <style>
-        :root {
-            --primary-color: #007AFF;
-            --secondary-color: #5856D6;
-            --success-color: #34C759;
-            --warning-color: #FF9500;
-            --error-color: #FF3B30;
-            
-            --text-primary: #000000;
-            --text-secondary: #3C3C43;
-            --text-tertiary: #8E8E93;
-            
-            --bg-primary: #FFFFFF;
-            --bg-secondary: #F2F2F7;
-            --bg-tertiary: #FFFFFF;
-            --bg-overlay: rgba(0, 0, 0, 0.3);
-            
-            --separator: #C6C6C8;
-            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            
-            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            --spacing-xs: 4px;
-            --spacing-sm: 8px;
-            --spacing-md: 16px;
-            --spacing-lg: 24px;
-            --spacing-xl: 32px;
-            
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 16px;
-            
-            --duration-normal: 300ms;
-            --easing: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: var(--font-family);
-            background: var(--bg-secondary);
-            color: var(--text-primary);
-            line-height: 1.6;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        /* === 应用布局 === */
-        .app-layout {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* === 导航侧边栏 === */
-        .nav-sidebar {
-            width: 280px;
-            background: var(--bg-primary);
-            border-right: 1px solid var(--separator);
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            transition: transform var(--duration-normal) var(--easing);
-        }
-
-        .nav-header {
-            padding: var(--spacing-lg);
-            border-bottom: 1px solid var(--separator);
-            text-align: center;
-        }
-
-        .nav-logo {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--primary-color);
-            margin-bottom: var(--spacing-sm);
-        }
-
-        .nav-subtitle {
-            font-size: 14px;
-            color: var(--text-secondary);
-        }
-
-        .nav-menu {
-            flex: 1;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            padding: var(--spacing-md) 0;
-        }
-
-        .nav-section {
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .nav-section-title {
-            padding: 0 var(--spacing-lg) var(--spacing-sm);
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--text-tertiary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .nav-item {
-            list-style: none;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            padding: var(--spacing-sm) var(--spacing-lg);
-            color: var(--text-primary);
-            text-decoration: none;
-            transition: all var(--duration-normal);
-            position: relative;
-            min-height: 44px;
-        }
-
-        .nav-link:hover {
-            background: rgba(0, 122, 255, 0.08);
-        }
-
-        .nav-link.active {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        .nav-icon {
-            width: 20px;
-            height: 20px;
-            margin-right: var(--spacing-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-        }
-
-        .nav-text {
-            flex: 1;
-            font-weight: 500;
-        }
-
-        .nav-badge {
-            background: var(--error-color);
-            color: white;
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 10px;
-            min-width: 16px;
-            text-align: center;
-        }
-
-        /* === 主内容区 === */
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-        }
-
-        /* === 顶部栏 === */
-        .top-bar {
-            background: var(--bg-primary);
-            border-bottom: 1px solid var(--separator);
-            padding: var(--spacing-md) var(--spacing-lg);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .page-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .top-actions {
-            display: flex;
-            align-items: center;
-            gap: var(--spacing-md);
-        }
-
-        .search-box {
-            position: relative;
-            width: 300px;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-sm) 36px;
-            border: 1px solid var(--separator);
-            border-radius: var(--radius-sm);
-            font-size: 14px;
-            background: var(--bg-secondary);
-            transition: all var(--duration-normal);
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            background: white;
-        }
-
-        .search-icon {
-            position: absolute;
-            left: var(--spacing-sm);
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-tertiary);
-        }
-
-        .user-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: var(--primary-color);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        /* === 内容滚动区 === */
-        .content-scroll {
-            flex: 1;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            padding: var(--spacing-lg);
-        }
-
-        /* === 主页网格布局 === */
-        .homepage-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: var(--spacing-lg);
-            margin-bottom: var(--spacing-lg);
-        }
-
-        /* === 学习进度卡片 === */
-        .progress-card {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-            color: white;
-            padding: var(--spacing-xl);
-            border-radius: var(--radius-lg);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .progress-card::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -20%;
-            width: 200px;
-            height: 200px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-        }
-
-        .progress-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: var(--spacing-md);
-        }
-
-        .progress-stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--spacing-lg);
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            opacity: 0.8;
-        }
-
-        .progress-bar {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            height: 6px;
-            overflow: hidden;
-            margin-bottom: var(--spacing-sm);
-        }
-
-        .progress-fill {
-            background: white;
-            height: 100%;
-            width: 68%;
-            border-radius: 10px;
-            transition: width var(--duration-normal);
-        }
-
-        .progress-text {
-            font-size: 12px;
-            opacity: 0.9;
-        }
-
-        /* === 快速操作卡片 === */
-        .quick-actions {
-            background: var(--bg-primary);
-            border-radius: var(--radius-lg);
-            padding: var(--spacing-lg);
-            box-shadow: var(--card-shadow);
-        }
-
-        .actions-title {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: var(--spacing-md);
-            color: var(--text-primary);
-        }
-
-        .action-button {
-            display: flex;
-            align-items: center;
-            width: 100%;
-            padding: var(--spacing-md);
-            border: none;
-            background: var(--bg-secondary);
-            border-radius: var(--radius-sm);
-            margin-bottom: var(--spacing-sm);
-            font-size: 14px;
-            text-align: left;
-            cursor: pointer;
-            transition: all var(--duration-normal);
-        }
-
-        .action-button:hover {
-            background: var(--primary-color);
-            color: white;
-            transform: translateY(-2px);
-        }
-
-        .action-icon {
-            margin-right: var(--spacing-md);
-            width: 20px;
-            text-align: center;
-        }
-
-        /* === 特色功能区域 === */
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: var(--spacing-lg);
-            margin-bottom: var(--spacing-lg);
-        }
-
-        .feature-card {
-            background: var(--bg-primary);
-            border-radius: var(--radius-lg);
-            padding: var(--spacing-lg);
-            box-shadow: var(--card-shadow);
-            transition: transform var(--duration-normal);
-        }
-
-        .feature-card:hover {
-            transform: translateY(-4px);
-        }
-
-        .feature-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: var(--spacing-md);
-        }
-
-        .feature-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: var(--radius-sm);
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: var(--spacing-md);
-            font-size: 18px;
-        }
-
-        .feature-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .feature-description {
-            color: var(--text-secondary);
-            font-size: 14px;
-            margin-bottom: var(--spacing-md);
-            line-height: 1.5;
-        }
-
-        .feature-demo {
-            background: var(--bg-secondary);
-            border-radius: var(--radius-sm);
-            padding: var(--spacing-md);
-            font-family: monospace;
-            font-size: 12px;
-            position: relative;
-        }
-
-        /* === 示例文本区域 === */
-        .demo-text {
-            line-height: 1.8;
-            font-size: 16px;
-        }
-
-        .demo-word {
-            cursor: pointer;
-            padding: 2px 4px;
-            border-radius: 4px;
-            transition: all var(--duration-normal);
-            position: relative;
-        }
-
-        .demo-word:hover {
-            background: rgba(0, 122, 255, 0.1);
-            color: var(--primary-color);
-        }
-
-        .demo-word.highlighted {
-            background: var(--primary-color);
-            color: white;
-            animation: pulse 0.5s ease-in-out;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
-        }
-
-        /* === 词汇表弹窗 === */
-        .glossary-popup {
-            position: fixed;
-            background: var(--bg-primary);
-            border: 1px solid var(--separator);
-            border-radius: var(--radius-lg);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
-            max-width: 350px;
-            min-width: 280px;
-            overflow: hidden;
-            transform: scale(0.9) translateY(20px);
-            opacity: 0;
-            transition: all var(--duration-normal) var(--easing);
-            pointer-events: none;
-        }
-
-        .glossary-popup.show {
-            transform: scale(1) translateY(0);
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .glossary-header {
-            background: var(--bg-secondary);
-            padding: var(--spacing-md);
-            border-bottom: 1px solid var(--separator);
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-        }
-
-        .word-info h3 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 4px;
-            color: var(--text-primary);
-        }
-
-        .word-phonetic {
-            font-size: 14px;
-            color: var(--text-secondary);
-            font-style: italic;
-        }
-
-        .close-btn {
-            width: 28px;
-            height: 28px;
-            border: none;
-            background: rgba(0, 0, 0, 0.1);
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            color: var(--text-secondary);
-            transition: all var(--duration-normal);
-        }
-
-        .close-btn:hover {
-            background: var(--error-color);
-            color: white;
-        }
-
-        .glossary-body {
-            padding: var(--spacing-md);
-            max-height: 300px;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .definition-item {
-            margin-bottom: var(--spacing-sm);
-            display: flex;
-            align-items: flex-start;
-        }
-
-        .definition-number {
-            background: var(--primary-color);
-            color: white;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 600;
-            margin-right: var(--spacing-sm);
-            flex-shrink: 0;
-        }
-
-        .definition-text {
-            font-size: 14px;
-            color: var(--text-primary);
-        }
-
-        /* === 移动端适配 === */
-        .nav-toggle {
-            display: none;
-            position: fixed;
-            top: var(--spacing-md);
-            left: var(--spacing-md);
-            width: 44px;
-            height: 44px;
-            background: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: var(--radius-sm);
-            z-index: 1001;
-            cursor: pointer;
-            font-size: 18px;
-            transition: all var(--duration-normal);
-        }
-
-        .nav-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: var(--bg-overlay);
-            z-index: 999;
-            opacity: 0;
-            visibility: hidden;
-            transition: all var(--duration-normal);
-        }
-
-        .nav-overlay.show {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        @media (max-width: 768px) {
-            .app-layout {
-                flex-direction: column;
-            }
-
-            .nav-sidebar {
-                position: fixed;
-                top: 0;
-                left: 0;
-                bottom: 0;
-                width: 280px;
-                z-index: 1000;
-                transform: translateX(-100%);
-            }
-
-            .nav-sidebar.open {
-                transform: translateX(0);
-            }
-
-            .nav-toggle {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .main-content {
-                width: 100%;
-                padding-top: 60px;
-            }
-
-            .top-bar {
-                padding-left: 70px;
-            }
-
-            .search-box {
-                width: 200px;
-            }
-
-            .homepage-grid {
-                grid-template-columns: 1fr;
-                gap: var(--spacing-md);
-            }
-
-            .features-grid {
-                grid-template-columns: 1fr;
-                gap: var(--spacing-md);
-            }
-
-            .content-scroll {
-                padding: var(--spacing-md);
-            }
-
-            .glossary-popup {
-                position: fixed !important;
-                top: 50% !important;
-                left: 50% !important;
-                transform: translate(-50%, -50%) scale(0.9);
-                width: calc(100vw - 32px);
-                max-width: none;
-            }
-
-            .glossary-popup.show {
-                transform: translate(-50%, -50%) scale(1);
-            }
-        }
-
-        /* === iOS安全区域适配 === */
-        @supports (padding: max(0px)) {
-            .nav-sidebar {
-                padding-top: max(0px, env(safe-area-inset-top));
-            }
-
-            .nav-toggle {
-                top: max(16px, calc(env(safe-area-inset-top) + 16px));
-            }
-        }
-
-        /* === 动画效果 === */
-        .fade-in {
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid var(--primary-color);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+    <!-- PWA配置 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2196F3">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    
+    <!-- 样式文件 -->
+    <link rel="stylesheet" href="css/app.css">
+    <link rel="stylesheet" href="css/debug.css">
+    <link rel="stylesheet" href="css/mobile.css">
 </head>
-<body>
-    <!-- 移动端导航切换按钮 -->
-    <button class="nav-toggle" id="nav-toggle">≡</button>
+<body class="debug-mode">
+    <!-- 🔧 调试控制面板 -->
+    <div id="debug-panel" class="debug-panel">
+        <div class="debug-header">
+            <h3>🔧 调试控制台</h3>
+            <button id="toggle-debug" class="debug-toggle">收起</button>
+        </div>
+        
+        <div class="debug-content">
+            <!-- 系统状态 -->
+            <div class="debug-section">
+                <h4>📊 系统状态</h4>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">Foundation Layer:</span>
+                        <span id="foundation-status" class="status-value">加载中...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Core Modules:</span>
+                        <span id="modules-status" class="status-value">加载中...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">数据加载:</span>
+                        <span id="data-status" class="status-value">等待中...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">内存使用:</span>
+                        <span id="memory-status" class="status-value">检测中...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 快速测试 -->
+            <div class="debug-section">
+                <h4>🧪 功能测试</h4>
+                <div class="test-buttons">
+                    <button id="test-navigation" class="test-btn">测试导航</button>
+                    <button id="test-audio" class="test-btn">测试音频</button>
+                    <button id="test-glossary" class="test-btn">测试词汇表</button>
+                    <button id="test-wordfreq" class="test-btn">测试词频</button>
+                </div>
+            </div>
+            
+            <!-- 错误日志 -->
+            <div class="debug-section">
+                <h4>❌ 错误日志</h4>
+                <div id="error-log" class="error-log">
+                    <div class="log-item success">✅ 调试模式已启动</div>
+                </div>
+                <button id="clear-log" class="clear-btn">清空日志</button>
+            </div>
+            
+            <!-- 数据管理 -->
+            <div class="debug-section">
+                <h4>💾 数据管理</h4>
+                <div class="data-buttons">
+                    <button id="load-sample" class="data-btn">加载示例数据</button>
+                    <button id="clear-cache" class="data-btn">清空缓存</button>
+                    <button id="reset-state" class="data-btn">重置状态</button>
+                    <button id="export-logs" class="data-btn">导出日志</button>
+                </div>
+            </div>
+        </div>
+    </div>
     
-    <!-- 导航覆盖层 -->
-    <div class="nav-overlay" id="nav-overlay"></div>
-
-    <div class="app-layout">
-        <!-- 导航侧边栏 -->
-        <nav class="nav-sidebar" id="nav-sidebar">
-            <div class="nav-header">
-                <div class="nav-logo">LearnerEn</div>
-                <div class="nav-subtitle">智能英语学习平台</div>
-            </div>
-
-            <div class="nav-menu">
-                <!-- 学习模块 -->
-                <div class="nav-section">
-                    <div class="nav-section-title">学习</div>
-                    <ul>
-                        <li class="nav-item">
-                            <a href="#dashboard" class="nav-link active" data-page="dashboard">
-                                <div class="nav-icon">🏠</div>
-                                <div class="nav-text">学习概览</div>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#lessons" class="nav-link" data-page="lessons">
-                                <div class="nav-icon">📚</div>
-                                <div class="nav-text">课程学习</div>
-                                <div class="nav-badge">3</div>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#vocabulary" class="nav-link" data-page="vocabulary">
-                                <div class="nav-icon">📖</div>
-                                <div class="nav-text">词汇练习</div>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#audio-sync" class="nav-link" data-page="audio-sync">
-                                <div class="nav-icon">🎵</div>
-                                <div class="nav-text">听力同步</div>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- 分析模块 -->
-                <div class="nav-section">
-                    <div class="nav-section-title">分析</div>
-                    <ul>
-                        <li class="nav-item">
-                            <a href="#progress" class="nav-link" data-page="progress">
-                                <div class="nav-icon">📊</div>
-                                <div class="nav-text">学习进度</div>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#word-frequency" class="nav-link" data-page="word-frequency">
-                                <div class="nav-icon">🧠</div>
-                                <div class="nav-text">词频分析</div>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#personalized" class="nav-link" data-page="personalized">
-                                <div class="nav-icon">🎯</div>
-                                <div class="nav-text">个性化推荐</div>
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-
-                <!-- 工具模块 -->
-                <div class="nav-section">
-                    <div class="nav-section-title">工具</div>
-                    <ul>
-                        <li class="nav-item">
-                            <a href="#bookmarks" class="nav-link" data-page="bookmarks">
-                                <div class="nav-icon">⭐</div>
-                                <div class="nav-text">收藏夹</div>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#settings" class="nav-link" data-page="settings">
-                                <div class="nav-icon">⚙️</div>
-                                <div class="nav-text">设置</div>
-                            </a>
-                        </li>
-                    </ul>
+    <!-- 🔥 主应用区域 -->
+    <div id="app-container" class="app-container">
+        <!-- 导航容器 -->
+        <div id="nav-container" class="nav-container"></div>
+        
+        <!-- 内容区域 -->
+        <div id="content-area" class="content-area">
+            <div class="welcome-screen">
+                <h1>📚 English Learning Platform</h1>
+                <p class="debug-notice">🔧 调试模式已启用</p>
+                <div class="loading-indicator">
+                    <div class="spinner"></div>
+                    <p>正在初始化系统...</p>
                 </div>
             </div>
-        </nav>
-
-        <!-- 主内容区 -->
-        <main class="main-content">
-            <!-- 顶部栏 -->
-            <header class="top-bar">
-                <h1 class="page-title" id="page-title">学习概览</h1>
-                <div class="top-actions">
-                    <div class="search-box">
-                        <input type="text" class="search-input" placeholder="搜索词汇、课程..." id="global-search">
-                        <div class="search-icon">🔍</div>
-                    </div>
-                    <div class="user-avatar">A</div>
-                </div>
-            </header>
-
-            <!-- 内容滚动区 -->
-            <div class="content-scroll" id="content-area">
-                <!-- 主页内容 -->
-                <div class="page-content fade-in" id="dashboard-content">
-                    <!-- 学习进度和快速操作 -->
-                    <div class="homepage-grid">
-                        <!-- 学习进度卡片 -->
-                        <div class="progress-card">
-                            <h2 class="progress-title">今日学习进度</h2>
-                            <div class="progress-stats">
-                                <div class="stat-item">
-                                    <div class="stat-value" id="words-learned">24</div>
-                                    <div class="stat-label">词汇掌握</div>
-                                </div>
-                                <div class="stat-item">
-                                    <div class="stat-value" id="study-time">45</div>
-                                    <div class="stat-label">学习分钟</div>
-                                </div>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="daily-progress"></div>
-                            </div>
-                            <div class="progress-text">已完成今日目标的 68%</div>
-                        </div>
-
-                        <!-- 快速操作 -->
-                        <div class="quick-actions">
-                            <h3 class="actions-title">快速开始</h3>
-                            <button class="action-button" data-action="continue-lesson">
-                                <div class="action-icon">▶️</div>
-                                继续上次课程
-                            </button>
-                            <button class="action-button" data-action="vocabulary-practice">
-                                <div class="action-icon">📝</div>
-                                词汇练习
-                            </button>
-                            <button class="action-button" data-action="listening-practice">
-                                <div class="action-icon">🎧</div>
-                                听力练习
-                            </button>
-                            <button class="action-button" data-action="review-mistakes">
-                                <div class="action-icon">🔄</div>
-                                复习错题
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 核心功能演示 -->
-                    <div class="features-grid">
-                        <!-- 智能词汇表演示 -->
-                        <div class="feature-card" id="glossary-demo">
-                            <div class="feature-header">
-                                <div class="feature-icon">📖</div>
-                                <div class="feature-title">智能词汇表</div>
-                            </div>
-                            <div class="feature-description">
-                                点击文本中的任意单词，即可查看详细释义、音标和例句。支持触摸优化和个性化推荐。
-                            </div>
-                            <div class="feature-demo">
-                                <div class="demo-text">
-                                    <span class="demo-word" data-word="technology">Technology</span> has 
-                                    <span class="demo-word" data-word="revolutionized">revolutionized</span> the way we 
-                                    <span class="demo-word" data-word="learn">learn</span> and 
-                                    <span class="demo-word" data-word="communicate">communicate</span>.
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 音频同步演示 -->
-                        <div class="feature-card" id="audio-demo">
-                            <div class="feature-header">
-                                <div class="feature-icon">🎵</div>
-                                <div class="feature-title">音频字幕同步</div>
-                            </div>
-                            <div class="feature-description">
-                                SRT字幕与音频完美同步，实时高亮当前播放内容，支持智能滚动和播放控制。
-                            </div>
-                            <div class="feature-demo">
-                                <audio controls style="width: 100%; margin-bottom: 8px;" id="demo-audio">
-                                    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhDTGH1O/ITSELLIzX8N15HwwYfM709YlrQwIR" type="audio/wav">
-                                </audio>
-                                <div class="demo-text" id="audio-text">
-                                    <span class="demo-word">Welcome</span> to our 
-                                    <span class="demo-word">English</span> learning 
-                                    <span class="demo-word">platform</span>.
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 词频分析演示 -->
-                        <div class="feature-card" id="wordfreq-demo">
-                            <div class="feature-header">
-                                <div class="feature-icon">🧠</div>
-                                <div class="feature-title">AI词频分析</div>
-                            </div>
-                            <div class="feature-description">
-                                智能分析文章难度，提供个性化学习建议，实时跟踪学习进度和词汇掌握情况。
-                            </div>
-                            <div class="feature-demo">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                    <span>文章难度:</span>
-                                    <span style="color: var(--primary-color);">⭐⭐⭐ 中等</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                    <span>词汇覆盖:</span>
-                                    <span style="color: var(--success-color);">85%</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between;">
-                                    <span>推荐学习:</span>
-                                    <span style="color: var(--warning-color);">15分钟</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 性能监控演示 -->
-                        <div class="feature-card" id="performance-demo">
-                            <div class="feature-header">
-                                <div class="feature-icon">⚡</div>
-                                <div class="feature-title">性能监控</div>
-                            </div>
-                            <div class="feature-description">
-                                实时监控应用性能，确保流畅的学习体验。包括帧率、内存使用和网络状态监控。
-                            </div>
-                            <div class="feature-demo">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                    <span>帧率:</span>
-                                    <span style="color: var(--success-color);" id="fps-display">60 fps</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                    <span>内存:</span>
-                                    <span style="color: var(--primary-color);" id="memory-display">24 MB</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between;">
-                                    <span>网络:</span>
-                                    <span style="color: var(--success-color);" id="network-display">在线</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- 词汇表弹窗 -->
-    <div class="glossary-popup" id="glossary-popup">
-        <div class="glossary-header">
-            <div class="word-info">
-                <h3 id="popup-word">Word</h3>
-                <div class="word-phonetic" id="popup-phonetic">/wɜːrd/</div>
-            </div>
-            <button class="close-btn" id="close-glossary">×</button>
         </div>
-        <div class="glossary-body" id="popup-definitions">
-            <div class="definition-item">
-                <div class="definition-number">1</div>
-                <div class="definition-text">Loading definition...</div>
+        
+        <!-- 音频播放器 -->
+        <div id="audio-container" class="audio-container">
+            <audio id="audio-player" controls preload="none">
+                您的浏览器不支持音频播放。
+            </audio>
+            <div class="audio-info">
+                <span id="audio-title">无音频文件</span>
+                <span id="audio-time">00:00 / 00:00</span>
             </div>
         </div>
     </div>
-
+    
+    <!-- 🚨 错误提示覆盖层 -->
+    <div id="error-overlay" class="error-overlay hidden">
+        <div class="error-content">
+            <h3>⚠️ 系统错误</h3>
+            <p id="error-message">发生了未知错误</p>
+            <div class="error-actions">
+                <button id="retry-btn" class="error-btn primary">重试</button>
+                <button id="reset-btn" class="error-btn">重置应用</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 🔄 加载覆盖层 -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h3>正在启动应用...</h3>
+            <p id="loading-message">初始化Foundation Layer...</p>
+            <div class="loading-progress">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <span id="progress-text">0%</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 📱 iOS Safari 调试助手 -->
+    <div id="ios-debug" class="ios-debug hidden">
+        <h4>📱 iOS Safari 信息</h4>
+        <div class="ios-info">
+            <div class="info-item">
+                <span>User Agent:</span>
+                <span id="user-agent"></span>
+            </div>
+            <div class="info-item">
+                <span>视口大小:</span>
+                <span id="viewport-size"></span>
+            </div>
+            <div class="info-item">
+                <span>像素比:</span>
+                <span id="pixel-ratio"></span>
+            </div>
+            <div class="info-item">
+                <span>音频支持:</span>
+                <span id="audio-support"></span>
+            </div>
+            <div class="info-item">
+                <span>存储支持:</span>
+                <span id="storage-support"></span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript 模块加载 -->
+    <!-- Foundation Layer - 基础设施层 -->
+    <script src="js/foundation/state-manager.js"></script>
+    <script src="js/foundation/event-hub.js"></script>
+    <script src="js/foundation/cache-manager.js"></script>
+    <script src="js/foundation/error-boundary.js"></script>
+    
+    <!-- Core Modules Layer - 核心模块层 -->
+    <script src="js/modules/navigation-core.js"></script>
+    <script src="js/modules/audio-sync-core.js"></script>
+    <script src="js/modules/glossary-core.js"></script>
+    <script src="js/modules/word-frequency-core.js"></script>
+    <script src="js/modules/app-controller.js"></script>
+    
+    <!-- 调试工具和数据 -->
+    <script src="js/debug-tools.js"></script>
+    <script src="js/sample-data.js"></script>
+    
+    <!-- 应用初始化 -->
     <script>
-        /**
-         * LearnerEn主页演示类
-         * 展示各个模块的集成使用方法
-         */
-        class LearnerEnHomepage {
-            constructor() {
-                this.isNavOpen = false;
-                this.currentPage = 'dashboard';
-                this.glossaryVisible = false;
-                this.performanceMonitor = null;
-                
-                // 模拟词汇数据
-                this.vocabularyData = {
-                    technology: {
-                        phonetic: "/tekˈnɒlədʒi/",
-                        definitions: [
-                            "The application of scientific knowledge for practical purposes",
-                            "Advanced electronic and digital equipment"
-                        ]
-                    },
-                    revolutionized: {
-                        phonetic: "/ˌrevəˈluːʃənaɪzd/",
-                        definitions: [
-                            "Changed something completely and fundamentally",
-                            "Transformed dramatically"
-                        ]
-                    },
-                    learn: {
-                        phonetic: "/lɜːrn/",
-                        definitions: [
-                            "Acquire knowledge or skills through study or experience",
-                            "Become aware of something through information or observation"
-                        ]
-                    },
-                    communicate: {
-                        phonetic: "/kəˈmjuːnɪkeɪt/",
-                        definitions: [
-                            "Share or exchange information, ideas, or feelings",
-                            "Convey or express thoughts effectively"
-                        ]
-                    },
-                    welcome: {
-                        phonetic: "/ˈwelkəm/",
-                        definitions: [
-                            "Greet someone in a friendly way",
-                            "Receive gladly"
-                        ]
-                    },
-                    english: {
-                        phonetic: "/ˈɪŋɡlɪʃ/",
-                        definitions: [
-                            "The language of England and many other countries",
-                            "Relating to England or its people"
-                        ]
-                    },
-                    platform: {
-                        phonetic: "/ˈplætfɔːrm/",
-                        definitions: [
-                            "A digital service or technology framework",
-                            "A raised surface or stage"
-                        ]
-                    }
-                };
-                
-                this.init();
+        // 🚀 调试模式应用初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查所有模块是否加载完成
+            const requiredModules = [
+                'StateManager', 'EventHub', 'CacheManager', 'ErrorBoundary',
+                'NavigationCore', 'AudioSyncCore', 'GlossaryCore', 
+                'WordFrequencyCore', 'AppController'
+            ];
+            
+            const missingModules = requiredModules.filter(module => 
+                !window.EnglishSite || !window.EnglishSite[module]
+            );
+            
+            if (missingModules.length > 0) {
+                console.error('❌ 缺少模块:', missingModules);
+                document.getElementById('loading-message').textContent = 
+                    '❌ 模块加载失败: ' + missingModules.join(', ');
+                return;
             }
-
-            init() {
-                this.bindEvents();
-                this.setupDemoFeatures();
-                this.startPerformanceMonitoring();
-                this.setupMobileOptimizations();
-                
-                console.log('🚀 LearnerEn主页已初始化');
-                console.log('📋 使用说明:');
-                console.log('1. 点击左侧导航切换页面');
-                console.log('2. 点击词汇查看弹窗效果');
-                console.log('3. 播放音频查看同步效果');
-                console.log('4. 观察右下角性能监控');
+            
+            // 初始化调试工具
+            if (window.DebugTools) {
+                window.debugTools = new DebugTools();
+                window.debugTools.init();
             }
-
-            bindEvents() {
-                // 导航切换
-                const navToggle = document.getElementById('nav-toggle');
-                const navOverlay = document.getElementById('nav-overlay');
-                
-                navToggle?.addEventListener('click', () => this.toggleNavigation());
-                navOverlay?.addEventListener('click', () => this.closeNavigation());
-
-                // 导航链接
-                document.querySelectorAll('.nav-link').forEach(link => {
-                    link.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        const page = link.getAttribute('data-page');
-                        this.navigateToPage(page, link);
-                    });
-                });
-
-                // 快速操作按钮
-                document.querySelectorAll('.action-button').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const action = button.getAttribute('data-action');
-                        this.handleQuickAction(action, button);
-                    });
-                });
-
-                // 词汇表演示
-                document.querySelectorAll('.demo-word').forEach(word => {
-                    word.addEventListener('click', (e) => {
-                        const wordText = word.getAttribute('data-word');
-                        this.showGlossary(wordText, word);
-                    });
-                });
-
-                // 关闭词汇表
-                const closeBtn = document.getElementById('close-glossary');
-                closeBtn?.addEventListener('click', () => this.hideGlossary());
-
-                // 全局搜索
-                const searchInput = document.getElementById('global-search');
-                searchInput?.addEventListener('input', (e) => {
-                    this.handleGlobalSearch(e.target.value);
-                });
-
-                // 音频播放演示
-                const demoAudio = document.getElementById('demo-audio');
-                demoAudio?.addEventListener('play', () => this.startAudioSync());
-                demoAudio?.addEventListener('pause', () => this.stopAudioSync());
-
-                // 点击外部关闭词汇表
-                document.addEventListener('click', (e) => {
-                    if (this.glossaryVisible && !e.target.closest('.glossary-popup') && !e.target.closest('.demo-word')) {
-                        this.hideGlossary();
-                    }
-                });
-            }
-
-            // === 导航系统演示 (NavigationCore使用) ===
-            toggleNavigation() {
-                const sidebar = document.getElementById('nav-sidebar');
-                const overlay = document.getElementById('nav-overlay');
-                const toggle = document.getElementById('nav-toggle');
-
-                this.isNavOpen = !this.isNavOpen;
-
-                if (this.isNavOpen) {
-                    sidebar?.classList.add('open');
-                    overlay?.classList.add('show');
-                    if (toggle) toggle.innerHTML = '×';
-                } else {
-                    sidebar?.classList.remove('open');
-                    overlay?.classList.remove('show');
-                    if (toggle) toggle.innerHTML = '≡';
-                }
-
-                // 模拟StateManager状态更新
-                console.log('📡 StateManager.setState("navigation.isOpen", ' + this.isNavOpen + ')');
-                
-                // 模拟EventHub事件发送
-                console.log('🚌 EventHub.emit("navigation:' + (this.isNavOpen ? 'opened' : 'closed') + '")');
-            }
-
-            closeNavigation() {
-                if (this.isNavOpen) {
-                    this.toggleNavigation();
-                }
-            }
-
-            navigateToPage(page, linkElement) {
-                // 更新导航状态
-                document.querySelectorAll('.nav-link').forEach(link => {
-                    link.classList.remove('active');
-                });
-                linkElement.classList.add('active');
-
-                // 更新页面标题
-                const pageTitle = document.getElementById('page-title');
-                const titles = {
-                    dashboard: '学习概览',
-                    lessons: '课程学习',
-                    vocabulary: '词汇练习',
-                    'audio-sync': '听力同步',
-                    progress: '学习进度',
-                    'word-frequency': '词频分析',
-                    personalized: '个性化推荐',
-                    bookmarks: '收藏夹',
-                    settings: '设置'
-                };
-                
-                if (pageTitle) {
-                    pageTitle.textContent = titles[page] || '学习概览';
-                }
-
-                this.currentPage = page;
-
-                // 移动端自动关闭导航
-                if (window.innerWidth <= 768) {
-                    this.closeNavigation();
-                }
-
-                // 模拟页面切换逻辑
-                console.log('🧭 NavigationCore.navigateTo("' + page + '")');
-                console.log('📡 StateManager.setState("app.currentPage", "' + page + '")');
-                console.log('🚌 EventHub.emit("page:changed", {page: "' + page + '"})');
-            }
-
-            // === 词汇表系统演示 (GlossaryCore使用) ===
-            showGlossary(word, triggerElement) {
-                const popup = document.getElementById('glossary-popup');
-                const wordElement = document.getElementById('popup-word');
-                const phoneticElement = document.getElementById('popup-phonetic');
-                const definitionsElement = document.getElementById('popup-definitions');
-
-                // 获取词汇数据
-                const wordData = this.vocabularyData[word.toLowerCase()];
-                
-                if (!wordData) {
-                    console.warn('❌ 词汇数据未找到:', word);
-                    return;
-                }
-
-                // 更新内容
-                if (wordElement) wordElement.textContent = word;
-                if (phoneticElement) phoneticElement.textContent = wordData.phonetic;
-                
-                // 生成定义列表
-                if (definitionsElement) {
-                    definitionsElement.innerHTML = wordData.definitions.map((def, index) => `
-                        <div class="definition-item">
-                            <div class="definition-number">${index + 1}</div>
-                            <div class="definition-text">${def}</div>
-                        </div>
-                    `).join('');
-                }
-
-                // 计算位置
-                this.positionGlossary(popup, triggerElement);
-
-                // 显示弹窗
-                setTimeout(() => {
-                    popup?.classList.add('show');
-                }, 10);
-
-                this.glossaryVisible = true;
-
-                // 模拟GlossaryCore的API调用
-                console.log('📖 GlossaryCore.show("' + word + '", triggerElement)');
-                console.log('📡 StateManager.setState("glossary.currentWord", "' + word + '")');
-                console.log('🚌 EventHub.emit("glossary:shown", {word: "' + word + '"})');
-            }
-
-            hideGlossary() {
-                const popup = document.getElementById('glossary-popup');
-                popup?.classList.remove('show');
-                this.glossaryVisible = false;
-
-                console.log('📖 GlossaryCore.hide()');
-                console.log('🚌 EventHub.emit("glossary:hidden")');
-            }
-
-            positionGlossary(popup, triggerElement) {
-                if (!popup || !triggerElement) return;
-
-                const rect = triggerElement.getBoundingClientRect();
-                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-
-                if (window.innerWidth <= 768) {
-                    // 移动端居中
-                    popup.style.position = 'fixed';
-                    popup.style.top = '50%';
-                    popup.style.left = '50%';
-                    popup.style.transform = 'translate(-50%, -50%) scale(0.9)';
-                } else {
-                    // 桌面端智能定位
-                    let top = rect.bottom + scrollTop + 10;
-                    let left = rect.left + scrollLeft;
-
-                    // 边界检查
-                    if (left + 350 > window.innerWidth) {
-                        left = window.innerWidth - 360;
-                    }
-                    if (top + 300 > window.innerHeight + scrollTop) {
-                        top = rect.top + scrollTop - 310;
-                    }
-
-                    popup.style.position = 'absolute';
-                    popup.style.top = top + 'px';
-                    popup.style.left = left + 'px';
-                    popup.style.transform = 'scale(0.9)';
-                }
-            }
-
-            // === 音频同步演示 (AudioSyncCore使用) ===
-            startAudioSync() {
-                const audioText = document.getElementById('audio-text');
-                const words = audioText?.querySelectorAll('.demo-word');
-                
-                if (!words || words.length === 0) return;
-
-                let currentIndex = 0;
-                
-                const highlightNext = () => {
-                    // 清除之前的高亮
-                    words.forEach(word => word.classList.remove('highlighted'));
-                    
-                    // 高亮当前词汇
-                    if (currentIndex < words.length) {
-                        words[currentIndex].classList.add('highlighted');
-                        currentIndex++;
-                        
-                        // 继续下一个词汇
-                        const audio = document.getElementById('demo-audio');
-                        if (audio && !audio.paused) {
-                            setTimeout(highlightNext, 1000);
+            
+            // 启动应用
+            try {
+                window.app = new AppController({
+                    name: 'EnglishLearningPlatform',
+                    debug: true,
+                    autoStart: true,
+                    modules: {
+                        navigation: {
+                            container: 'nav-container',
+                            data: window.SampleData ? window.SampleData.navigation : null
+                        },
+                        audioSync: {
+                            contentArea: 'content-area',
+                            audioPlayer: 'audio-player'
+                        },
+                        glossary: {
+                            container: 'content-area',
+                            data: window.SampleData ? window.SampleData.glossary : null
+                        },
+                        wordFrequency: {
+                            enablePersonalization: true,
+                            enableRealTimeAnalysis: true
                         }
                     }
-                };
-
-                highlightNext();
-
-                console.log('🎵 AudioSyncCore.play()');
-                console.log('📡 StateManager.setState("audio.isPlaying", true)');
-                console.log('🚌 EventHub.emit("audio:play")');
-            }
-
-            stopAudioSync() {
-                const words = document.querySelectorAll('#audio-text .demo-word');
-                words.forEach(word => word.classList.remove('highlighted'));
-
-                console.log('🎵 AudioSyncCore.pause()');
-                console.log('📡 StateManager.setState("audio.isPlaying", false)');
-                console.log('🚌 EventHub.emit("audio:pause")');
-            }
-
-            // === 快速操作处理 ===
-            handleQuickAction(action, button) {
-                // 添加点击效果
-                button.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    button.style.transform = '';
-                }, 150);
-
-                const actions = {
-                    'continue-lesson': () => {
-                        console.log('🚀 继续课程学习');
-                        this.simulatePageTransition('lessons');
-                    },
-                    'vocabulary-practice': () => {
-                        console.log('📝 开始词汇练习');
-                        this.simulatePageTransition('vocabulary');
-                    },
-                    'listening-practice': () => {
-                        console.log('🎧 开始听力练习');
-                        this.simulatePageTransition('audio-sync');
-                    },
-                    'review-mistakes': () => {
-                        console.log('🔄 复习错题');
-                        this.simulateProgress();
-                    }
-                };
-
-                const actionFn = actions[action];
-                if (actionFn) {
-                    actionFn();
-                } else {
-                    console.log('🎯 执行操作:', action);
-                }
-            }
-
-            simulatePageTransition(page) {
-                const link = document.querySelector(`[data-page="${page}"]`);
-                if (link) {
-                    this.navigateToPage(page, link);
-                }
-            }
-
-            simulateProgress() {
-                const progressFill = document.getElementById('daily-progress');
-                const wordsLearned = document.getElementById('words-learned');
-                const studyTime = document.getElementById('study-time');
-
-                if (progressFill) {
-                    const currentWidth = parseInt(progressFill.style.width || '68');
-                    const newWidth = Math.min(100, currentWidth + 5);
-                    progressFill.style.width = newWidth + '%';
-                }
-
-                if (wordsLearned) {
-                    const current = parseInt(wordsLearned.textContent);
-                    wordsLearned.textContent = current + 1;
-                }
-
-                if (studyTime) {
-                    const current = parseInt(studyTime.textContent);
-                    studyTime.textContent = current + 2;
-                }
-
-                console.log('📊 WordFrequencyCore.updateProgress()');
-                console.log('📡 StateManager.setState("progress.dailyWords", ' + (parseInt(wordsLearned?.textContent) || 0) + ')');
-            }
-
-            // === 全局搜索演示 ===
-            handleGlobalSearch(query) {
-                if (query.length < 2) return;
-
-                console.log('🔍 全局搜索:', query);
-                console.log('📖 GlossaryCore.search("' + query + '")');
-                console.log('🧭 NavigationCore.search("' + query + '")');
-                console.log('🧠 WordFrequencyCore.searchWords("' + query + '")');
+                });
                 
-                // 模拟搜索结果
+                console.log('✅ 应用启动成功');
+                
+                // 隐藏加载覆盖层
                 setTimeout(() => {
-                    console.log('✅ 搜索完成，找到相关结果');
-                }, 300);
-            }
-
-            // === 性能监控演示 (PerformanceUtils使用) ===
-            startPerformanceMonitoring() {
-                const fpsDisplay = document.getElementById('fps-display');
-                const memoryDisplay = document.getElementById('memory-display');
-                const networkDisplay = document.getElementById('network-display');
-
-                let frameCount = 0;
-                let lastTime = performance.now();
-                let fps = 60;
-
-                const updatePerformance = (currentTime) => {
-                    frameCount++;
-                    
-                    if (currentTime - lastTime >= 1000) {
-                        fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
-                        frameCount = 0;
-                        lastTime = currentTime;
-                        
-                        // 更新显示
-                        if (fpsDisplay) {
-                            fpsDisplay.textContent = fps + ' fps';
-                            fpsDisplay.style.color = fps >= 50 ? 'var(--success-color)' : 
-                                                   fps >= 30 ? 'var(--warning-color)' : 'var(--error-color)';
-                        }
-                    }
-                    
-                    requestAnimationFrame(updatePerformance);
-                };
-
-                // 模拟内存使用
-                setInterval(() => {
-                    const memory = performance.memory ? 
-                        Math.round(performance.memory.usedJSHeapSize / 1024 / 1024) :
-                        Math.round(20 + Math.random() * 10);
-                    
-                    if (memoryDisplay) {
-                        memoryDisplay.textContent = memory + ' MB';
-                        memoryDisplay.style.color = memory < 50 ? 'var(--success-color)' : 
-                                                   memory < 100 ? 'var(--warning-color)' : 'var(--error-color)';
-                    }
+                    document.getElementById('loading-overlay').style.display = 'none';
                 }, 2000);
-
-                // 网络状态
-                const updateNetworkStatus = () => {
-                    const isOnline = navigator.onLine;
-                    if (networkDisplay) {
-                        networkDisplay.textContent = isOnline ? '在线' : '离线';
-                        networkDisplay.style.color = isOnline ? 'var(--success-color)' : 'var(--error-color)';
-                    }
-                };
-
-                window.addEventListener('online', updateNetworkStatus);
-                window.addEventListener('offline', updateNetworkStatus);
-                updateNetworkStatus();
-
-                requestAnimationFrame(updatePerformance);
-
-                console.log('⚡ PerformanceUtils.startMonitoring()');
+                
+            } catch (error) {
+                console.error('❌ 应用启动失败:', error);
+                document.getElementById('loading-message').textContent = 
+                    '❌ 应用启动失败: ' + error.message;
             }
-
-            // === 移动端优化 (MobileUtils使用) ===
-            setupMobileOptimizations() {
-                // iOS视口修复
-                const setVH = () => {
-                    const vh = window.innerHeight * 0.01;
-                    document.documentElement.style.setProperty('--vh', vh + 'px');
-                };
-
-                setVH();
-                window.addEventListener('resize', setVH);
-                window.addEventListener('orientationchange', setVH);
-
-                // 触摸反馈
-                document.addEventListener('touchstart', (e) => {
-                    if (e.target.closest('.action-button, .demo-word, .nav-link')) {
-                        e.target.style.opacity = '0.7';
-                    }
-                }, {passive: true});
-
-                document.addEventListener('touchend', (e) => {
-                    if (e.target.closest('.action-button, .demo-word, .nav-link')) {
-                        setTimeout(() => {
-                            e.target.style.opacity = '1';
-                        }, 150);
-                    }
-                }, {passive: true});
-
-                // 防止iOS双击缩放
-                let lastTouchEnd = 0;
-                document.addEventListener('touchend', function (event) {
-                    const now = (new Date()).getTime();
-                    if (now - lastTouchEnd <= 300) {
-                        event.preventDefault();
-                    }
-                    lastTouchEnd = now;
-                }, false);
-
-                console.log('📱 MobileUtils.setupOptimizations()');
-            }
-        }
-
-        // 初始化应用
-        document.addEventListener('DOMContentLoaded', () => {
-            new LearnerEnHomepage();
         });
-
-        // 模拟模块系统的全局初始化
-        console.log('🔧 模块系统初始化演示:');
-        console.log('1️⃣ Foundation Layer: StateManager, EventHub, CacheManager, ErrorBoundary');
-        console.log('2️⃣ Core Modules: NavigationCore, GlossaryCore, AudioSyncCore, WordFrequencyCore');
-        console.log('3️⃣ Utils Layer: MobileUtils, PerformanceUtils, DOMUtils, CompatibilityUtils');
-        console.log('4️⃣ Application Layer: AppController 统一管理');
+        
+        // iOS Safari 调试信息
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            document.getElementById('ios-debug').classList.remove('hidden');
+            document.getElementById('user-agent').textContent = navigator.userAgent;
+            document.getElementById('viewport-size').textContent = 
+                window.innerWidth + 'x' + window.innerHeight;
+            document.getElementById('pixel-ratio').textContent = window.devicePixelRatio;
+        }
     </script>
 </body>
 </html>
