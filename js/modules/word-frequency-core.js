@@ -4,6 +4,76 @@
 (function(global) {
     'use strict';
 
+    // 🔧 环境检测和生产环境优化
+    var IS_PRODUCTION = typeof window !== 'undefined' && 
+        (window.location.hostname !== 'localhost' && 
+         window.location.hostname !== '127.0.0.1' &&
+         window.location.hostname !== '' &&
+         !window.location.hostname.startsWith('192.168.') &&
+         !window.location.hostname.startsWith('10.') &&
+         !window.location.hostname.startsWith('172.'));
+
+    var DEBUG_LOG = IS_PRODUCTION ? function(){} : console.log;
+    var DEBUG_WARN = IS_PRODUCTION ? function(){} : console.warn;
+    var DEBUG_ERROR = IS_PRODUCTION ? function(){} : console.error;
+
+    // 🔧 安全工具函数
+    function safeJSONParse(str, fallback) {
+        if (!str || typeof str !== 'string') {
+            return fallback || {};
+        }
+        try {
+            var result = JSON.parse(str);
+            return result !== null ? result : (fallback || {});
+        } catch (error) {
+            DEBUG_WARN('[WordFrequencyCore] JSON解析失败:', error.message);
+            return fallback || {};
+        }
+    }
+
+    function safeJSONStringify(obj, fallback) {
+        if (obj === null || obj === undefined) {
+            return fallback || '{}';
+        }
+        try {
+            return JSON.stringify(obj);
+        } catch (error) {
+            DEBUG_WARN('[WordFrequencyCore] JSON序列化失败:', error.message);
+            return fallback || '{}';
+        }
+    }
+
+    function createSafeTimeout(callback, delay, context) {
+        var timeoutId;
+        var executed = false;
+        
+        var safeCallback = function() {
+            if (executed) return;
+            executed = true;
+            
+            try {
+                if (typeof callback === 'function') {
+                    callback.call(context);
+                }
+            } catch (error) {
+                DEBUG_ERROR('[WordFrequencyCore] 定时器回调错误:', error);
+            }
+        };
+        
+        timeoutId = setTimeout(safeCallback, delay);
+        
+        return {
+            clear: function() {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                    executed = true;
+                }
+            },
+            execute: safeCallback
+        };
+    }
+
     /**
      * 🎯 WordFrequencyCore - 智能词频分析核心
      * 功能：智能词干提取、个性化难度计算、实时学习分析、预测性推荐
@@ -17,11 +87,11 @@
             enablePersonalization: options.enablePersonalization !== false,
             enableRealTimeAnalysis: options.enableRealTimeAnalysis !== false,
             enablePredictiveAnalysis: options.enablePredictiveAnalysis !== false,
-            cacheTimeout: options.cacheTimeout || 24 * 60 * 60 * 1000, // 24小时
-            maxCacheSize: options.maxCacheSize || 1000,
-            analysisInterval: options.analysisInterval || 5000, // 5秒
-            difficultyLevels: options.difficultyLevels || 5,
-            personalizationWeight: options.personalizationWeight || 0.3,
+            cacheTimeout: Math.max(600000, options.cacheTimeout || 24 * 60 * 60 * 1000), // 最少10分钟
+            maxCacheSize: Math.max(100, Math.min(5000, options.maxCacheSize || 1000)), // 限制范围
+            analysisInterval: Math.max(1000, options.analysisInterval || 5000), // 最少1秒
+            difficultyLevels: Math.max(3, Math.min(10, options.difficultyLevels || 5)),
+            personalizationWeight: Math.max(0.1, Math.min(1.0, options.personalizationWeight || 0.3)),
             cacheKey: 'word_frequency_analysis'
         };
         
@@ -65,9 +135,10 @@
             sessionHistory: []
         };
         
-        // 定时器
+        // 🔧 定时器和清理管理
         var analysisTimer = null;
         var realTimeTimer = null;
+        var isDestroyed = false;
         
         // 依赖注入
         var stateManager = null;
@@ -79,6 +150,11 @@
         
         // 🎯 初始化
         function initialize() {
+            if (isDestroyed) {
+                DEBUG_ERROR('[WordFrequencyCore] 尝试初始化已销毁的实例');
+                return;
+            }
+            
             try {
                 // 注入依赖
                 injectDependencies();
@@ -97,7 +173,7 @@
                     setupRealTimeAnalysis();
                 }
                 
-                console.log('[WordFrequencyCore] 智能词频分析系统初始化成功');
+                DEBUG_LOG('[WordFrequencyCore] 智能词频分析系统初始化成功');
                 
                 // 触发初始化完成事件
                 if (eventHub) {
@@ -120,17 +196,22 @@
          * @param {Array} articles - 文章列表
          */
         this.analyzeArticles = function(articles) {
+            if (isDestroyed) {
+                DEBUG_WARN('[WordFrequencyCore] 实例已销毁，无法分析文章');
+                return false;
+            }
+            
             try {
                 if (!Array.isArray(articles) || articles.length === 0) {
                     throw new Error('无效的文章列表');
                 }
                 
                 analysisState.isAnalyzing = true;
-                analysisState.totalArticles = articles.length;
+                analysisState.totalArticles = Math.min(articles.length, 1000); // 限制处理数量
                 analysisState.processedArticles = 0;
                 
                 // 异步处理文章
-                processArticlesSequentially(articles);
+                processArticlesSequentially(articles.slice(0, 1000));
                 
                 return true;
             } catch (error) {
@@ -145,17 +226,21 @@
          * @param {Object} options - 搜索选项
          */
         this.searchWords = function(query, options) {
+            if (isDestroyed) {
+                return [];
+            }
+            
             try {
                 options = options || {};
                 
-                if (!query || typeof query !== 'string') {
+                if (!query || typeof query !== 'string' || query.trim().length === 0) {
                     return [];
                 }
                 
-                var searchResults = frequencyAnalyzer.performSmartSearch(query, options);
+                var searchResults = frequencyAnalyzer.performSmartSearch(query.trim(), options);
                 
                 // 个性化排序
-                if (config.enablePersonalization) {
+                if (config.enablePersonalization && searchResults.length > 0) {
                     searchResults = personalizedEngine.personalizeResults(searchResults, userProfile);
                 }
                 
@@ -180,14 +265,18 @@
          * @param {string} articleId - 文章ID
          */
         this.calculatePersonalizedDifficulty = function(articleId) {
+            if (isDestroyed) {
+                return { stars: 3, label: '⭐⭐⭐ 中等' };
+            }
+            
             try {
                 var baseDifficulty = frequencyAnalyzer.calculateBaseDifficulty(articleId);
                 
-                if (config.enablePersonalization) {
+                if (config.enablePersonalization && baseDifficulty) {
                     return personalizedEngine.adjustDifficultyForUser(baseDifficulty, userProfile);
                 }
                 
-                return baseDifficulty;
+                return baseDifficulty || { stars: 3, label: '⭐⭐⭐ 中等' };
             } catch (error) {
                 handleError('calculatePersonalizedDifficulty', error);
                 return { stars: 3, label: '⭐⭐⭐ 中等' };
@@ -199,12 +288,24 @@
          * @param {string} word - 目标词汇
          */
         this.getPersonalizedRecommendations = function(word) {
+            if (isDestroyed) {
+                return null;
+            }
+            
             try {
+                if (!word || typeof word !== 'string') {
+                    return null;
+                }
+                
                 if (!config.enablePersonalization) {
                     return this.getBasicWordInfo(word);
                 }
                 
                 var basicInfo = this.getBasicWordInfo(word);
+                if (!basicInfo) {
+                    return null;
+                }
+                
                 var personalizedInfo = personalizedEngine.generatePersonalizedInsights(word, userProfile);
                 
                 return Object.assign({}, basicInfo, personalizedInfo);
@@ -218,6 +319,10 @@
          * 开始实时学习会话
          */
         this.startLearningSession = function() {
+            if (isDestroyed) {
+                return false;
+            }
+            
             try {
                 realTimeData.currentSession = {
                     startTime: Date.now(),
@@ -249,9 +354,13 @@
          * 结束学习会话
          */
         this.endLearningSession = function() {
+            if (isDestroyed) {
+                return null;
+            }
+            
             try {
                 if (realTimeTimer) {
-                    clearInterval(realTimeTimer);
+                    realTimeTimer.clear();
                     realTimeTimer = null;
                 }
                 
@@ -292,7 +401,15 @@
          * @param {Object} context - 查找上下文
          */
         this.recordWordLookup = function(word, context) {
+            if (isDestroyed) {
+                return null;
+            }
+            
             try {
+                if (!word || typeof word !== 'string') {
+                    return null;
+                }
+                
                 context = context || {};
                 
                 // 更新实时会话数据
@@ -324,6 +441,10 @@
          * 获取学习进度分析
          */
         this.getLearningProgress = function() {
+            if (isDestroyed) {
+                return null;
+            }
+            
             try {
                 var progress = {
                     overall: calculateOverallProgress(),
@@ -415,6 +536,10 @@
                 stemCache: {},
                 
                 getStem: function(word) {
+                    if (!word || typeof word !== 'string') {
+                        return '';
+                    }
+                    
                     var lowerWord = word.toLowerCase();
                     
                     // 检查缓存
@@ -457,37 +582,46 @@
                 ]),
                 
                 analyzeText: function(text, articleId, title) {
-                    var words = this.extractWords(text);
-                    var wordCounts = {};
-                    var totalWords = words.length;
-                    
-                    // 统计词频
-                    for (var i = 0; i < words.length; i++) {
-                        var word = words[i];
-                        if (this.isValidWord(word)) {
-                            var stem = wordStemmer.getStem(word);
-                            
-                            if (!wordCounts[stem]) {
-                                wordCounts[stem] = { count: 0, variants: {} };
+                    try {
+                        var words = this.extractWords(text);
+                        var wordCounts = {};
+                        var totalWords = words.length;
+                        
+                        // 统计词频
+                        for (var i = 0; i < words.length; i++) {
+                            var word = words[i];
+                            if (this.isValidWord(word)) {
+                                var stem = wordStemmer.getStem(word);
+                                
+                                if (!wordCounts[stem]) {
+                                    wordCounts[stem] = { count: 0, variants: {} };
+                                }
+                                
+                                wordCounts[stem].count++;
+                                
+                                if (!wordCounts[stem].variants[word]) {
+                                    wordCounts[stem].variants[word] = 0;
+                                }
+                                wordCounts[stem].variants[word]++;
                             }
-                            
-                            wordCounts[stem].count++;
-                            
-                            if (!wordCounts[stem].variants[word]) {
-                                wordCounts[stem].variants[word] = 0;
-                            }
-                            wordCounts[stem].variants[word]++;
                         }
+                        
+                        // 更新全局统计
+                        this.updateGlobalStats(articleId, title, text, wordCounts, totalWords);
+                        
+                        return {
+                            totalWords: totalWords,
+                            uniqueWords: Object.keys(wordCounts).length,
+                            wordCounts: wordCounts
+                        };
+                    } catch (error) {
+                        DEBUG_ERROR('[WordFrequencyCore] 文本分析失败:', error);
+                        return {
+                            totalWords: 0,
+                            uniqueWords: 0,
+                            wordCounts: {}
+                        };
                     }
-                    
-                    // 更新全局统计
-                    this.updateGlobalStats(articleId, title, text, wordCounts, totalWords);
-                    
-                    return {
-                        totalWords: totalWords,
-                        uniqueWords: Object.keys(wordCounts).length,
-                        wordCounts: wordCounts
-                    };
                 },
                 
                 extractWords: function(text) {
@@ -509,112 +643,129 @@
                 },
                 
                 isValidWord: function(word) {
-                    return word.length >= 3 && 
+                    return word && word.length >= 3 && 
                            word.length <= 20 && 
                            !this.stopWords.has(word) &&
                            /^[a-zA-Z]+$/.test(word);
                 },
                 
                 updateGlobalStats: function(articleId, title, text, wordCounts, totalWords) {
-                    // 保存文章信息
-                    articleContents[articleId] = {
-                        title: title,
-                        content: text,
-                        totalWords: totalWords,
-                        uniqueWords: Object.keys(wordCounts).length,
-                        analysis: Date.now()
-                    };
-                    
-                    // 更新全局词频统计
-                    for (var stem in wordCounts) {
-                        if (!wordStats[stem]) {
-                            wordStats[stem] = {
-                                totalCount: 0,
-                                articleCount: 0,
-                                variants: {},
-                                articles: {},
-                                distributionScore: 0
-                            };
-                        }
-                        
-                        var globalStat = wordStats[stem];
-                        var wordData = wordCounts[stem];
-                        
-                        globalStat.totalCount += wordData.count;
-                        
-                        if (!globalStat.articles[articleId]) {
-                            globalStat.articleCount++;
-                        }
-                        
-                        globalStat.articles[articleId] = {
-                            count: wordData.count,
-                            title: title,
-                            density: wordData.count / totalWords
+                    try {
+                        // 保存文章信息
+                        articleContents[articleId] = {
+                            title: title || 'Untitled',
+                            content: text.substring(0, 10000), // 限制内容长度
+                            totalWords: totalWords,
+                            uniqueWords: Object.keys(wordCounts).length,
+                            analysis: Date.now()
                         };
                         
-                        // 更新变形词统计
-                        for (var variant in wordData.variants) {
-                            if (!globalStat.variants[variant]) {
-                                globalStat.variants[variant] = 0;
+                        // 更新全局词频统计
+                        for (var stem in wordCounts) {
+                            if (wordCounts.hasOwnProperty(stem)) {
+                                if (!wordStats[stem]) {
+                                    wordStats[stem] = {
+                                        totalCount: 0,
+                                        articleCount: 0,
+                                        variants: {},
+                                        articles: {},
+                                        distributionScore: 0
+                                    };
+                                }
+                                
+                                var globalStat = wordStats[stem];
+                                var wordData = wordCounts[stem];
+                                
+                                globalStat.totalCount += wordData.count;
+                                
+                                if (!globalStat.articles[articleId]) {
+                                    globalStat.articleCount++;
+                                }
+                                
+                                globalStat.articles[articleId] = {
+                                    count: wordData.count,
+                                    title: title || 'Untitled',
+                                    density: wordData.count / totalWords
+                                };
+                                
+                                // 更新变形词统计
+                                for (var variant in wordData.variants) {
+                                    if (wordData.variants.hasOwnProperty(variant)) {
+                                        if (!globalStat.variants[variant]) {
+                                            globalStat.variants[variant] = 0;
+                                        }
+                                        globalStat.variants[variant] += wordData.variants[variant];
+                                    }
+                                }
+                                
+                                // 计算分布评分
+                                globalStat.distributionScore = this.calculateDistributionScore(globalStat);
                             }
-                            globalStat.variants[variant] += wordData.variants[variant];
                         }
-                        
-                        // 计算分布评分
-                        globalStat.distributionScore = this.calculateDistributionScore(globalStat);
+                    } catch (error) {
+                        DEBUG_ERROR('[WordFrequencyCore] 全局统计更新失败:', error);
                     }
                 },
                 
                 calculateDistributionScore: function(stats) {
-                    var totalArticles = Object.keys(articleContents).length;
-                    if (totalArticles === 0) return 0;
-                    
-                    var distributionRatio = stats.articleCount / totalArticles;
-                    var avgDensity = stats.totalCount / stats.articleCount;
-                    
-                    var distributionWeight = Math.sqrt(distributionRatio);
-                    var stabilityWeight = Math.log(avgDensity + 1) / Math.log(10);
-                    
-                    return stats.totalCount * distributionWeight * stabilityWeight;
+                    try {
+                        var totalArticles = Object.keys(articleContents).length;
+                        if (totalArticles === 0) return 0;
+                        
+                        var distributionRatio = stats.articleCount / totalArticles;
+                        var avgDensity = stats.totalCount / stats.articleCount;
+                        
+                        var distributionWeight = Math.sqrt(distributionRatio);
+                        var stabilityWeight = Math.log(avgDensity + 1) / Math.log(10);
+                        
+                        return stats.totalCount * distributionWeight * stabilityWeight;
+                    } catch (error) {
+                        return 0;
+                    }
                 },
                 
                 calculateBaseDifficulty: function(articleId) {
-                    var article = articleContents[articleId];
-                    if (!article) {
-                        return { stars: 3, label: '⭐⭐⭐ 中等' };
-                    }
-                    
-                    var words = this.extractWords(article.content);
-                    var totalDifficulty = 0;
-                    var validWords = 0;
-                    
-                    for (var i = 0; i < words.length; i++) {
-                        var word = words[i];
-                        if (this.isValidWord(word)) {
-                            var stem = wordStemmer.getStem(word);
-                            var stats = wordStats[stem];
-                            
-                            if (stats) {
-                                var wordDifficulty = this.convertScoreToDifficulty(stats.distributionScore);
-                                totalDifficulty += wordDifficulty;
-                                validWords++;
+                    try {
+                        var article = articleContents[articleId];
+                        if (!article) {
+                            return { stars: 3, label: '⭐⭐⭐ 中等' };
+                        }
+                        
+                        var words = this.extractWords(article.content);
+                        var totalDifficulty = 0;
+                        var validWords = 0;
+                        
+                        for (var i = 0; i < words.length; i++) {
+                            var word = words[i];
+                            if (this.isValidWord(word)) {
+                                var stem = wordStemmer.getStem(word);
+                                var stats = wordStats[stem];
+                                
+                                if (stats) {
+                                    var wordDifficulty = this.convertScoreToDifficulty(stats.distributionScore);
+                                    totalDifficulty += wordDifficulty;
+                                    validWords++;
+                                }
                             }
                         }
-                    }
-                    
-                    if (validWords === 0) {
+                        
+                        if (validWords === 0) {
+                            return { stars: 3, label: '⭐⭐⭐ 中等' };
+                        }
+                        
+                        var avgDifficulty = totalDifficulty / validWords;
+                        var stars = Math.max(1, Math.min(5, Math.round(avgDifficulty)));
+                        
+                        return {
+                            stars: stars,
+                            avgDifficulty: avgDifficulty,
+                            validWords: validWords,
+                            label: this.getStarLabel(stars)
+                        };
+                    } catch (error) {
+                        DEBUG_ERROR('[WordFrequencyCore] 难度计算失败:', error);
                         return { stars: 3, label: '⭐⭐⭐ 中等' };
                     }
-                    
-                    var avgDifficulty = totalDifficulty / validWords;
-                    var stars = Math.max(1, Math.min(5, Math.round(avgDifficulty)));
-                    
-                    return {
-                        stars: stars,
-                        avgDifficulty: avgDifficulty,
-                        validWords: validWords,
-                        label: this.getStarLabel(stars)
-                    };
                 },
                 
                 convertScoreToDifficulty: function(distributionScore) {
@@ -637,61 +788,70 @@
                 },
                 
                 performSmartSearch: function(query, options) {
-                    var results = [];
-                    var lowerQuery = query.toLowerCase().trim();
-                    
-                    if (!lowerQuery) return results;
-                    
-                    // 搜索匹配的词汇
-                    for (var stem in wordStats) {
-                        var stats = wordStats[stem];
-                        var relevance = 0;
+                    try {
+                        var results = [];
+                        var lowerQuery = query.toLowerCase().trim();
                         
-                        // 词干匹配
-                        if (stem === lowerQuery) {
-                            relevance = 10;
-                        } else if (stem.indexOf(lowerQuery) === 0) {
-                            relevance = 8;
-                        } else if (stem.indexOf(lowerQuery) !== -1) {
-                            relevance = 6;
-                        }
+                        if (!lowerQuery || lowerQuery.length < 2) return results;
                         
-                        // 变形词匹配
-                        var maxVariantRelevance = 0;
-                        for (var variant in stats.variants) {
-                            if (variant === lowerQuery) {
-                                maxVariantRelevance = Math.max(maxVariantRelevance, 9);
-                            } else if (variant.indexOf(lowerQuery) === 0) {
-                                maxVariantRelevance = Math.max(maxVariantRelevance, 7);
-                            } else if (variant.indexOf(lowerQuery) !== -1) {
-                                maxVariantRelevance = Math.max(maxVariantRelevance, 5);
+                        // 搜索匹配的词汇
+                        for (var stem in wordStats) {
+                            if (wordStats.hasOwnProperty(stem)) {
+                                var stats = wordStats[stem];
+                                var relevance = 0;
+                                
+                                // 词干匹配
+                                if (stem === lowerQuery) {
+                                    relevance = 10;
+                                } else if (stem.indexOf(lowerQuery) === 0) {
+                                    relevance = 8;
+                                } else if (stem.indexOf(lowerQuery) !== -1) {
+                                    relevance = 6;
+                                }
+                                
+                                // 变形词匹配
+                                var maxVariantRelevance = 0;
+                                for (var variant in stats.variants) {
+                                    if (stats.variants.hasOwnProperty(variant)) {
+                                        if (variant === lowerQuery) {
+                                            maxVariantRelevance = Math.max(maxVariantRelevance, 9);
+                                        } else if (variant.indexOf(lowerQuery) === 0) {
+                                            maxVariantRelevance = Math.max(maxVariantRelevance, 7);
+                                        } else if (variant.indexOf(lowerQuery) !== -1) {
+                                            maxVariantRelevance = Math.max(maxVariantRelevance, 5);
+                                        }
+                                    }
+                                }
+                                
+                                relevance = Math.max(relevance, maxVariantRelevance);
+                                
+                                if (relevance > 0) {
+                                    results.push({
+                                        word: stem,
+                                        relevance: relevance,
+                                        frequency: stats.totalCount,
+                                        articleCount: stats.articleCount,
+                                        distributionScore: stats.distributionScore,
+                                        difficulty: this.convertScoreToDifficulty(stats.distributionScore),
+                                        variants: Object.keys(stats.variants).slice(0, 5)
+                                    });
+                                }
                             }
                         }
                         
-                        relevance = Math.max(relevance, maxVariantRelevance);
+                        // 排序：相关性优先，然后按分布评分
+                        results.sort(function(a, b) {
+                            if (a.relevance !== b.relevance) {
+                                return b.relevance - a.relevance;
+                            }
+                            return b.distributionScore - a.distributionScore;
+                        });
                         
-                        if (relevance > 0) {
-                            results.push({
-                                word: stem,
-                                relevance: relevance,
-                                frequency: stats.totalCount,
-                                articleCount: stats.articleCount,
-                                distributionScore: stats.distributionScore,
-                                difficulty: this.convertScoreToDifficulty(stats.distributionScore),
-                                variants: Object.keys(stats.variants).slice(0, 5)
-                            });
-                        }
+                        return results.slice(0, Math.min(20, options.limit || 20));
+                    } catch (error) {
+                        DEBUG_ERROR('[WordFrequencyCore] 搜索失败:', error);
+                        return [];
                     }
-                    
-                    // 排序：相关性优先，然后按分布评分
-                    results.sort(function(a, b) {
-                        if (a.relevance !== b.relevance) {
-                            return b.relevance - a.relevance;
-                        }
-                        return b.distributionScore - a.distributionScore;
-                    });
-                    
-                    return results.slice(0, options.limit || 20);
                 }
             };
         }
@@ -699,111 +859,136 @@
         function createPersonalizedEngine() {
             return {
                 adjustDifficultyForUser: function(baseDifficulty, profile) {
-                    var adjustment = 0;
-                    
-                    // 基于用户偏好调整
-                    var prefDiff = profile.preferredDifficulty - 3; // 标准化到-2到+2
-                    adjustment += prefDiff * 0.3;
-                    
-                    // 基于理解能力调整
-                    var compAdj = (profile.comprehensionLevel - 0.7) * 2; // 标准化
-                    adjustment += compAdj * 0.2;
-                    
-                    // 基于阅读速度调整
-                    var speedAdj = (profile.readingSpeed - 200) / 100; // 标准化
-                    adjustment -= speedAdj * 0.1; // 读得快的，难度可以高一点
-                    
-                    var personalizedStars = Math.max(1, Math.min(5, 
-                        Math.round(baseDifficulty.stars + adjustment)));
-                    
-                    return {
-                        stars: personalizedStars,
-                        originalStars: baseDifficulty.stars,
-                        adjustment: adjustment,
-                        label: frequencyAnalyzer.getStarLabel(personalizedStars),
-                        personalizedFor: 'user',
-                        factors: {
-                            preference: prefDiff,
-                            comprehension: compAdj,
-                            readingSpeed: speedAdj
-                        }
-                    };
+                    try {
+                        var adjustment = 0;
+                        
+                        // 基于用户偏好调整
+                        var prefDiff = profile.preferredDifficulty - 3; // 标准化到-2到+2
+                        adjustment += prefDiff * 0.3;
+                        
+                        // 基于理解能力调整
+                        var compAdj = (profile.comprehensionLevel - 0.7) * 2; // 标准化
+                        adjustment += compAdj * 0.2;
+                        
+                        // 基于阅读速度调整
+                        var speedAdj = (profile.readingSpeed - 200) / 100; // 标准化
+                        adjustment -= speedAdj * 0.1; // 读得快的，难度可以高一点
+                        
+                        var personalizedStars = Math.max(1, Math.min(5, 
+                            Math.round(baseDifficulty.stars + adjustment)));
+                        
+                        return {
+                            stars: personalizedStars,
+                            originalStars: baseDifficulty.stars,
+                            adjustment: adjustment,
+                            label: frequencyAnalyzer.getStarLabel(personalizedStars),
+                            personalizedFor: 'user',
+                            factors: {
+                                preference: prefDiff,
+                                comprehension: compAdj,
+                                readingSpeed: speedAdj
+                            }
+                        };
+                    } catch (error) {
+                        DEBUG_ERROR('[WordFrequencyCore] 个性化难度调整失败:', error);
+                        return baseDifficulty;
+                    }
                 },
                 
                 personalizeResults: function(results, profile) {
-                    return results.map(function(result) {
-                        var personalizedDifficulty = result.difficulty;
-                        
-                        // 基于用户历史调整相关性
-                        var historyBonus = 0;
-                        if (profile.weakSpots.indexOf(result.word) !== -1) {
-                            historyBonus = 2; // 弱项词汇提高相关性
-                        } else if (profile.strengths.indexOf(result.word) !== -1) {
-                            historyBonus = -1; // 强项词汇降低相关性
-                        }
-                        
-                        return Object.assign({}, result, {
-                            personalizedRelevance: result.relevance + historyBonus,
-                            personalizedDifficulty: personalizedDifficulty,
-                            isPersonalized: true
+                    try {
+                        return results.map(function(result) {
+                            var personalizedDifficulty = result.difficulty;
+                            
+                            // 基于用户历史调整相关性
+                            var historyBonus = 0;
+                            if (profile.weakSpots.indexOf(result.word) !== -1) {
+                                historyBonus = 2; // 弱项词汇提高相关性
+                            } else if (profile.strengths.indexOf(result.word) !== -1) {
+                                historyBonus = -1; // 强项词汇降低相关性
+                            }
+                            
+                            return Object.assign({}, result, {
+                                personalizedRelevance: result.relevance + historyBonus,
+                                personalizedDifficulty: personalizedDifficulty,
+                                isPersonalized: true
+                            });
+                        }).sort(function(a, b) {
+                            return b.personalizedRelevance - a.personalizedRelevance;
                         });
-                    }).sort(function(a, b) {
-                        return b.personalizedRelevance - a.personalizedRelevance;
-                    });
+                    } catch (error) {
+                        DEBUG_ERROR('[WordFrequencyCore] 个性化结果排序失败:', error);
+                        return results;
+                    }
                 },
                 
                 generatePersonalizedInsights: function(word, profile) {
-                    var insights = {
-                        difficultyForUser: 'medium',
-                        recommendedAction: 'study',
-                        learningTips: [],
-                        relatedWords: [],
-                        practiceExercises: []
-                    };
-                    
-                    var stats = wordStats[word];
-                    if (!stats) return insights;
-                    
-                    // 分析用户对这个词的掌握情况
-                    var userMastery = this.estimateUserMastery(word, profile);
-                    
-                    // 生成个性化建议
-                    if (userMastery < 0.3) {
-                        insights.recommendedAction = 'focus_study';
-                        insights.learningTips.push('这个词对您来说比较困难，建议重点学习');
-                        insights.learningTips.push('尝试在不同语境中使用这个词');
-                    } else if (userMastery > 0.8) {
-                        insights.recommendedAction = 'review';
-                        insights.learningTips.push('您已经很好地掌握了这个词');
-                        insights.learningTips.push('可以学习相关的高级用法');
-                    } else {
-                        insights.recommendedAction = 'practice';
-                        insights.learningTips.push('通过练习巩固对这个词的理解');
+                    try {
+                        var insights = {
+                            difficultyForUser: 'medium',
+                            recommendedAction: 'study',
+                            learningTips: [],
+                            relatedWords: [],
+                            practiceExercises: []
+                        };
+                        
+                        var stats = wordStats[word];
+                        if (!stats) return insights;
+                        
+                        // 分析用户对这个词的掌握情况
+                        var userMastery = this.estimateUserMastery(word, profile);
+                        
+                        // 生成个性化建议
+                        if (userMastery < 0.3) {
+                            insights.recommendedAction = 'focus_study';
+                            insights.learningTips.push('这个词对您来说比较困难，建议重点学习');
+                            insights.learningTips.push('尝试在不同语境中使用这个词');
+                        } else if (userMastery > 0.8) {
+                            insights.recommendedAction = 'review';
+                            insights.learningTips.push('您已经很好地掌握了这个词');
+                            insights.learningTips.push('可以学习相关的高级用法');
+                        } else {
+                            insights.recommendedAction = 'practice';
+                            insights.learningTips.push('通过练习巩固对这个词的理解');
+                        }
+                        
+                        return insights;
+                    } catch (error) {
+                        DEBUG_ERROR('[WordFrequencyCore] 个性化见解生成失败:', error);
+                        return {
+                            difficultyForUser: 'medium',
+                            recommendedAction: 'study',
+                            learningTips: [],
+                            relatedWords: [],
+                            practiceExercises: []
+                        };
                     }
-                    
-                    return insights;
                 },
                 
                 estimateUserMastery: function(word, profile) {
-                    // 基于用户历史估算掌握程度
-                    var baseMastery = 0.5; // 默认中等掌握
-                    
-                    if (profile.strengths.indexOf(word) !== -1) {
-                        baseMastery = 0.9;
-                    } else if (profile.weakSpots.indexOf(word) !== -1) {
-                        baseMastery = 0.2;
+                    try {
+                        // 基于用户历史估算掌握程度
+                        var baseMastery = 0.5; // 默认中等掌握
+                        
+                        if (profile.strengths.indexOf(word) !== -1) {
+                            baseMastery = 0.9;
+                        } else if (profile.weakSpots.indexOf(word) !== -1) {
+                            baseMastery = 0.2;
+                        }
+                        
+                        // 根据学习历史微调
+                        var historyCount = profile.learningHistory.filter(function(item) {
+                            return item.word === word;
+                        }).length;
+                        
+                        if (historyCount > 5) {
+                            baseMastery = Math.min(0.95, baseMastery + 0.1);
+                        }
+                        
+                        return baseMastery;
+                    } catch (error) {
+                        return 0.5;
                     }
-                    
-                    // 根据学习历史微调
-                    var historyCount = profile.learningHistory.filter(function(item) {
-                        return item.word === word;
-                    }).length;
-                    
-                    if (historyCount > 5) {
-                        baseMastery = Math.min(0.95, baseMastery + 0.1);
-                    }
-                    
-                    return baseMastery;
                 }
             };
         }
@@ -811,81 +996,108 @@
         function createRealTimeAnalyzer() {
             return {
                 analyzeLookup: function(word, context, profile) {
-                    var analysis = {
-                        word: word,
-                        difficulty: 'unknown',
-                        suggestions: [],
-                        learningTip: '',
-                        shouldFocus: false
-                    };
-                    
-                    var stats = wordStats[word];
-                    if (stats) {
-                        analysis.difficulty = frequencyAnalyzer.convertScoreToDifficulty(stats.distributionScore);
+                    try {
+                        var analysis = {
+                            word: word,
+                            difficulty: 'unknown',
+                            suggestions: [],
+                            learningTip: '',
+                            shouldFocus: false
+                        };
                         
-                        // 生成建议
-                        if (analysis.difficulty >= 4) {
-                            analysis.suggestions.push('这是一个较难的词汇，建议加入学习清单');
-                            analysis.shouldFocus = true;
-                        } else if (analysis.difficulty <= 2) {
-                            analysis.suggestions.push('这是一个常用词汇，很好掌握');
+                        var stats = wordStats[word];
+                        if (stats) {
+                            analysis.difficulty = frequencyAnalyzer.convertScoreToDifficulty(stats.distributionScore);
+                            
+                            // 生成建议
+                            if (analysis.difficulty >= 4) {
+                                analysis.suggestions.push('这是一个较难的词汇，建议加入学习清单');
+                                analysis.shouldFocus = true;
+                            } else if (analysis.difficulty <= 2) {
+                                analysis.suggestions.push('这是一个常用词汇，很好掌握');
+                            }
+                            
+                            // 生成学习提示
+                            analysis.learningTip = this.generateLearningTip(word, stats, profile);
                         }
                         
-                        // 生成学习提示
-                        analysis.learningTip = this.generateLearningTip(word, stats, profile);
+                        return analysis;
+                    } catch (error) {
+                        DEBUG_ERROR('[WordFrequencyCore] 查找分析失败:', error);
+                        return {
+                            word: word,
+                            difficulty: 'unknown',
+                            suggestions: [],
+                            learningTip: '',
+                            shouldFocus: false
+                        };
                     }
-                    
-                    return analysis;
                 },
                 
                 analyzeSession: function(session) {
-                    var analysis = {
-                        duration: session.timeSpent,
-                        wordsPerMinute: 0,
-                        lookupRate: 0,
-                        difficultyTrend: 'stable',
-                        comprehensionEstimate: 0.7,
-                        recommendations: []
-                    };
-                    
-                    if (session.timeSpent > 0) {
-                        analysis.wordsPerMinute = (session.wordsRead / session.timeSpent) * 60000; // 转换为分钟
-                        analysis.lookupRate = session.lookupsCount / session.wordsRead;
-                    }
-                    
-                    // 分析困难度趋势
-                    if (session.difficultyEncountered.length > 0) {
-                        var avgDifficulty = session.difficultyEncountered.reduce(function(sum, d) {
-                            return sum + d;
-                        }, 0) / session.difficultyEncountered.length;
+                    try {
+                        var analysis = {
+                            duration: session.timeSpent,
+                            wordsPerMinute: 0,
+                            lookupRate: 0,
+                            difficultyTrend: 'stable',
+                            comprehensionEstimate: 0.7,
+                            recommendations: []
+                        };
                         
-                        if (avgDifficulty > 3.5) {
-                            analysis.difficultyTrend = 'increasing';
-                            analysis.recommendations.push('建议选择稍微简单一些的内容');
-                        } else if (avgDifficulty < 2.5) {
-                            analysis.difficultyTrend = 'decreasing';
-                            analysis.recommendations.push('可以尝试更有挑战性的内容');
+                        if (session.timeSpent > 0) {
+                            analysis.wordsPerMinute = (session.wordsRead / session.timeSpent) * 60000; // 转换为分钟
+                            analysis.lookupRate = session.wordsRead > 0 ? session.lookupsCount / session.wordsRead : 0;
                         }
+                        
+                        // 分析困难度趋势
+                        if (session.difficultyEncountered.length > 0) {
+                            var avgDifficulty = session.difficultyEncountered.reduce(function(sum, d) {
+                                return sum + d;
+                            }, 0) / session.difficultyEncountered.length;
+                            
+                            if (avgDifficulty > 3.5) {
+                                analysis.difficultyTrend = 'increasing';
+                                analysis.recommendations.push('建议选择稍微简单一些的内容');
+                            } else if (avgDifficulty < 2.5) {
+                                analysis.difficultyTrend = 'decreasing';
+                                analysis.recommendations.push('可以尝试更有挑战性的内容');
+                            }
+                        }
+                        
+                        // 估算理解程度
+                        if (analysis.lookupRate < 0.02) {
+                            analysis.comprehensionEstimate = 0.9;
+                        } else if (analysis.lookupRate > 0.05) {
+                            analysis.comprehensionEstimate = 0.5;
+                        }
+                        
+                        return analysis;
+                    } catch (error) {
+                        DEBUG_ERROR('[WordFrequencyCore] 会话分析失败:', error);
+                        return {
+                            duration: 0,
+                            wordsPerMinute: 0,
+                            lookupRate: 0,
+                            difficultyTrend: 'stable',
+                            comprehensionEstimate: 0.7,
+                            recommendations: []
+                        };
                     }
-                    
-                    // 估算理解程度
-                    if (analysis.lookupRate < 0.02) {
-                        analysis.comprehensionEstimate = 0.9;
-                    } else if (analysis.lookupRate > 0.05) {
-                        analysis.comprehensionEstimate = 0.5;
-                    }
-                    
-                    return analysis;
                 },
                 
                 generateLearningTip: function(word, stats, profile) {
-                    var tips = [
-                        '这个词在 ' + stats.articleCount + ' 篇文章中出现',
-                        '总共出现了 ' + stats.totalCount + ' 次',
-                        '建议在阅读中注意这个词的使用场景'
-                    ];
-                    
-                    return tips[Math.floor(Math.random() * tips.length)];
+                    try {
+                        var tips = [
+                            '这个词在 ' + stats.articleCount + ' 篇文章中出现',
+                            '总共出现了 ' + stats.totalCount + ' 次',
+                            '建议在阅读中注意这个词的使用场景'
+                        ];
+                        
+                        return tips[Math.floor(Math.random() * tips.length)];
+                    } catch (error) {
+                        return '继续学习这个词汇';
+                    }
                 }
             };
         }
@@ -893,39 +1105,57 @@
         // 🔧 内部方法 - 分析引擎和状态管理
         
         function startAnalysisEngine() {
-            // 尝试从缓存恢复
-            restoreFromCache();
-            
-            analysisState.isInitialized = true;
-            analysisState.lastAnalysisTime = Date.now();
+            try {
+                // 尝试从缓存恢复
+                restoreFromCache();
+                
+                analysisState.isInitialized = true;
+                analysisState.lastAnalysisTime = Date.now();
+            } catch (error) {
+                DEBUG_ERROR('[WordFrequencyCore] 分析引擎启动失败:', error);
+            }
         }
         
         function setupRealTimeAnalysis() {
-            // 监听相关事件
-            if (eventHub) {
-                eventHub.on('glossary:shown', function(data) {
-                    self.recordWordLookup(data.word, { source: 'glossary' });
-                });
-                
-                eventHub.on('audioSync:highlightUpdated', function(data) {
-                    if (data.currentSubtitle && data.currentSubtitle.text) {
-                        updateReadingProgress(data.currentSubtitle.text);
-                    }
-                });
+            try {
+                // 监听相关事件
+                if (eventHub) {
+                    eventHub.on('glossary:shown', function(data) {
+                        if (data && data.word) {
+                            self.recordWordLookup(data.word, { source: 'glossary' });
+                        }
+                    });
+                    
+                    eventHub.on('audioSync:highlightUpdated', function(data) {
+                        if (data && data.currentSubtitle && data.currentSubtitle.text) {
+                            updateReadingProgress(data.currentSubtitle.text);
+                        }
+                    });
+                }
+            } catch (error) {
+                DEBUG_ERROR('[WordFrequencyCore] 实时分析设置失败:', error);
             }
         }
         
         function startRealTimeAnalysis() {
             if (realTimeTimer) {
-                clearInterval(realTimeTimer);
+                realTimeTimer.clear();
+                realTimeTimer = null;
             }
             
-            realTimeTimer = setInterval(function() {
+            realTimeTimer = createSafeTimeout(function() {
                 analyzeCurrentState();
+                
+                // 重新设置定时器
+                if (!isDestroyed) {
+                    startRealTimeAnalysis();
+                }
             }, config.analysisInterval);
         }
         
         function analyzeCurrentState() {
+            if (isDestroyed) return;
+            
             try {
                 var session = realTimeData.currentSession;
                 session.timeSpent = Date.now() - session.startTime;
@@ -955,7 +1185,7 @@
             var index = 0;
             
             function processNext() {
-                if (index >= articles.length) {
+                if (index >= articles.length || isDestroyed) {
                     // 所有文章处理完成
                     analysisState.isAnalyzing = false;
                     analysisState.currentProgress = 100;
@@ -1001,7 +1231,7 @@
                     }
                     
                 } catch (error) {
-                    console.warn('[WordFrequencyCore] 分析文章失败:', article.id, error);
+                    DEBUG_WARN('[WordFrequencyCore] 分析文章失败:', article.id, error);
                 }
                 
                 index++;
@@ -1014,55 +1244,69 @@
         }
         
         function updateReadingProgress(text) {
-            if (!realTimeData.currentSession.startTime) return;
+            if (!realTimeData.currentSession.startTime || isDestroyed) return;
             
-            var words = frequencyAnalyzer.extractWords(text);
-            realTimeData.currentSession.wordsRead += words.length;
-            
-            // 分析遇到的词汇难度
-            for (var i = 0; i < words.length; i++) {
-                var word = words[i];
-                if (frequencyAnalyzer.isValidWord(word)) {
-                    var stem = wordStemmer.getStem(word);
-                    var stats = wordStats[stem];
-                    if (stats) {
-                        var difficulty = frequencyAnalyzer.convertScoreToDifficulty(stats.distributionScore);
-                        realTimeData.currentSession.difficultyEncountered.push(difficulty);
+            try {
+                var words = frequencyAnalyzer.extractWords(text);
+                realTimeData.currentSession.wordsRead += words.length;
+                
+                // 分析遇到的词汇难度
+                for (var i = 0; i < words.length; i++) {
+                    var word = words[i];
+                    if (frequencyAnalyzer.isValidWord(word)) {
+                        var stem = wordStemmer.getStem(word);
+                        var stats = wordStats[stem];
+                        if (stats) {
+                            var difficulty = frequencyAnalyzer.convertScoreToDifficulty(stats.distributionScore);
+                            realTimeData.currentSession.difficultyEncountered.push(difficulty);
+                        }
                     }
                 }
+            } catch (error) {
+                DEBUG_ERROR('[WordFrequencyCore] 阅读进度更新失败:', error);
             }
         }
         
         function updateUserProfile(sessionAnalysis) {
-            if (!sessionAnalysis) return;
+            if (!sessionAnalysis || isDestroyed) return;
             
-            // 更新阅读速度
-            if (sessionAnalysis.wordsPerMinute > 0) {
-                userProfile.readingSpeed = (userProfile.readingSpeed * 0.8) + (sessionAnalysis.wordsPerMinute * 0.2);
+            try {
+                // 更新阅读速度
+                if (sessionAnalysis.wordsPerMinute > 0) {
+                    userProfile.readingSpeed = (userProfile.readingSpeed * 0.8) + (sessionAnalysis.wordsPerMinute * 0.2);
+                }
+                
+                // 更新理解水平
+                userProfile.comprehensionLevel = (userProfile.comprehensionLevel * 0.8) + 
+                    (sessionAnalysis.comprehensionEstimate * 0.2);
+                
+                // 保存用户档案
+                saveUserProfile();
+            } catch (error) {
+                DEBUG_ERROR('[WordFrequencyCore] 用户档案更新失败:', error);
             }
-            
-            // 更新理解水平
-            userProfile.comprehensionLevel = (userProfile.comprehensionLevel * 0.8) + 
-                (sessionAnalysis.comprehensionEstimate * 0.2);
-            
-            // 保存用户档案
-            saveUserProfile();
         }
         
         function updateUserBehavior(action, data) {
-            userProfile.learningHistory.push({
-                action: action,
-                word: data.word,
-                timestamp: Date.now(),
-                difficulty: data.difficulty
-            });
+            if (isDestroyed || !data) return;
             
-            // 限制历史记录大小
-            if (userProfile.learningHistory.length > 1000) {
-                userProfile.learningHistory = userProfile.learningHistory.slice(-500);
+            try {
+                userProfile.learningHistory.push({
+                    action: action,
+                    word: data.word,
+                    timestamp: Date.now(),
+                    difficulty: data.difficulty
+                });
+                
+                // 限制历史记录大小
+                if (userProfile.learningHistory.length > 1000) {
+                    userProfile.learningHistory = userProfile.learningHistory.slice(-500);
+                }
+                
+                saveUserProfile();
+            } catch (error) {
+                DEBUG_ERROR('[WordFrequencyCore] 用户行为更新失败:', error);
             }
-            
-            saveUserProfile();
         }
         
         // 🔧 内部方法 - 状态持久化
@@ -1071,22 +1315,22 @@
             try {
                 if (stateManager) {
                     var savedProfile = stateManager.getState('wordFreq.userProfile');
-                    if (savedProfile) {
+                    if (savedProfile && typeof savedProfile === 'object') {
                         userProfile = Object.assign(userProfile, savedProfile);
                     }
                 }
             } catch (error) {
-                console.warn('[WordFrequencyCore] 用户档案恢复失败:', error);
+                DEBUG_WARN('[WordFrequencyCore] 用户档案恢复失败:', error);
             }
         }
         
         function saveUserProfile() {
             try {
-                if (stateManager) {
+                if (stateManager && !isDestroyed) {
                     stateManager.setState('wordFreq.userProfile', userProfile, true);
                 }
             } catch (error) {
-                console.warn('[WordFrequencyCore] 用户档案保存失败:', error);
+                DEBUG_WARN('[WordFrequencyCore] 用户档案保存失败:', error);
             }
         }
         
@@ -1098,19 +1342,19 @@
                         wordStats = cachedData.wordStats || {};
                         articleContents = cachedData.articleContents || {};
                         
-                        console.log('[WordFrequencyCore] 从缓存恢复数据成功');
+                        DEBUG_LOG('[WordFrequencyCore] 从缓存恢复数据成功');
                         return true;
                     }
                 }
             } catch (error) {
-                console.warn('[WordFrequencyCore] 缓存恢复失败:', error);
+                DEBUG_WARN('[WordFrequencyCore] 缓存恢复失败:', error);
             }
             return false;
         }
         
         function saveToCache() {
             try {
-                if (cacheManager) {
+                if (cacheManager && !isDestroyed) {
                     var cacheData = {
                         wordStats: wordStats,
                         articleContents: articleContents,
@@ -1119,10 +1363,10 @@
                     };
                     
                     cacheManager.cache(config.cacheKey, cacheData, config.cacheTimeout);
-                    console.log('[WordFrequencyCore] 分析结果已缓存');
+                    DEBUG_LOG('[WordFrequencyCore] 分析结果已缓存');
                 }
             } catch (error) {
-                console.warn('[WordFrequencyCore] 缓存保存失败:', error);
+                DEBUG_WARN('[WordFrequencyCore] 缓存保存失败:', error);
             }
         }
         
@@ -1138,65 +1382,87 @@
         // 🔧 内部方法 - 分析计算
         
         function calculateOverallProgress() {
-            var totalSessions = realTimeData.sessionHistory.length;
-            if (totalSessions === 0) return 0;
-            
-            var recentSessions = realTimeData.sessionHistory.slice(-10);
-            var avgComprehension = recentSessions.reduce(function(sum, session) {
-                return sum + (session.comprehensionEstimate || 0.7);
-            }, 0) / recentSessions.length;
-            
-            return Math.round(avgComprehension * 100);
+            try {
+                var totalSessions = realTimeData.sessionHistory.length;
+                if (totalSessions === 0) return 0;
+                
+                var recentSessions = realTimeData.sessionHistory.slice(-10);
+                var avgComprehension = recentSessions.reduce(function(sum, session) {
+                    return sum + (session.comprehensionEstimate || 0.7);
+                }, 0) / recentSessions.length;
+                
+                return Math.round(avgComprehension * 100);
+            } catch (error) {
+                return 0;
+            }
         }
         
         function calculateVocabularyProgress() {
-            var knownWords = userProfile.strengths.length;
-            var totalWords = Object.keys(wordStats).length;
-            
-            if (totalWords === 0) return 0;
-            
-            return {
-                known: knownWords,
-                total: totalWords,
-                percentage: Math.round((knownWords / totalWords) * 100)
-            };
+            try {
+                var knownWords = userProfile.strengths.length;
+                var totalWords = Object.keys(wordStats).length;
+                
+                if (totalWords === 0) return { known: 0, total: 0, percentage: 0 };
+                
+                return {
+                    known: knownWords,
+                    total: totalWords,
+                    percentage: Math.round((knownWords / totalWords) * 100)
+                };
+            } catch (error) {
+                return { known: 0, total: 0, percentage: 0 };
+            }
         }
         
         function calculateDifficultyProgress() {
-            var difficulties = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-            
-            for (var word in wordStats) {
-                var stats = wordStats[word];
-                var difficulty = frequencyAnalyzer.convertScoreToDifficulty(stats.distributionScore);
-                difficulties[difficulty]++;
+            try {
+                var difficulties = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+                
+                for (var word in wordStats) {
+                    if (wordStats.hasOwnProperty(word)) {
+                        var stats = wordStats[word];
+                        var difficulty = frequencyAnalyzer.convertScoreToDifficulty(stats.distributionScore);
+                        difficulties[difficulty]++;
+                    }
+                }
+                
+                return difficulties;
+            } catch (error) {
+                return { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
             }
-            
-            return difficulties;
         }
         
         function calculateLearningTrends() {
-            if (realTimeData.sessionHistory.length < 2) {
-                return { trend: 'insufficient_data' };
+            try {
+                if (realTimeData.sessionHistory.length < 2) {
+                    return { trend: 'insufficient_data' };
+                }
+                
+                var recent = realTimeData.sessionHistory.slice(-5);
+                var older = realTimeData.sessionHistory.slice(-10, -5);
+                
+                if (older.length === 0) {
+                    return { trend: 'insufficient_data' };
+                }
+                
+                var recentAvg = recent.reduce(function(sum, s) {
+                    return sum + (s.comprehensionEstimate || 0.7);
+                }, 0) / recent.length;
+                
+                var olderAvg = older.reduce(function(sum, s) {
+                    return sum + (s.comprehensionEstimate || 0.7);
+                }, 0) / older.length;
+                
+                var improvement = recentAvg - olderAvg;
+                
+                return {
+                    trend: improvement > 0.05 ? 'improving' : improvement < -0.05 ? 'declining' : 'stable',
+                    improvement: improvement,
+                    recentPerformance: recentAvg
+                };
+            } catch (error) {
+                return { trend: 'error' };
             }
-            
-            var recent = realTimeData.sessionHistory.slice(-5);
-            var older = realTimeData.sessionHistory.slice(-10, -5);
-            
-            var recentAvg = recent.reduce(function(sum, s) {
-                return sum + (s.comprehensionEstimate || 0.7);
-            }, 0) / recent.length;
-            
-            var olderAvg = older.reduce(function(sum, s) {
-                return sum + (s.comprehensionEstimate || 0.7);
-            }, 0) / Math.max(older.length, 1);
-            
-            var improvement = recentAvg - olderAvg;
-            
-            return {
-                trend: improvement > 0.05 ? 'improving' : improvement < -0.05 ? 'declining' : 'stable',
-                improvement: improvement,
-                recentPerformance: recentAvg
-            };
         }
         
         function generateLearningPredictions() {
@@ -1212,76 +1478,96 @@
                 
                 return predictions;
             } catch (error) {
-                console.warn('[WordFrequencyCore] 预测分析失败:', error);
+                DEBUG_WARN('[WordFrequencyCore] 预测分析失败:', error);
                 return null;
             }
         }
         
         function predictProgressGain(days) {
-            var recentTrend = calculateLearningTrends();
-            if (recentTrend.trend === 'insufficient_data') {
+            try {
+                var recentTrend = calculateLearningTrends();
+                if (recentTrend.trend === 'insufficient_data') {
+                    return { confidence: 'low', estimatedGain: 5 };
+                }
+                
+                var dailyGain = recentTrend.improvement * 100 / 7; // 转换为每日百分比
+                var predictedGain = dailyGain * days;
+                
+                return {
+                    confidence: Math.abs(recentTrend.improvement) > 0.1 ? 'high' : 'medium',
+                    estimatedGain: Math.max(0, Math.round(predictedGain))
+                };
+            } catch (error) {
                 return { confidence: 'low', estimatedGain: 5 };
             }
-            
-            var dailyGain = recentTrend.improvement * 100 / 7; // 转换为每日百分比
-            var predictedGain = dailyGain * days;
-            
-            return {
-                confidence: Math.abs(recentTrend.improvement) > 0.1 ? 'high' : 'medium',
-                estimatedGain: Math.max(0, Math.round(predictedGain))
-            };
         }
         
         function calculateMonthlyGoal() {
-            var currentProgress = calculateOverallProgress();
-            var weeklyPrediction = predictProgressGain(7);
-            var monthlyGain = weeklyPrediction.estimatedGain * 4;
-            
-            return {
-                current: currentProgress,
-                target: Math.min(100, currentProgress + monthlyGain),
-                achievable: weeklyPrediction.confidence !== 'low'
-            };
+            try {
+                var currentProgress = calculateOverallProgress();
+                var weeklyPrediction = predictProgressGain(7);
+                var monthlyGain = weeklyPrediction.estimatedGain * 4;
+                
+                return {
+                    current: currentProgress,
+                    target: Math.min(100, currentProgress + monthlyGain),
+                    achievable: weeklyPrediction.confidence !== 'low'
+                };
+            } catch (error) {
+                return { current: 0, target: 50, achievable: false };
+            }
         }
         
         function identifyRecommendedFocus() {
-            var weakAreas = [];
-            
-            if (userProfile.comprehensionLevel < 0.6) {
-                weakAreas.push('基础理解能力');
+            try {
+                var weakAreas = [];
+                
+                if (userProfile.comprehensionLevel < 0.6) {
+                    weakAreas.push('基础理解能力');
+                }
+                
+                if (userProfile.readingSpeed < 150) {
+                    weakAreas.push('阅读速度');
+                }
+                
+                if (userProfile.weakSpots.length > userProfile.strengths.length) {
+                    weakAreas.push('词汇掌握');
+                }
+                
+                return weakAreas.length > 0 ? weakAreas : ['继续保持当前学习节奏'];
+            } catch (error) {
+                return ['继续保持当前学习节奏'];
             }
-            
-            if (userProfile.readingSpeed < 150) {
-                weakAreas.push('阅读速度');
-            }
-            
-            if (userProfile.weakSpots.length > userProfile.strengths.length) {
-                weakAreas.push('词汇掌握');
-            }
-            
-            return weakAreas.length > 0 ? weakAreas : ['继续保持当前学习节奏'];
         }
         
         function suggestDifficultyProgression() {
-            var currentLevel = userProfile.preferredDifficulty;
-            var performance = calculateOverallProgress();
-            
-            if (performance > 80 && currentLevel < 5) {
-                return {
-                    suggestion: 'increase',
-                    target: currentLevel + 1,
-                    reason: '您的表现很好，可以尝试更有挑战性的内容'
-                };
-            } else if (performance < 60 && currentLevel > 1) {
-                return {
-                    suggestion: 'decrease',
-                    target: currentLevel - 1,
-                    reason: '建议先巩固基础，选择稍微简单的内容'
-                };
-            } else {
+            try {
+                var currentLevel = userProfile.preferredDifficulty;
+                var performance = calculateOverallProgress();
+                
+                if (performance > 80 && currentLevel < 5) {
+                    return {
+                        suggestion: 'increase',
+                        target: currentLevel + 1,
+                        reason: '您的表现很好，可以尝试更有挑战性的内容'
+                    };
+                } else if (performance < 60 && currentLevel > 1) {
+                    return {
+                        suggestion: 'decrease',
+                        target: currentLevel - 1,
+                        reason: '建议先巩固基础，选择稍微简单的内容'
+                    };
+                } else {
+                    return {
+                        suggestion: 'maintain',
+                        target: currentLevel,
+                        reason: '当前难度很适合您，继续保持'
+                    };
+                }
+            } catch (error) {
                 return {
                     suggestion: 'maintain',
-                    target: currentLevel,
+                    target: 3,
                     reason: '当前难度很适合您，继续保持'
                 };
             }
@@ -1296,7 +1582,7 @@
                 timestamp: Date.now()
             };
             
-            console.error('[WordFrequencyCore:' + context + ']', error);
+            DEBUG_ERROR('[WordFrequencyCore:' + context + ']', error);
             
             // 使用错误边界处理
             if (errorBoundary) {
@@ -1312,7 +1598,15 @@
         // 🔑 公开API - 基础功能
         
         this.getBasicWordInfo = function(word) {
+            if (isDestroyed) {
+                return null;
+            }
+            
             try {
+                if (!word || typeof word !== 'string') {
+                    return null;
+                }
+                
                 var stem = wordStemmer.getStem(word);
                 var stats = wordStats[stem];
                 
@@ -1340,17 +1634,25 @@
                 progress: analysisState.currentProgress,
                 processedArticles: analysisState.processedArticles,
                 totalArticles: analysisState.totalArticles,
-                totalWords: Object.keys(wordStats).length
+                totalWords: Object.keys(wordStats).length,
+                isDestroyed: isDestroyed
             };
         };
         
         this.getUserProfile = function() {
+            if (isDestroyed) {
+                return null;
+            }
             return Object.assign({}, userProfile);
         };
         
         this.updateUserPreference = function(key, value) {
+            if (isDestroyed) {
+                return false;
+            }
+            
             try {
-                if (userProfile.hasOwnProperty(key)) {
+                if (userProfile.hasOwnProperty(key) && value !== null && value !== undefined) {
                     userProfile[key] = value;
                     saveUserProfile();
                     
@@ -1373,15 +1675,22 @@
         };
         
         this.destroy = function() {
+            if (isDestroyed) {
+                return true;
+            }
+            
             try {
+                // 标记为已销毁
+                isDestroyed = true;
+                
                 // 清理定时器
                 if (analysisTimer) {
-                    clearInterval(analysisTimer);
+                    analysisTimer.clear();
                     analysisTimer = null;
                 }
                 
                 if (realTimeTimer) {
-                    clearInterval(realTimeTimer);
+                    realTimeTimer.clear();
                     realTimeTimer = null;
                 }
                 
@@ -1402,7 +1711,7 @@
                     eventHub.emit('wordFreq:destroyed');
                 }
                 
-                console.log('[WordFrequencyCore] 模块已销毁');
+                DEBUG_LOG('[WordFrequencyCore] 模块已销毁');
                 return true;
             } catch (error) {
                 handleError('destroy', error);
@@ -1421,8 +1730,14 @@
         global.WordFrequencyCore = WordFrequencyCore;
         
         // 添加到EnglishSite命名空间
-        if (global.EnglishSite) {
+        if (typeof global.EnglishSite === 'undefined') {
+            global.EnglishSite = {};
+        }
+        
+        if (!global.EnglishSite.WordFrequencyCore) {
             global.EnglishSite.WordFrequencyCore = WordFrequencyCore;
+        } else {
+            DEBUG_WARN('[WordFrequencyCore] EnglishSite.WordFrequencyCore 已存在，跳过覆盖');
         }
     }
     
