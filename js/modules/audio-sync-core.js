@@ -4,6 +4,38 @@
 (function(global) {
     'use strict';
 
+    // 🔧 环境检测和生产环境优化
+    var IS_PRODUCTION = typeof window !== 'undefined' && 
+        (window.location.hostname !== 'localhost' && 
+         window.location.hostname !== '127.0.0.1' &&
+         window.location.hostname !== '' &&
+         !window.location.hostname.startsWith('192.168.') &&
+         !window.location.hostname.startsWith('10.') &&
+         !window.location.hostname.startsWith('172.'));
+
+    var DEBUG_LOG = IS_PRODUCTION ? function(){} : console.log;
+    var DEBUG_WARN = IS_PRODUCTION ? function(){} : console.warn;
+    var DEBUG_ERROR = IS_PRODUCTION ? function(){} : console.error;
+
+    // 🔧 安全工具函数
+    function safeJSONParse(str, fallback) {
+        try {
+            return JSON.parse(str);
+        } catch (error) {
+            DEBUG_WARN('[AudioSyncCore] JSON解析失败:', error.message);
+            return fallback || null;
+        }
+    }
+
+    function safeJSONStringify(obj, fallback) {
+        try {
+            return JSON.stringify(obj);
+        } catch (error) {
+            DEBUG_WARN('[AudioSyncCore] JSON序列化失败:', error.message);
+            return fallback || '{}';
+        }
+    }
+
     /**
      * 🎯 AudioSyncCore - 音频同步核心
      * 功能：SRT解析、实时高亮、智能滚动、多策略查找、播放控制
@@ -46,6 +78,10 @@
         var scrollTimeout = null;
         var updateTimer = null;
         
+        // 🔧 事件监听器管理
+        var boundEventHandlers = {};
+        var isDestroyed = false;
+        
         // 性能监控
         var performanceStats = {
             syncCount: 0,
@@ -62,9 +98,20 @@
         
         var self = this;
         
+        // DOM元素引用
+        var elements = {
+            contentArea: null,
+            audioPlayer: null
+        };
+        
         // 🎯 初始化
         function initialize() {
             try {
+                if (isDestroyed) {
+                    DEBUG_ERROR('[AudioSyncCore] 尝试初始化已销毁的实例');
+                    return;
+                }
+                
                 // 注入依赖
                 injectDependencies();
                 
@@ -108,7 +155,7 @@
                 // 恢复状态
                 restoreState();
                 
-                console.log('[AudioSyncCore] 初始化成功');
+                DEBUG_LOG('[AudioSyncCore] 初始化成功');
                 
                 // 触发初始化完成事件
                 if (eventHub) {
@@ -124,12 +171,6 @@
             }
         }
         
-        // DOM元素引用
-        var elements = {
-            contentArea: null,
-            audioPlayer: null
-        };
-        
         // 🔑 公开API
         
         /**
@@ -138,6 +179,8 @@
          */
         this.loadSRT = function(srtContent) {
             try {
+                if (isDestroyed) return false;
+                
                 if (typeof srtContent !== 'string') {
                     throw new Error('SRT content must be a string');
                 }
@@ -172,6 +215,8 @@
          * 开始播放
          */
         this.play = function() {
+            if (isDestroyed) return false;
+            
             try {
                 if (elements.audioPlayer.play) {
                     var playPromise = elements.audioPlayer.play();
@@ -202,6 +247,8 @@
          * 暂停播放
          */
         this.pause = function() {
+            if (isDestroyed) return false;
+            
             try {
                 if (elements.audioPlayer.pause) {
                     elements.audioPlayer.pause();
@@ -221,6 +268,8 @@
          * 停止播放
          */
         this.stop = function() {
+            if (isDestroyed) return false;
+            
             try {
                 this.pause();
                 this.seekTo(0);
@@ -238,6 +287,8 @@
          * @param {number} time - 时间（秒）
          */
         this.seekTo = function(time) {
+            if (isDestroyed) return false;
+            
             try {
                 if (typeof time !== 'number' || time < 0) {
                     throw new Error('Invalid seek time');
@@ -269,6 +320,8 @@
          * @param {number} rate - 播放速率
          */
         this.setPlaybackRate = function(rate) {
+            if (isDestroyed) return false;
+            
             try {
                 if (typeof rate !== 'number' || rate <= 0) {
                     throw new Error('Invalid playback rate');
@@ -283,7 +336,7 @@
                         eventHub.emit('audioSync:rateChanged', { rate: rate });
                     }
                 } else {
-                    console.warn('[AudioSyncCore] Playback rate not supported');
+                    DEBUG_WARN('[AudioSyncCore] Playback rate not supported');
                 }
                 
                 return true;
@@ -298,6 +351,8 @@
          * @param {number} vol - 音量 (0-1)
          */
         this.setVolume = function(vol) {
+            if (isDestroyed) return false;
+            
             try {
                 if (typeof vol !== 'number' || vol < 0 || vol > 1) {
                     throw new Error('Invalid volume level');
@@ -322,6 +377,8 @@
          * 静音/取消静音
          */
         this.toggleMute = function() {
+            if (isDestroyed) return false;
+            
             try {
                 isMuted = !isMuted;
                 elements.audioPlayer.muted = isMuted;
@@ -343,6 +400,8 @@
          * @param {number} index - 字幕索引
          */
         this.seekToSubtitle = function(index) {
+            if (isDestroyed) return false;
+            
             try {
                 if (typeof index !== 'number' || index < 0 || index >= srtData.length) {
                     throw new Error('Invalid subtitle index');
@@ -373,7 +432,8 @@
                 volume: volume,
                 isMuted: isMuted,
                 srtCount: srtData.length,
-                performance: performanceStats
+                performance: performanceStats,
+                isDestroyed: isDestroyed
             };
         };
         
@@ -388,7 +448,14 @@
          * 销毁实例
          */
         this.destroy = function() {
+            if (isDestroyed) {
+                return true;
+            }
+            
             try {
+                // 标记为已销毁
+                isDestroyed = true;
+                
                 // 停止播放
                 this.stop();
                 
@@ -396,6 +463,7 @@
                 clearUpdateTimer();
                 if (scrollTimeout) {
                     clearTimeout(scrollTimeout);
+                    scrollTimeout = null;
                 }
                 
                 // 移除事件监听器
@@ -408,6 +476,12 @@
                 // 清理缓存
                 elementCache = {};
                 
+                // 重置变量
+                srtData = [];
+                currentIndex = -1;
+                nextIndex = -1;
+                lastHighlightedElement = null;
+                
                 // 清理状态
                 if (stateManager) {
                     stateManager.clearState('audioSync');
@@ -418,7 +492,7 @@
                     eventHub.emit('audioSync:destroyed');
                 }
                 
-                console.log('[AudioSyncCore] 实例已销毁');
+                DEBUG_LOG('[AudioSyncCore] 实例已销毁');
                 return true;
             } catch (error) {
                 handleError('destroy', error);
@@ -446,6 +520,17 @@
             if (options.eventHub) eventHub = options.eventHub;
             if (options.cacheManager) cacheManager = options.cacheManager;
             if (options.errorBoundary) errorBoundary = options.errorBoundary;
+        }
+        
+        function createBoundHandler(handler, context) {
+            return function boundHandler() {
+                if (isDestroyed) return;
+                try {
+                    return handler.apply(context || self, arguments);
+                } catch (error) {
+                    handleError('eventHandler', error);
+                }
+            };
         }
         
         function parseSRTData(srtContent) {
@@ -479,7 +564,7 @@
                 // 验证时间重叠
                 validateSRTTiming();
                 
-                console.log('[AudioSyncCore] SRT解析完成，共' + srtData.length + '条字幕');
+                DEBUG_LOG('[AudioSyncCore] SRT解析完成，共' + srtData.length + '条字幕');
                 
             } catch (error) {
                 handleError('parseSRTData', error);
@@ -492,7 +577,7 @@
                 var lines = block.trim().split('\n');
                 
                 if (lines.length < 3) {
-                    console.warn('[AudioSyncCore] Invalid SRT block at index ' + index);
+                    DEBUG_WARN('[AudioSyncCore] Invalid SRT block at index ' + index);
                     return null;
                 }
                 
@@ -509,7 +594,7 @@
                 var timeMatch = timeString.match(/(\d{2}):(\d{2}):(\d{2}),(\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2}),(\d{3})/);
                 
                 if (!timeMatch) {
-                    console.warn('[AudioSyncCore] Invalid time format at index ' + index);
+                    DEBUG_WARN('[AudioSyncCore] Invalid time format at index ' + index);
                     return null;
                 }
                 
@@ -533,7 +618,7 @@
                 };
                 
             } catch (error) {
-                console.warn('[AudioSyncCore] Error parsing SRT block at index ' + index + ':', error);
+                DEBUG_WARN('[AudioSyncCore] Error parsing SRT block at index ' + index + ':', error);
                 return null;
             }
         }
@@ -565,7 +650,7 @@
                 
                 // 检查时间重叠
                 if (current.end > next.start) {
-                    console.warn('[AudioSyncCore] Timing overlap detected between subtitle ' + 
+                    DEBUG_WARN('[AudioSyncCore] Timing overlap detected between subtitle ' + 
                                current.sequence + ' and ' + next.sequence);
                     
                     // 自动修正：调整结束时间
@@ -575,7 +660,7 @@
                 
                 // 检查无效时间
                 if (current.start >= current.end) {
-                    console.warn('[AudioSyncCore] Invalid timing for subtitle ' + current.sequence);
+                    DEBUG_WARN('[AudioSyncCore] Invalid timing for subtitle ' + current.sequence);
                 }
             }
         }
@@ -673,56 +758,60 @@
         }
         
         function bindAudioEvents() {
-            if (!elements.audioPlayer) return;
+            if (!elements.audioPlayer || isDestroyed) return;
             
-            // 时间更新事件
-            elements.audioPlayer.addEventListener('timeupdate', handleTimeUpdate);
+            // 创建绑定的处理器
+            boundEventHandlers.timeupdate = createBoundHandler(handleTimeUpdate);
+            boundEventHandlers.play = createBoundHandler(handlePlayStart);
+            boundEventHandlers.pause = createBoundHandler(handlePlayPause);
+            boundEventHandlers.ended = createBoundHandler(handlePlayEnd);
+            boundEventHandlers.loadedmetadata = createBoundHandler(handleMetadataLoaded);
+            boundEventHandlers.durationchange = createBoundHandler(handleDurationChange);
+            boundEventHandlers.error = createBoundHandler(handleAudioError);
+            boundEventHandlers.canplay = createBoundHandler(handleCanPlay);
+            boundEventHandlers.waiting = createBoundHandler(handleWaiting);
             
-            // 播放状态事件
-            elements.audioPlayer.addEventListener('play', handlePlayStart);
-            elements.audioPlayer.addEventListener('pause', handlePlayPause);
-            elements.audioPlayer.addEventListener('ended', handlePlayEnd);
-            
-            // 元数据加载事件
-            elements.audioPlayer.addEventListener('loadedmetadata', handleMetadataLoaded);
-            elements.audioPlayer.addEventListener('durationchange', handleDurationChange);
-            
-            // 错误事件
-            elements.audioPlayer.addEventListener('error', handleAudioError);
-            
-            // 加载事件
-            elements.audioPlayer.addEventListener('canplay', handleCanPlay);
-            elements.audioPlayer.addEventListener('waiting', handleWaiting);
+            // 绑定事件
+            for (var eventType in boundEventHandlers) {
+                if (boundEventHandlers.hasOwnProperty(eventType)) {
+                    elements.audioPlayer.addEventListener(eventType, boundEventHandlers[eventType]);
+                }
+            }
         }
         
         function unbindAudioEvents() {
-            if (!elements.audioPlayer) return;
+            if (!elements.audioPlayer || !boundEventHandlers) return;
             
-            elements.audioPlayer.removeEventListener('timeupdate', handleTimeUpdate);
-            elements.audioPlayer.removeEventListener('play', handlePlayStart);
-            elements.audioPlayer.removeEventListener('pause', handlePlayPause);
-            elements.audioPlayer.removeEventListener('ended', handlePlayEnd);
-            elements.audioPlayer.removeEventListener('loadedmetadata', handleMetadataLoaded);
-            elements.audioPlayer.removeEventListener('durationchange', handleDurationChange);
-            elements.audioPlayer.removeEventListener('error', handleAudioError);
-            elements.audioPlayer.removeEventListener('canplay', handleCanPlay);
-            elements.audioPlayer.removeEventListener('waiting', handleWaiting);
+            for (var eventType in boundEventHandlers) {
+                if (boundEventHandlers.hasOwnProperty(eventType)) {
+                    try {
+                        elements.audioPlayer.removeEventListener(eventType, boundEventHandlers[eventType]);
+                    } catch (error) {
+                        DEBUG_WARN('[AudioSyncCore] 移除事件监听器失败:', eventType, error);
+                    }
+                }
+            }
+            
+            boundEventHandlers = {};
         }
         
         function bindInteractionEvents() {
-            if (!elements.contentArea) return;
+            if (!elements.contentArea || isDestroyed) return;
             
             // 点击字幕跳转
-            elements.contentArea.addEventListener('click', handleContentClick);
+            boundEventHandlers.contentClick = createBoundHandler(handleContentClick);
+            elements.contentArea.addEventListener('click', boundEventHandlers.contentClick);
             
             // 键盘快捷键
             if (config.enableKeyboard && typeof document !== 'undefined') {
-                document.addEventListener('keydown', handleKeyDown);
+                boundEventHandlers.keydown = createBoundHandler(handleKeyDown);
+                document.addEventListener('keydown', boundEventHandlers.keydown);
             }
             
             // 滚轮控制（桌面端）
             if (config.enableWheel) {
-                elements.contentArea.addEventListener('wheel', handleWheel, 
+                boundEventHandlers.wheel = createBoundHandler(handleWheel);
+                elements.contentArea.addEventListener('wheel', boundEventHandlers.wheel, 
                     checkPassiveSupport() ? { passive: false } : false);
             }
             
@@ -735,13 +824,27 @@
         function unbindInteractionEvents() {
             if (!elements.contentArea) return;
             
-            elements.contentArea.removeEventListener('click', handleContentClick);
-            
-            if (typeof document !== 'undefined') {
-                document.removeEventListener('keydown', handleKeyDown);
+            // 移除内容区域事件
+            if (boundEventHandlers.contentClick) {
+                elements.contentArea.removeEventListener('click', boundEventHandlers.contentClick);
             }
             
-            elements.contentArea.removeEventListener('wheel', handleWheel);
+            if (boundEventHandlers.wheel) {
+                elements.contentArea.removeEventListener('wheel', boundEventHandlers.wheel);
+            }
+            
+            // 移除文档级事件
+            if (typeof document !== 'undefined' && boundEventHandlers.keydown) {
+                document.removeEventListener('keydown', boundEventHandlers.keydown);
+            }
+            
+            // 移除触摸事件
+            if (boundEventHandlers.touchstart) {
+                elements.contentArea.removeEventListener('touchstart', boundEventHandlers.touchstart);
+            }
+            if (boundEventHandlers.touchend) {
+                elements.contentArea.removeEventListener('touchend', boundEventHandlers.touchend);
+            }
         }
         
         function bindTouchControls() {
@@ -751,13 +854,13 @@
             
             var touchOptions = checkPassiveSupport() ? { passive: true } : false;
             
-            elements.contentArea.addEventListener('touchstart', function(e) {
+            boundEventHandlers.touchstart = createBoundHandler(function(e) {
                 touchStartX = e.touches[0].clientX;
                 touchStartY = e.touches[0].clientY;
                 touchStartTime = Date.now();
-            }, touchOptions);
+            });
             
-            elements.contentArea.addEventListener('touchend', function(e) {
+            boundEventHandlers.touchend = createBoundHandler(function(e) {
                 var touchEndX = e.changedTouches[0].clientX;
                 var touchEndY = e.changedTouches[0].clientY;
                 var touchEndTime = Date.now();
@@ -791,7 +894,10 @@
                     }
                     self._lastTouchTime = now;
                 }
-            }, touchOptions);
+            });
+            
+            elements.contentArea.addEventListener('touchstart', boundEventHandlers.touchstart, touchOptions);
+            elements.contentArea.addEventListener('touchend', boundEventHandlers.touchend, touchOptions);
         }
         
         function handleTimeUpdate() {
@@ -986,10 +1092,12 @@
         }
         
         function startUpdateTimer() {
+            if (isDestroyed) return;
+            
             clearUpdateTimer();
             
             updateTimer = setInterval(function() {
-                if (isPlaying) {
+                if (isPlaying && !isDestroyed) {
                     updateSyncState();
                 }
             }, config.updateInterval);
@@ -1003,6 +1111,8 @@
         }
         
         function updateSyncState() {
+            if (isDestroyed) return;
+            
             try {
                 var currentTimeMs = currentTime * 1000;
                 var newIndex = findCurrentSubtitleIndex(currentTimeMs);
@@ -1052,6 +1162,8 @@
         }
         
         function updateHighlights(newIndex, newNextIndex) {
+            if (isDestroyed) return;
+            
             var startTime = performance.now ? performance.now() : Date.now();
             
             try {
@@ -1142,6 +1254,8 @@
         }
         
         function clearAllHighlights() {
+            if (isDestroyed || !elements.contentArea) return;
+            
             // 清除当前高亮
             var currentHighlights = elements.contentArea.querySelectorAll('.' + config.highlightClass);
             for (var i = 0; i < currentHighlights.length; i++) {
@@ -1159,7 +1273,7 @@
         }
         
         function updateScrollPosition() {
-            if (!lastHighlightedElement) return;
+            if (!lastHighlightedElement || isDestroyed) return;
             
             // 防抖滚动
             if (scrollTimeout) {
@@ -1167,11 +1281,15 @@
             }
             
             scrollTimeout = setTimeout(function() {
-                scrollToElement(lastHighlightedElement);
+                if (!isDestroyed) {
+                    scrollToElement(lastHighlightedElement);
+                }
             }, 100);
         }
         
         function scrollToElement(element) {
+            if (isDestroyed) return;
+            
             try {
                 var elementRect = element.getBoundingClientRect();
                 var containerRect = elements.contentArea.getBoundingClientRect();
@@ -1214,7 +1332,7 @@
         }
         
         function updateState() {
-            if (stateManager) {
+            if (stateManager && !isDestroyed) {
                 stateManager.setState('audioSync.isPlaying', isPlaying);
                 stateManager.setState('audioSync.currentTime', currentTime);
                 stateManager.setState('audioSync.currentIndex', currentIndex);
@@ -1262,7 +1380,7 @@
                 currentIndex: currentIndex
             };
             
-            console.error('[AudioSyncCore:' + context + ']', error);
+            DEBUG_ERROR('[AudioSyncCore:' + context + ']', error);
             
             // 使用错误边界处理
             if (errorBoundary) {
@@ -1285,9 +1403,16 @@
     } else if (typeof global !== 'undefined') {
         global.AudioSyncCore = AudioSyncCore;
         
-        // 添加到EnglishSite命名空间
-        if (global.EnglishSite) {
+        // 🔧 安全的命名空间添加
+        if (typeof global.EnglishSite === 'undefined') {
+            global.EnglishSite = {};
+        }
+        
+        // 检查是否已存在，避免覆盖
+        if (!global.EnglishSite.AudioSyncCore) {
             global.EnglishSite.AudioSyncCore = AudioSyncCore;
+        } else {
+            DEBUG_WARN('[AudioSyncCore] EnglishSite.AudioSyncCore 已存在，跳过覆盖');
         }
     }
     
