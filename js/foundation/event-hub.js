@@ -4,6 +4,28 @@
 (function(global) {
     'use strict';
 
+    // 🔧 环境检测和生产环境优化
+    var IS_PRODUCTION = typeof window !== 'undefined' && 
+        (window.location.hostname !== 'localhost' && 
+         window.location.hostname !== '127.0.0.1' &&
+         window.location.hostname !== '' &&
+         !window.location.hostname.startsWith('192.168.') &&
+         !window.location.hostname.startsWith('10.') &&
+         !window.location.hostname.startsWith('172.'));
+
+    var DEBUG_LOG = IS_PRODUCTION ? function(){} : console.log;
+    var DEBUG_WARN = IS_PRODUCTION ? function(){} : console.warn;
+    var DEBUG_ERROR = IS_PRODUCTION ? function(){} : console.error;
+
+    // 🔧 安全工具函数
+    function safeStringify(obj) {
+        try {
+            return JSON.stringify(obj);
+        } catch (error) {
+            return '[Object]';
+        }
+    }
+
     /**
      * 🎯 EventHub - 事件中心
      * 功能：发布订阅、命名空间、节流防抖、异常隔离
@@ -16,30 +38,49 @@
         var eventQueue = [];
         var isProcessingQueue = false;
         var maxQueueSize = 1000;
-        var debugMode = false;
+        var debugMode = !IS_PRODUCTION; // 生产环境默认关闭调试
         var statistics = {
             totalEvents: 0,
             totalListeners: 0,
             errors: 0
         };
         
+        // 🔧 清理相关变量
+        var isDestroyed = false;
+        var originalErrorHandler = null;
+        var globalEventHandlers = [];
+        
         var self = this;
         
         // 🎯 初始化
         function initialize() {
+            if (isDestroyed) {
+                DEBUG_ERROR('[EventHub] 尝试初始化已销毁的实例');
+                return;
+            }
+            
             try {
                 setupGlobalErrorHandling();
-                console.log('[EventHub] 初始化成功');
+                DEBUG_LOG('[EventHub] 初始化成功');
             } catch (error) {
-                console.error('[EventHub] 初始化失败:', error);
+                DEBUG_ERROR('[EventHub] 初始化失败:', error);
             }
         }
         
         // 🔑 注册事件监听器
         this.on = function(eventName, callback, options) {
+            if (isDestroyed) {
+                DEBUG_WARN('[EventHub] 实例已销毁，无法注册监听器');
+                return function() {};
+            }
+            
             options = options || {};
             
             try {
+                if (typeof callback !== 'function') {
+                    throw new Error('Callback must be a function');
+                }
+                
                 var normalizedName = normalizeEventName(eventName);
                 var listenerId = generateListenerId();
                 
@@ -85,7 +126,7 @@
                 statistics.totalListeners++;
                 
                 if (debugMode) {
-                    console.log('[EventHub] 监听器已注册:', {
+                    DEBUG_LOG('[EventHub] 监听器已注册:', {
                         event: normalizedName,
                         namespace: listener.namespace,
                         priority: listener.priority
@@ -94,11 +135,13 @@
                 
                 // 返回取消监听函数
                 return function unsubscribe() {
-                    self.off(eventName, callback);
+                    if (!isDestroyed) {
+                        self.off(eventName, callback);
+                    }
                 };
                 
             } catch (error) {
-                console.error('[EventHub] 注册监听器失败:', error);
+                DEBUG_ERROR('[EventHub] 注册监听器失败:', error);
                 statistics.errors++;
                 return function() {}; // 空函数避免错误
             }
@@ -106,12 +149,17 @@
         
         // 🔑 移除事件监听器
         this.off = function(eventName, callback) {
+            if (isDestroyed) {
+                return false;
+            }
+            
             try {
                 var normalizedName = normalizeEventName(eventName);
                 var eventListeners = listeners[normalizedName];
                 
                 if (!eventListeners) return false;
                 
+                var removed = false;
                 for (var i = eventListeners.length - 1; i >= 0; i--) {
                     var listener = eventListeners[i];
                     
@@ -119,6 +167,7 @@
                         // 清理防抖定时器
                         if (listener.debounceTimeout) {
                             clearTimeout(listener.debounceTimeout);
+                            listener.debounceTimeout = null;
                         }
                         
                         // 从命名空间中移除
@@ -127,9 +176,10 @@
                         // 从监听器数组中移除
                         eventListeners.splice(i, 1);
                         statistics.totalListeners--;
+                        removed = true;
                         
                         if (debugMode) {
-                            console.log('[EventHub] 监听器已移除:', normalizedName);
+                            DEBUG_LOG('[EventHub] 监听器已移除:', normalizedName);
                         }
                         
                         // 如果指定了callback，只移除第一个匹配的
@@ -142,10 +192,10 @@
                     delete listeners[normalizedName];
                 }
                 
-                return true;
+                return removed;
                 
             } catch (error) {
-                console.error('[EventHub] 移除监听器失败:', error);
+                DEBUG_ERROR('[EventHub] 移除监听器失败:', error);
                 statistics.errors++;
                 return false;
             }
@@ -153,6 +203,10 @@
         
         // 🔑 发送事件
         this.emit = function(eventName, data, options) {
+            if (isDestroyed) {
+                return false;
+            }
+            
             options = options || {};
             
             try {
@@ -162,9 +216,9 @@
                 statistics.totalEvents++;
                 
                 if (debugMode) {
-                    console.log('[EventHub] 事件发送:', {
+                    DEBUG_LOG('[EventHub] 事件发送:', {
                         event: normalizedName,
-                        data: data,
+                        data: safeStringify(data),
                         listenersCount: eventListeners ? eventListeners.length : 0
                     });
                 }
@@ -195,7 +249,7 @@
                 return !event.defaultPrevented;
                 
             } catch (error) {
-                console.error('[EventHub] 事件发送失败:', error);
+                DEBUG_ERROR('[EventHub] 事件发送失败:', error);
                 statistics.errors++;
                 return false;
             }
@@ -210,9 +264,14 @@
         
         // 🔑 清理命名空间
         this.clear = function(namespace) {
+            if (isDestroyed) {
+                return false;
+            }
+            
             try {
                 if (!namespace) {
                     // 清理所有
+                    clearAllListeners();
                     listeners = {};
                     namespaces = {};
                     eventQueue = [];
@@ -231,6 +290,7 @@
                                         // 清理防抖定时器
                                         if (eventListeners[j].debounceTimeout) {
                                             clearTimeout(eventListeners[j].debounceTimeout);
+                                            eventListeners[j].debounceTimeout = null;
                                         }
                                         eventListeners.splice(j, 1);
                                         statistics.totalListeners--;
@@ -249,13 +309,13 @@
                 }
                 
                 if (debugMode) {
-                    console.log('[EventHub] 命名空间已清理:', namespace || 'all');
+                    DEBUG_LOG('[EventHub] 命名空间已清理:', namespace || 'all');
                 }
                 
                 return true;
                 
             } catch (error) {
-                console.error('[EventHub] 清理命名空间失败:', error);
+                DEBUG_ERROR('[EventHub] 清理命名空间失败:', error);
                 statistics.errors++;
                 return false;
             }
@@ -263,8 +323,8 @@
         
         // 🔑 开启/关闭调试模式
         this.debug = function(enable) {
-            debugMode = !!enable;
-            console.log('[EventHub] 调试模式:', debugMode ? '开启' : '关闭');
+            debugMode = !!enable && !IS_PRODUCTION; // 生产环境强制关闭
+            DEBUG_LOG('[EventHub] 调试模式:', debugMode ? '开启' : '关闭');
         };
         
         // 🔑 获取统计信息
@@ -275,12 +335,17 @@
                 errors: statistics.errors,
                 activeEvents: Object.keys(listeners).length,
                 activeNamespaces: Object.keys(namespaces).length,
-                queueSize: eventQueue.length
+                queueSize: eventQueue.length,
+                isDestroyed: isDestroyed
             };
         };
         
         // 🔑 等待事件（返回Promise）
         this.waitFor = function(eventName, timeout) {
+            if (isDestroyed) {
+                return Promise.reject(new Error('EventHub已销毁'));
+            }
+            
             timeout = timeout || 5000;
             
             return new Promise(function(resolve, reject) {
@@ -295,10 +360,51 @@
                 });
                 
                 function cleanup() {
-                    clearTimeout(timer);
-                    unsubscribe();
+                    if (timer) {
+                        clearTimeout(timer);
+                        timer = null;
+                    }
+                    if (unsubscribe) {
+                        unsubscribe();
+                    }
                 }
             });
+        };
+        
+        // 🔑 销毁实例
+        this.destroy = function() {
+            if (isDestroyed) {
+                return true;
+            }
+            
+            try {
+                // 标记为已销毁
+                isDestroyed = true;
+                
+                // 清理所有监听器
+                clearAllListeners();
+                
+                // 清理数据结构
+                listeners = {};
+                namespaces = {};
+                eventQueue = [];
+                
+                // 恢复全局错误处理
+                restoreGlobalErrorHandling();
+                
+                // 重置统计
+                statistics = {
+                    totalEvents: 0,
+                    totalListeners: 0,
+                    errors: 0
+                };
+                
+                DEBUG_LOG('[EventHub] 实例已销毁');
+                return true;
+            } catch (error) {
+                DEBUG_ERROR('[EventHub] 销毁失败:', error);
+                return false;
+            }
         };
         
         // 🔧 内部工具函数
@@ -312,6 +418,8 @@
         
         function createTimedCallback(listener) {
             return function() {
+                if (isDestroyed) return;
+                
                 var now = Date.now();
                 var args = Array.prototype.slice.call(arguments);
                 
@@ -330,20 +438,36 @@
                     }
                     
                     listener.debounceTimeout = setTimeout(function() {
-                        listener.originalCallback.apply(null, args);
+                        if (!isDestroyed && listener.originalCallback) {
+                            try {
+                                listener.originalCallback.apply(null, args);
+                            } catch (error) {
+                                DEBUG_ERROR('[EventHub] 防抖回调执行失败:', error);
+                                statistics.errors++;
+                            }
+                        }
                     }, listener.debounce);
                     
                     return;
                 }
                 
                 // 直接执行
-                listener.originalCallback.apply(null, args);
+                if (!isDestroyed && listener.originalCallback) {
+                    try {
+                        listener.originalCallback.apply(null, args);
+                    } catch (error) {
+                        DEBUG_ERROR('[EventHub] 节流回调执行失败:', error);
+                        statistics.errors++;
+                    }
+                }
             };
         }
         
         function queueEvent(event, eventListeners) {
+            if (isDestroyed) return;
+            
             if (eventQueue.length >= maxQueueSize) {
-                console.warn('[EventHub] 事件队列已满，丢弃最旧事件');
+                DEBUG_WARN('[EventHub] 事件队列已满，丢弃最旧事件');
                 eventQueue.shift();
             }
             
@@ -358,37 +482,46 @@
         }
         
         function processEventQueue() {
-            if (isProcessingQueue || eventQueue.length === 0) return;
+            if (isProcessingQueue || eventQueue.length === 0 || isDestroyed) return;
             
             isProcessingQueue = true;
             
             // 使用 setTimeout 实现异步处理
             setTimeout(function() {
                 try {
-                    while (eventQueue.length > 0) {
+                    var processed = 0;
+                    var maxProcessPerTick = 5; // 限制每次处理的事件数量
+                    
+                    while (eventQueue.length > 0 && processed < maxProcessPerTick && !isDestroyed) {
                         var item = eventQueue.shift();
                         executeEventListeners(item.event, item.listeners);
-                        
-                        // 每次只处理一个事件，避免阻塞
-                        if (eventQueue.length > 0) {
-                            setTimeout(processEventQueue, 0);
-                            break;
-                        }
+                        processed++;
+                    }
+                    
+                    // 如果还有事件需要处理，继续下一轮
+                    if (eventQueue.length > 0 && !isDestroyed) {
+                        setTimeout(function() {
+                            isProcessingQueue = false;
+                            processEventQueue();
+                        }, 0);
+                    } else {
+                        isProcessingQueue = false;
                     }
                 } catch (error) {
-                    console.error('[EventHub] 处理事件队列失败:', error);
+                    DEBUG_ERROR('[EventHub] 处理事件队列失败:', error);
                     statistics.errors++;
-                } finally {
                     isProcessingQueue = false;
                 }
             }, 0);
         }
         
         function executeEventListeners(event, eventListeners) {
+            if (isDestroyed) return;
+            
             var listenersToRemove = [];
             
             for (var i = 0; i < eventListeners.length; i++) {
-                if (event.stopped) break;
+                if (event.stopped || isDestroyed) break;
                 
                 var listener = eventListeners[i];
                 
@@ -404,7 +537,7 @@
                     }
                     
                 } catch (error) {
-                    console.error('[EventHub] 监听器执行失败:', error);
+                    DEBUG_ERROR('[EventHub] 监听器执行失败:', error);
                     statistics.errors++;
                 }
             }
@@ -417,6 +550,8 @@
         }
         
         function removeListenerById(eventName, listenerId) {
+            if (isDestroyed) return;
+            
             var eventListeners = listeners[eventName];
             if (!eventListeners) return;
             
@@ -427,6 +562,7 @@
                     // 清理防抖定时器
                     if (listener.debounceTimeout) {
                         clearTimeout(listener.debounceTimeout);
+                        listener.debounceTimeout = null;
                     }
                     
                     // 从命名空间中移除
@@ -446,6 +582,8 @@
         }
         
         function removeFromNamespace(namespace, eventName, listenerId) {
+            if (isDestroyed) return;
+            
             var nsData = namespaces[namespace];
             if (!nsData) return;
             
@@ -462,19 +600,36 @@
             }
         }
         
+        function clearAllListeners() {
+            // 清理所有防抖定时器
+            for (var eventName in listeners) {
+                if (listeners.hasOwnProperty(eventName)) {
+                    var eventListeners = listeners[eventName];
+                    for (var i = 0; i < eventListeners.length; i++) {
+                        if (eventListeners[i].debounceTimeout) {
+                            clearTimeout(eventListeners[i].debounceTimeout);
+                            eventListeners[i].debounceTimeout = null;
+                        }
+                    }
+                }
+            }
+        }
+        
         function setupGlobalErrorHandling() {
             // 如果在浏览器环境中，监听全局错误
             if (typeof window !== 'undefined') {
-                var originalErrorHandler = window.onerror;
+                originalErrorHandler = window.onerror;
                 
-                window.onerror = function(message, source, lineno, colno, error) {
-                    self.emit('global:error', {
-                        message: message,
-                        source: source,
-                        lineno: lineno,
-                        colno: colno,
-                        error: error
-                    });
+                var globalErrorHandler = function(message, source, lineno, colno, error) {
+                    if (!isDestroyed) {
+                        self.emit('global:error', {
+                            message: message,
+                            source: source,
+                            lineno: lineno,
+                            colno: colno,
+                            error: error
+                        });
+                    }
                     
                     // 调用原有错误处理器
                     if (originalErrorHandler) {
@@ -482,15 +637,45 @@
                     }
                 };
                 
+                window.onerror = globalErrorHandler;
+                globalEventHandlers.push(['error', globalErrorHandler]);
+                
                 // 监听未处理的Promise拒绝
                 if ('onunhandledrejection' in window) {
-                    window.addEventListener('unhandledrejection', function(event) {
-                        self.emit('global:unhandledrejection', {
-                            reason: event.reason,
-                            promise: event.promise
-                        });
-                    });
+                    var rejectionHandler = function(event) {
+                        if (!isDestroyed) {
+                            self.emit('global:unhandledrejection', {
+                                reason: event.reason,
+                                promise: event.promise
+                            });
+                        }
+                    };
+                    
+                    window.addEventListener('unhandledrejection', rejectionHandler);
+                    globalEventHandlers.push(['unhandledrejection', rejectionHandler]);
                 }
+            }
+        }
+        
+        function restoreGlobalErrorHandling() {
+            if (typeof window !== 'undefined') {
+                // 恢复原始错误处理器
+                if (originalErrorHandler) {
+                    window.onerror = originalErrorHandler;
+                } else {
+                    window.onerror = null;
+                }
+                
+                // 移除我们添加的事件监听器
+                for (var i = 0; i < globalEventHandlers.length; i++) {
+                    var handler = globalEventHandlers[i];
+                    if (handler[0] === 'unhandledrejection') {
+                        window.removeEventListener('unhandledrejection', handler[1]);
+                    }
+                }
+                
+                globalEventHandlers = [];
+                originalErrorHandler = null;
             }
         }
         
@@ -504,9 +689,16 @@
     } else if (typeof global !== 'undefined') {
         global.EventHub = EventHub;
         
-        // 添加到EnglishSite命名空间
-        if (global.EnglishSite) {
+        // 🔧 安全的命名空间添加
+        if (typeof global.EnglishSite === 'undefined') {
+            global.EnglishSite = {};
+        }
+        
+        // 检查是否已存在，避免覆盖
+        if (!global.EnglishSite.EventHub) {
             global.EnglishSite.EventHub = EventHub;
+        } else {
+            DEBUG_WARN('[EventHub] EnglishSite.EventHub 已存在，跳过覆盖');
         }
     }
     
