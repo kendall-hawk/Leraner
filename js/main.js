@@ -1,28 +1,65 @@
 // js/main.js - iOS兼容版应用入口
 // 🚀 统一初始化和启动，确保iOS Safari 12+兼容性
-// 在main.js开头添加
-if (!Object.assign) {
-    Object.assign = function(target) {
-        if (target == null) {
-            throw new TypeError('Cannot convert undefined or null to object');
-        }
-        var to = Object(target);
-        for (var index = 1; index < arguments.length; index++) {
-            var nextSource = arguments[index];
-            if (nextSource != null) {
-                for (var nextKey in nextSource) {
-                    if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
-                        to[nextKey] = nextSource[nextKey];
-                    }
-                }
-            }
-        }
-        return to;
-    };
-}
 
 (function(global) {
     'use strict';
+
+    // ⚡ 关键Polyfills - 在所有代码之前执行
+    // Object.assign Polyfill for iOS Safari 12
+    if (!Object.assign) {
+        Object.assign = function(target) {
+            if (target == null) {
+                throw new TypeError('Cannot convert undefined or null to object');
+            }
+            
+            var to = Object(target);
+            
+            for (var index = 1; index < arguments.length; index++) {
+                var nextSource = arguments[index];
+                
+                if (nextSource != null) {
+                    for (var nextKey in nextSource) {
+                        if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
+                            to[nextKey] = nextSource[nextKey];
+                        }
+                    }
+                }
+            }
+            
+            return to;
+        };
+        
+        // 标记为polyfill
+        Object.assign._isPolyfill = true;
+    }
+
+    // Array.from Polyfill (如果需要)
+    if (!Array.from) {
+        Array.from = function(arrayLike, mapFn, thisArg) {
+            if (arrayLike == null) {
+                throw new TypeError('Array.from requires an array-like object');
+            }
+            
+            var items = Object(arrayLike);
+            var len = parseInt(items.length) || 0;
+            var result = [];
+            var k = 0;
+            
+            while (k < len) {
+                var kValue = items[k];
+                if (mapFn) {
+                    result[k] = mapFn.call(thisArg, kValue, k);
+                } else {
+                    result[k] = kValue;
+                }
+                k++;
+            }
+            
+            return result;
+        };
+        
+        Array.from._isPolyfill = true;
+    }
 
     /**
      * 🎯 应用启动器 - Mobile-First Architecture
@@ -81,7 +118,7 @@ if (!Object.assign) {
     } else {
         setTimeout(fireReady, 0);
     }
-    
+
     /**
      * 🎯 应用初始化器
      */
@@ -106,6 +143,21 @@ if (!Object.assign) {
             // 检查DOM API
             if (typeof document.querySelector === 'undefined') {
                 issues.push('querySelector not supported');
+            }
+            
+            if (issues.length > 0) {
+                showCompatibilityError(issues);
+                return false;
+            }
+            
+            // 验证polyfill是否生效
+            try {
+                var testAssign = Object.assign({}, { test: 1 }, { test: 2 });
+                if (testAssign.test !== 2) {
+                    issues.push('Object.assign polyfill failed');
+                }
+            } catch (e) {
+                issues.push('Object.assign polyfill failed: ' + e.message);
             }
             
             if (issues.length > 0) {
@@ -142,9 +194,10 @@ if (!Object.assign) {
                     APP_CONFIG.debug = true;
                 }
                 
-                // 从localStorage读取用户配置
+                // 从localStorage读取用户配置 - 使用兼容的方式
                 var userConfig = getUserConfig();
                 if (userConfig) {
+                    // 使用我们的polyfill
                     Object.assign(APP_CONFIG, userConfig);
                 }
                 
@@ -158,7 +211,9 @@ if (!Object.assign) {
             }
         }
         
-        // 预加载关键资源
+        // 其余代码保持不变...
+        // (preloadResources, initializeAppController等函数保持原样)
+        
         function preloadResources() {
             var resources = [
                 { type: 'data', url: 'data/navigation.json', critical: true },
@@ -289,7 +344,9 @@ if (!Object.assign) {
             }
         }
         
-        // 设置应用级事件处理
+        // 其余函数保持不变...
+        // (setupApplicationEvents, handleApplicationError等)
+        
         function setupApplicationEvents() {
             if (!appController) return;
             
@@ -495,6 +552,7 @@ if (!Object.assign) {
     function startApp() {
         try {
             console.log('[Main] Starting LearnerEn v' + APP_CONFIG.version);
+            console.log('[Main] Object.assign polyfill:', Object.assign._isPolyfill ? 'active' : 'native');
             
             appInitializer = new AppInitializer();
             
