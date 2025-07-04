@@ -4,6 +4,19 @@
 (function(global) {
     'use strict';
 
+    // 🔧 环境检测和生产环境优化
+    var IS_PRODUCTION = typeof window !== 'undefined' && 
+        (window.location.hostname !== 'localhost' && 
+         window.location.hostname !== '127.0.0.1' &&
+         window.location.hostname !== '' &&
+         !window.location.hostname.startsWith('192.168.') &&
+         !window.location.hostname.startsWith('10.') &&
+         !window.location.hostname.startsWith('172.'));
+
+    var DEBUG_LOG = IS_PRODUCTION ? function(){} : console.log;
+    var DEBUG_WARN = IS_PRODUCTION ? function(){} : console.warn;
+    var DEBUG_ERROR = IS_PRODUCTION ? function(){} : console.error;
+
     /**
      * 🎯 ErrorBoundary - 错误边界
      * 功能：全局错误捕获、优雅降级、用户提示、开发友好
@@ -15,7 +28,7 @@
         var maxQueueSize = 100;
         var fallbackComponents = {};
         var recoveryStrategies = {};
-        var debugMode = false;
+        var debugMode = !IS_PRODUCTION;
         var statistics = {
             totalErrors: 0,
             scriptErrors: 0,
@@ -26,18 +39,58 @@
         var isInitialized = false;
         var reportEndpoint = null;
         
+        // 🔧 错误防护机制
+        var isHandlingError = false;
+        var maxErrorsPerMinute = 10;
+        var errorCounts = [];
+        var isDestroyed = false;
+        
+        // 🔧 事件处理器引用
+        var originalErrorHandler = null;
+        var originalRejectionHandler = null;
+        var originalConsoleError = null;
+        var boundUnloadHandler = null;
+        
         var self = this;
+        
+        // 🔧 错误防护函数
+        function canHandleError() {
+            if (isHandlingError || isDestroyed) return false;
+            
+            var now = Date.now();
+            // 清理1分钟前的错误记录
+            errorCounts = errorCounts.filter(function(time) {
+                return now - time < 60000;
+            });
+            
+            if (errorCounts.length >= maxErrorsPerMinute) {
+                DEBUG_WARN('[ErrorBoundary] 错误频率过高，暂停处理');
+                return false;
+            }
+            
+            errorCounts.push(now);
+            return true;
+        }
         
         // 🎯 初始化
         function initialize() {
+            if (isDestroyed) {
+                DEBUG_ERROR('[ErrorBoundary] 尝试初始化已销毁的实例');
+                return;
+            }
+            
             try {
                 setupGlobalErrorHandlers();
                 setupUnhandledRejectionHandler();
                 setupConsoleErrorCapture();
+                setupDefaultRecoveryStrategies();
+                setupDefaultFallbacks();
+                setupUnloadHandler();
+                
                 isInitialized = true;
-                console.log('[ErrorBoundary] 初始化成功');
+                DEBUG_LOG('[ErrorBoundary] 初始化成功');
             } catch (error) {
-                console.error('[ErrorBoundary] 初始化失败:', error);
+                DEBUG_ERROR('[ErrorBoundary] 初始化失败:', error);
             }
         }
         
@@ -46,7 +99,7 @@
             context = context || 'unknown';
             
             if (typeof fn !== 'function') {
-                console.warn('[ErrorBoundary] wrap: 参数不是函数');
+                DEBUG_WARN('[ErrorBoundary] wrap: 参数不是函数');
                 return function() { return undefined; };
             }
             
@@ -68,9 +121,12 @@
         
         // 🔑 处理错误
         this.handle = function(error, context) {
-            context = context || {};
+            if (!canHandleError()) return null;
+            
+            isHandlingError = true;
             
             try {
+                context = context || {};
                 var errorInfo = normalizeError(error, context);
                 
                 // 记录错误
@@ -97,53 +153,78 @@
                 return errorInfo;
                 
             } catch (handlingError) {
-                console.error('[ErrorBoundary] 错误处理失败:', handlingError);
+                // 防止递归错误
+                DEBUG_ERROR('[ErrorBoundary] 关键错误处理失败:', handlingError);
                 statistics.totalErrors++;
+            } finally {
+                isHandlingError = false;
             }
         };
         
         // 🔑 错误恢复
         this.recover = function(strategy) {
-            if (typeof strategy === 'string') {
-                return executeRecoveryStrategy(strategy);
+            if (isDestroyed) {
+                return false;
             }
             
-            if (typeof strategy === 'function') {
-                try {
-                    return strategy();
-                } catch (error) {
-                    console.error('[ErrorBoundary] 恢复策略执行失败:', error);
-                    return false;
+            try {
+                if (typeof strategy === 'string') {
+                    return executeRecoveryStrategy(strategy);
                 }
+                
+                if (typeof strategy === 'function') {
+                    try {
+                        return strategy();
+                    } catch (error) {
+                        DEBUG_ERROR('[ErrorBoundary] 恢复策略执行失败:', error);
+                        return false;
+                    }
+                }
+                
+                return false;
+            } catch (error) {
+                DEBUG_ERROR('[ErrorBoundary] 恢复失败:', error);
+                return false;
             }
-            
-            return false;
         };
         
         // 🔑 错误报告
         this.report = function(error, details) {
-            details = details || {};
-            
-            var errorInfo = {
-                error: normalizeError(error),
-                details: details,
-                timestamp: Date.now(),
-                userAgent: navigator.userAgent,
-                url: window.location.href,
-                stack: error && error.stack || 'No stack trace'
-            };
-            
-            if (reportEndpoint) {
-                sendErrorReport(errorInfo);
-            } else {
-                console.warn('[ErrorBoundary] 报告端点未设置');
+            if (isDestroyed) {
+                return null;
             }
             
-            return errorInfo;
+            try {
+                details = details || {};
+                
+                var errorInfo = {
+                    error: normalizeError(error),
+                    details: details,
+                    timestamp: Date.now(),
+                    userAgent: navigator.userAgent,
+                    url: window.location.href,
+                    stack: error && error.stack || 'No stack trace'
+                };
+                
+                if (reportEndpoint) {
+                    sendErrorReport(errorInfo);
+                } else {
+                    DEBUG_WARN('[ErrorBoundary] 报告端点未设置');
+                }
+                
+                return errorInfo;
+            } catch (reportError) {
+                DEBUG_ERROR('[ErrorBoundary] 创建错误报告失败:', reportError);
+                return null;
+            }
         };
         
         // 🔑 设置降级组件
         this.setFallback = function(component, key) {
+            if (isDestroyed) {
+                return false;
+            }
+            
             key = key || 'default';
             
             if (typeof component === 'function') {
@@ -151,30 +232,38 @@
                 return true;
             }
             
-            console.warn('[ErrorBoundary] 降级组件必须是函数');
+            DEBUG_WARN('[ErrorBoundary] 降级组件必须是函数');
             return false;
         };
         
         // 🔑 设置恢复策略
         this.setRecoveryStrategy = function(name, strategy) {
+            if (isDestroyed) {
+                return false;
+            }
+            
             if (typeof strategy === 'function') {
                 recoveryStrategies[name] = strategy;
                 return true;
             }
             
-            console.warn('[ErrorBoundary] 恢复策略必须是函数');
+            DEBUG_WARN('[ErrorBoundary] 恢复策略必须是函数');
             return false;
         };
         
         // 🔑 设置报告端点
         this.setReportEndpoint = function(endpoint) {
-            reportEndpoint = endpoint;
+            if (!isDestroyed) {
+                reportEndpoint = endpoint;
+            }
         };
         
         // 🔑 开启/关闭调试模式
         this.debug = function(enable) {
-            debugMode = !!enable;
-            console.log('[ErrorBoundary] 调试模式:', debugMode ? '开启' : '关闭');
+            if (!isDestroyed) {
+                debugMode = !!enable && !IS_PRODUCTION; // 生产环境强制关闭
+                DEBUG_LOG('[ErrorBoundary] 调试模式:', debugMode ? '开启' : '关闭');
+            }
         };
         
         // 🔑 获取错误统计
@@ -186,12 +275,17 @@
                 runtimeErrors: statistics.runtimeErrors,
                 recoveredErrors: statistics.recoveredErrors,
                 queueSize: errorQueue.length,
-                isInitialized: isInitialized
+                isInitialized: isInitialized,
+                isDestroyed: isDestroyed
             };
         };
         
         // 🔑 清理错误队列
         this.clearErrors = function() {
+            if (isDestroyed) {
+                return 0;
+            }
+            
             var count = errorQueue.length;
             errorQueue = [];
             return count;
@@ -203,10 +297,46 @@
             return errorQueue.slice(-limit);
         };
         
+        // 🔑 销毁实例
+        this.destroy = function() {
+            if (isDestroyed) {
+                return true;
+            }
+            
+            try {
+                // 标记为已销毁
+                isDestroyed = true;
+                
+                // 恢复原始处理器
+                restoreOriginalHandlers();
+                
+                // 清理数据
+                errorQueue = [];
+                fallbackComponents = {};
+                recoveryStrategies = {};
+                errorCounts = [];
+                
+                // 重置统计
+                statistics = {
+                    totalErrors: 0,
+                    scriptErrors: 0,
+                    networkErrors: 0,
+                    runtimeErrors: 0,
+                    recoveredErrors: 0
+                };
+                
+                DEBUG_LOG('[ErrorBoundary] 实例已销毁');
+                return true;
+            } catch (error) {
+                DEBUG_ERROR('[ErrorBoundary] 销毁失败:', error);
+                return false;
+            }
+        };
+        
         // 🔧 内部工具函数
         function setupGlobalErrorHandlers() {
             // 保存原有错误处理器
-            var originalErrorHandler = window.onerror;
+            originalErrorHandler = window.onerror;
             
             window.onerror = function(message, source, lineno, colno, error) {
                 var errorInfo = {
@@ -236,7 +366,9 @@
         function setupUnhandledRejectionHandler() {
             // 检测Promise rejection支持
             if (typeof window !== 'undefined' && 'onunhandledrejection' in window) {
-                window.addEventListener('unhandledrejection', function(event) {
+                originalRejectionHandler = window.onunhandledrejection;
+                
+                var rejectionHandler = function(event) {
                     var errorInfo = {
                         type: 'promise',
                         reason: event.reason,
@@ -248,14 +380,16 @@
                         type: 'unhandledRejection',
                         details: errorInfo
                     });
-                });
+                };
+                
+                window.addEventListener('unhandledrejection', rejectionHandler);
             }
         }
         
         function setupConsoleErrorCapture() {
             // 包装console.error以捕获手动错误
             if (typeof console !== 'undefined' && console.error) {
-                var originalConsoleError = console.error;
+                originalConsoleError = console.error;
                 
                 console.error = function() {
                     // 记录控制台错误
@@ -270,6 +404,61 @@
                     return originalConsoleError.apply(console, arguments);
                 };
             }
+        }
+        
+        function setupUnloadHandler() {
+            if (typeof window !== 'undefined') {
+                boundUnloadHandler = function() {
+                    // 发送最后的错误报告
+                    if (errorQueue.length > 0 && reportEndpoint) {
+                        var finalReport = {
+                            type: 'session_end',
+                            errors: errorQueue,
+                            stats: self.getStats()
+                        };
+                        
+                        // 使用同步方式确保发送
+                        try {
+                            if (navigator.sendBeacon) {
+                                navigator.sendBeacon(reportEndpoint, JSON.stringify(finalReport));
+                            }
+                        } catch (error) {
+                            DEBUG_WARN('[ErrorBoundary] 最终报告发送失败:', error);
+                        }
+                    }
+                };
+                
+                window.addEventListener('beforeunload', boundUnloadHandler);
+            }
+        }
+        
+        function restoreOriginalHandlers() {
+            // 恢复原始错误处理器
+            if (typeof window !== 'undefined') {
+                if (originalErrorHandler) {
+                    window.onerror = originalErrorHandler;
+                } else {
+                    window.onerror = null;
+                }
+                
+                if (originalRejectionHandler) {
+                    window.onunhandledrejection = originalRejectionHandler;
+                }
+                
+                if (boundUnloadHandler) {
+                    window.removeEventListener('beforeunload', boundUnloadHandler);
+                    boundUnloadHandler = null;
+                }
+            }
+            
+            // 恢复console.error
+            if (originalConsoleError && typeof console !== 'undefined') {
+                console.error = originalConsoleError;
+            }
+            
+            originalErrorHandler = null;
+            originalRejectionHandler = null;
+            originalConsoleError = null;
         }
         
         function normalizeError(error, context) {
@@ -343,7 +532,7 @@
         function showUserNotification(errorInfo) {
             // 非阻塞式用户提示
             setTimeout(function() {
-                if (typeof window !== 'undefined' && window.alert) {
+                if (typeof window !== 'undefined' && !isDestroyed) {
                     // 用户友好的错误消息
                     var userMessage = getUserFriendlyMessage(errorInfo);
                     
@@ -352,7 +541,7 @@
                         window.EnglishSite.showNotification(userMessage, 'error');
                     } else {
                         // 降级到基础提示
-                        console.error('系统错误:', userMessage);
+                        DEBUG_ERROR('系统错误:', userMessage);
                     }
                 }
             }, 100);
@@ -370,42 +559,46 @@
         }
         
         function logDetailedError(errorInfo) {
-            console.group('[ErrorBoundary] 详细错误信息');
-            console.error('错误消息:', errorInfo.message);
-            console.error('错误类型:', errorInfo.name);
-            console.error('严重程度:', errorInfo.severity);
-            console.error('发生时间:', new Date(errorInfo.timestamp).toISOString());
-            console.error('上下文:', errorInfo.context);
-            console.error('堆栈跟踪:', errorInfo.stack);
-            console.groupEnd();
+            DEBUG_LOG('[ErrorBoundary] 详细错误信息:');
+            DEBUG_ERROR('错误消息:', errorInfo.message);
+            DEBUG_ERROR('错误类型:', errorInfo.name);
+            DEBUG_ERROR('严重程度:', errorInfo.severity);
+            DEBUG_ERROR('发生时间:', new Date(errorInfo.timestamp).toISOString());
+            DEBUG_ERROR('上下文:', errorInfo.context);
+            DEBUG_ERROR('堆栈跟踪:', errorInfo.stack);
         }
         
         function attemptRecovery(context, error) {
-            var strategy = recoveryStrategies[context] || recoveryStrategies['default'];
-            
-            if (strategy) {
-                try {
-                    var result = strategy(error, context);
-                    if (result !== false) {
-                        statistics.recoveredErrors++;
-                        return result;
+            try {
+                var strategy = recoveryStrategies[context] || recoveryStrategies['default'];
+                
+                if (strategy) {
+                    try {
+                        var result = strategy(error, context);
+                        if (result !== false) {
+                            statistics.recoveredErrors++;
+                            return result;
+                        }
+                    } catch (recoveryError) {
+                        DEBUG_ERROR('[ErrorBoundary] 恢复策略失败:', recoveryError);
                     }
-                } catch (recoveryError) {
-                    console.error('[ErrorBoundary] 恢复策略失败:', recoveryError);
                 }
-            }
-            
-            // 降级到默认组件
-            var fallback = fallbackComponents[context] || fallbackComponents['default'];
-            if (fallback) {
-                try {
-                    return fallback(error, context);
-                } catch (fallbackError) {
-                    console.error('[ErrorBoundary] 降级组件失败:', fallbackError);
+                
+                // 降级到默认组件
+                var fallback = fallbackComponents[context] || fallbackComponents['default'];
+                if (fallback) {
+                    try {
+                        return fallback(error, context);
+                    } catch (fallbackError) {
+                        DEBUG_ERROR('[ErrorBoundary] 降级组件失败:', fallbackError);
+                    }
                 }
+                
+                return undefined;
+            } catch (error) {
+                DEBUG_ERROR('[ErrorBoundary] 恢复尝试失败:', error);
+                return undefined;
             }
-            
-            return undefined;
         }
         
         function executeRecoveryStrategy(strategyName) {
@@ -415,12 +608,12 @@
                 try {
                     return strategy();
                 } catch (error) {
-                    console.error('[ErrorBoundary] 恢复策略执行失败:', error);
+                    DEBUG_ERROR('[ErrorBoundary] 恢复策略执行失败:', error);
                     return false;
                 }
             }
             
-            console.warn('[ErrorBoundary] 未找到恢复策略:', strategyName);
+            DEBUG_WARN('[ErrorBoundary] 未找到恢复策略:', strategyName);
             return false;
         }
         
@@ -444,7 +637,9 @@
             
             // 异步发送，避免阻塞
             setTimeout(function() {
-                sendErrorReport(errorInfo);
+                if (!isDestroyed) {
+                    sendErrorReport(errorInfo);
+                }
             }, 0);
         }
         
@@ -467,7 +662,7 @@
                         },
                         body: JSON.stringify(payload)
                     }).catch(function(error) {
-                        console.warn('[ErrorBoundary] 错误报告发送失败:', error);
+                        DEBUG_WARN('[ErrorBoundary] 错误报告发送失败:', error);
                     });
                 } else if (typeof XMLHttpRequest !== 'undefined') {
                     var xhr = new XMLHttpRequest();
@@ -476,14 +671,14 @@
                     xhr.send(JSON.stringify(payload));
                 }
             } catch (reportError) {
-                console.warn('[ErrorBoundary] 错误报告创建失败:', reportError);
+                DEBUG_WARN('[ErrorBoundary] 错误报告创建失败:', reportError);
             }
         }
         
         // 设置默认恢复策略
         function setupDefaultRecoveryStrategies() {
             self.setRecoveryStrategy('default', function(error, context) {
-                console.warn('[ErrorBoundary] 使用默认恢复策略:', context);
+                DEBUG_WARN('[ErrorBoundary] 使用默认恢复策略:', context);
                 return null;
             });
             
@@ -497,13 +692,13 @@
             
             self.setRecoveryStrategy('audio', function(error, context) {
                 // 音频错误恢复
-                console.warn('[ErrorBoundary] 音频功能暂时不可用');
+                DEBUG_WARN('[ErrorBoundary] 音频功能暂时不可用');
                 return { disabled: true, reason: 'error' };
             });
             
             self.setRecoveryStrategy('glossary', function(error, context) {
                 // 词汇表错误恢复
-                console.warn('[ErrorBoundary] 词汇表功能暂时不可用');
+                DEBUG_WARN('[ErrorBoundary] 词汇表功能暂时不可用');
                 return { fallbackToBasic: true };
             });
         }
@@ -523,31 +718,6 @@
         
         // 立即初始化
         initialize();
-        setupDefaultRecoveryStrategies();
-        setupDefaultFallbacks();
-        
-        // 页面卸载时清理
-        if (typeof window !== 'undefined') {
-            window.addEventListener('beforeunload', function() {
-                // 发送最后的错误报告
-                if (errorQueue.length > 0 && reportEndpoint) {
-                    var finalReport = {
-                        type: 'session_end',
-                        errors: errorQueue,
-                        stats: self.getStats()
-                    };
-                    
-                    // 使用同步方式确保发送
-                    try {
-                        if (navigator.sendBeacon) {
-                            navigator.sendBeacon(reportEndpoint, JSON.stringify(finalReport));
-                        }
-                    } catch (error) {
-                        console.warn('[ErrorBoundary] 最终报告发送失败:', error);
-                    }
-                }
-            });
-        }
     }
     
     // 🔗 导出
@@ -556,9 +726,16 @@
     } else if (typeof global !== 'undefined') {
         global.ErrorBoundary = ErrorBoundary;
         
-        // 添加到EnglishSite命名空间
-        if (global.EnglishSite) {
+        // 🔧 安全的命名空间添加
+        if (typeof global.EnglishSite === 'undefined') {
+            global.EnglishSite = {};
+        }
+        
+        // 检查是否已存在，避免覆盖
+        if (!global.EnglishSite.ErrorBoundary) {
             global.EnglishSite.ErrorBoundary = ErrorBoundary;
+        } else {
+            DEBUG_WARN('[ErrorBoundary] EnglishSite.ErrorBoundary 已存在，跳过覆盖');
         }
     }
     
