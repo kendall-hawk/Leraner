@@ -1,5 +1,25 @@
 // js/main.js - iOS兼容版应用入口
 // 🚀 统一初始化和启动，确保iOS Safari 12+兼容性
+// 在main.js开头添加
+if (!Object.assign) {
+    Object.assign = function(target) {
+        if (target == null) {
+            throw new TypeError('Cannot convert undefined or null to object');
+        }
+        var to = Object(target);
+        for (var index = 1; index < arguments.length; index++) {
+            var nextSource = arguments[index];
+            if (nextSource != null) {
+                for (var nextKey in nextSource) {
+                    if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
+                        to[nextKey] = nextSource[nextKey];
+                    }
+                }
+            }
+        }
+        return to;
+    };
+}
 
 (function(global) {
     'use strict';
