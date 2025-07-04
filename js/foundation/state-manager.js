@@ -4,6 +4,69 @@
 (function(global) {
     'use strict';
 
+    // 🔧 环境检测和生产环境优化
+    var IS_PRODUCTION = typeof window !== 'undefined' && 
+        (window.location.hostname !== 'localhost' && 
+         window.location.hostname !== '127.0.0.1' &&
+         window.location.hostname !== '' &&
+         !window.location.hostname.startsWith('192.168.') &&
+         !window.location.hostname.startsWith('10.') &&
+         !window.location.hostname.startsWith('172.'));
+
+    var DEBUG_LOG = IS_PRODUCTION ? function(){} : console.log;
+    var DEBUG_WARN = IS_PRODUCTION ? function(){} : console.warn;
+    var DEBUG_ERROR = IS_PRODUCTION ? function(){} : console.error;
+
+    // 🔧 安全工具函数
+    function safeJSONParse(str, fallback) {
+        if (!str || typeof str !== 'string') {
+            return fallback || {};
+        }
+        try {
+            var result = JSON.parse(str);
+            return result !== null ? result : (fallback || {});
+        } catch (error) {
+            DEBUG_WARN('[StateManager] JSON解析失败:', error.message);
+            return fallback || {};
+        }
+    }
+
+    function safeJSONStringify(obj, fallback) {
+        if (obj === null || obj === undefined) {
+            return fallback || '{}';
+        }
+        try {
+            return JSON.stringify(obj);
+        } catch (error) {
+            DEBUG_WARN('[StateManager] JSON序列化失败:', error.message);
+            return fallback || '{}';
+        }
+    }
+
+    // 🔧 性能优化的克隆函数
+    function fastClone(obj) {
+        // 对于 null 或基本类型，直接返回
+        if (obj === null || typeof obj !== 'object') {
+            return obj;
+        }
+        
+        // 对于简单对象，优先使用 JSON 方法（更快）
+        try {
+            var str = safeJSONStringify(obj);
+            if (str && str !== '{}' && str !== 'null') {
+                var cloned = safeJSONParse(str);
+                if (cloned && typeof cloned === 'object') {
+                    return cloned;
+                }
+            }
+        } catch (error) {
+            // 降级到深拷贝
+        }
+        
+        // 降级到深拷贝
+        return deepClone(obj);
+    }
+
     /**
      * 🎯 StateManager - 统一状态管理器
      * 功能：单一状态树、订阅通知、持久化、回滚支持
@@ -18,26 +81,45 @@
         var updateQueue = [];
         var isUpdating = false;
         
+        // 🔧 清理和销毁相关
+        var isDestroyed = false;
+        var autoSaveTimer = null;
+        var beforeUnloadHandler = null;
+        
         var self = this;
         
         // 🎯 初始化
         function initialize() {
+            if (isDestroyed) {
+                DEBUG_ERROR('[StateManager] 尝试初始化已销毁的实例');
+                return;
+            }
+            
             try {
                 restoreFromStorage();
                 setupAutoSave();
-                console.log('[StateManager] 初始化成功');
+                DEBUG_LOG('[StateManager] 初始化成功');
             } catch (error) {
-                console.error('[StateManager] 初始化失败:', error);
+                DEBUG_ERROR('[StateManager] 初始化失败:', error);
                 state = {};
             }
         }
         
         // 🔑 设置状态
         this.setState = function(path, value, options) {
+            if (isDestroyed) {
+                DEBUG_WARN('[StateManager] 实例已销毁，无法设置状态');
+                return false;
+            }
+            
             options = options || {};
             
             try {
                 var normalizedPath = normalizePath(path);
+                if (!normalizedPath || normalizedPath.length === 0) {
+                    throw new Error('Invalid path provided');
+                }
+                
                 var oldValue = getStateByPath(normalizedPath);
                 
                 // 保存历史记录
@@ -68,29 +150,42 @@
                 
                 return true;
             } catch (error) {
-                console.error('[StateManager] setState失败:', error);
+                DEBUG_ERROR('[StateManager] setState失败:', error);
                 return false;
             }
         };
         
         // 🔑 获取状态
         this.getState = function(path) {
+            if (isDestroyed) {
+                return undefined;
+            }
+            
             try {
-                if (!path) return deepClone(state);
+                if (!path) return fastClone(state);
                 
                 var normalizedPath = normalizePath(path);
                 return getStateByPath(normalizedPath);
             } catch (error) {
-                console.error('[StateManager] getState失败:', error);
+                DEBUG_ERROR('[StateManager] getState失败:', error);
                 return undefined;
             }
         };
         
         // 🔑 订阅状态变化
         this.subscribe = function(path, callback, options) {
+            if (isDestroyed) {
+                DEBUG_WARN('[StateManager] 实例已销毁，无法订阅');
+                return function() {};
+            }
+            
             options = options || {};
             
             try {
+                if (typeof callback !== 'function') {
+                    throw new Error('Callback must be a function');
+                }
+                
                 var normalizedPath = normalizePath(path).join('.');
                 
                 if (!subscribers[normalizedPath]) {
@@ -112,12 +207,14 @@
                     try {
                         callback(currentValue, undefined, path);
                     } catch (callbackError) {
-                        console.error('[StateManager] 订阅回调执行失败:', callbackError);
+                        DEBUG_ERROR('[StateManager] 订阅回调执行失败:', callbackError);
                     }
                 }
                 
                 // 返回取消订阅函数
                 return function unsubscribe() {
+                    if (isDestroyed) return;
+                    
                     var subs = subscribers[normalizedPath];
                     if (subs) {
                         for (var i = 0; i < subs.length; i++) {
@@ -126,32 +223,43 @@
                                 break;
                             }
                         }
+                        
+                        // 如果没有订阅者了，清理数组
+                        if (subs.length === 0) {
+                            delete subscribers[normalizedPath];
+                        }
                     }
                 };
             } catch (error) {
-                console.error('[StateManager] subscribe失败:', error);
+                DEBUG_ERROR('[StateManager] subscribe失败:', error);
                 return function() {}; // 空函数避免错误
             }
         };
         
         // 🔑 批量更新状态
         this.batchUpdate = function(updates) {
-            if (!updates || !updates.length) return;
+            if (isDestroyed || !updates || !updates.length) {
+                return false;
+            }
             
             isUpdating = true;
             
             try {
                 for (var i = 0; i < updates.length; i++) {
                     var update = updates[i];
-                    self.setState(update.path, update.value, {
-                        batch: true,
-                        silent: true
-                    });
+                    if (update && update.path !== undefined && update.value !== undefined) {
+                        self.setState(update.path, update.value, {
+                            batch: true,
+                            silent: true
+                        });
+                    }
                 }
                 
                 processBatchUpdates();
+                return true;
             } catch (error) {
-                console.error('[StateManager] batchUpdate失败:', error);
+                DEBUG_ERROR('[StateManager] batchUpdate失败:', error);
+                return false;
             } finally {
                 isUpdating = false;
             }
@@ -159,6 +267,10 @@
         
         // 🔑 清理状态
         this.clearState = function(path) {
+            if (isDestroyed) {
+                return false;
+            }
+            
             try {
                 if (!path) {
                     state = {};
@@ -170,13 +282,17 @@
                 
                 return true;
             } catch (error) {
-                console.error('[StateManager] clearState失败:', error);
+                DEBUG_ERROR('[StateManager] clearState失败:', error);
                 return false;
             }
         };
         
         // 🔑 持久化状态
         this.persist = function() {
+            if (isDestroyed) {
+                return false;
+            }
+            
             try {
                 var storage = getStorage();
                 if (storage) {
@@ -186,42 +302,60 @@
                         version: '2.0'
                     };
                     
-                    storage.setItem('learner_state', JSON.stringify(dataToStore));
-                    return true;
+                    var serialized = safeJSONStringify(dataToStore);
+                    if (serialized && serialized !== '{}') {
+                        storage.setItem('learner_state', serialized);
+                        return true;
+                    }
                 }
                 return false;
             } catch (error) {
-                console.error('[StateManager] persist失败:', error);
+                DEBUG_ERROR('[StateManager] persist失败:', error);
                 return false;
             }
         };
         
         // 🔑 恢复状态
         this.restore = function() {
+            if (isDestroyed) {
+                return false;
+            }
+            
             try {
                 restoreFromStorage();
                 return true;
             } catch (error) {
-                console.error('[StateManager] restore失败:', error);
+                DEBUG_ERROR('[StateManager] restore失败:', error);
                 return false;
             }
         };
         
         // 🔑 时间旅行 - 回到历史状态
         this.timeTravel = function(index) {
+            if (isDestroyed) {
+                return false;
+            }
+            
             try {
-                if (index >= 0 && index < history.length) {
+                if (typeof index === 'number' && index >= 0 && index < history.length) {
                     var historyItem = history[index];
-                    self.setState(historyItem.path, historyItem.oldValue, {
-                        skipHistory: true
-                    });
-                    return true;
+                    if (historyItem && historyItem.path && historyItem.oldValue !== undefined) {
+                        self.setState(historyItem.path, historyItem.oldValue, {
+                            skipHistory: true
+                        });
+                        return true;
+                    }
                 }
                 return false;
             } catch (error) {
-                console.error('[StateManager] timeTravel失败:', error);
+                DEBUG_ERROR('[StateManager] timeTravel失败:', error);
                 return false;
             }
+        };
+        
+        // 🔑 监听路径变化
+        this.watch = function(path, callback, options) {
+            return this.subscribe(path, callback, options);
         };
         
         // 🔑 获取统计信息
@@ -230,8 +364,55 @@
                 stateSize: getObjectSize(state),
                 subscriberCount: getTotalSubscribers(),
                 historySize: history.length,
-                maxHistorySize: maxHistorySize
+                maxHistorySize: maxHistorySize,
+                isDestroyed: isDestroyed
             };
+        };
+        
+        // 🔑 销毁实例
+        this.destroy = function() {
+            if (isDestroyed) {
+                return true;
+            }
+            
+            try {
+                // 标记为已销毁
+                isDestroyed = true;
+                
+                // 清理定时器
+                if (autoSaveTimer) {
+                    clearInterval(autoSaveTimer);
+                    autoSaveTimer = null;
+                }
+                
+                // 移除事件监听器
+                if (beforeUnloadHandler && typeof window !== 'undefined') {
+                    window.removeEventListener('beforeunload', beforeUnloadHandler);
+                    beforeUnloadHandler = null;
+                }
+                
+                // 清理订阅者
+                subscribers = {};
+                
+                // 清理更新队列
+                updateQueue = [];
+                isUpdating = false;
+                
+                // 清理历史记录
+                history = [];
+                
+                // 最后一次持久化
+                this.persist();
+                
+                // 清理状态
+                state = {};
+                
+                DEBUG_LOG('[StateManager] 实例已销毁');
+                return true;
+            } catch (error) {
+                DEBUG_ERROR('[StateManager] 销毁失败:', error);
+                return false;
+            }
         };
         
         // 🔧 内部工具函数
@@ -242,12 +423,21 @@
                 });
             }
             if (Array.isArray(path)) {
-                return path.slice(); // 创建副本
+                return path.slice().filter(function(part) {
+                    return part !== null && part !== undefined && String(part).length > 0;
+                });
             }
-            return [String(path)];
+            if (path !== null && path !== undefined) {
+                return [String(path)];
+            }
+            return [];
         }
         
         function getStateByPath(pathArray) {
+            if (!pathArray || pathArray.length === 0) {
+                return undefined;
+            }
+            
             var current = state;
             
             for (var i = 0; i < pathArray.length; i++) {
@@ -257,10 +447,14 @@
                 current = current[pathArray[i]];
             }
             
-            return deepClone(current);
+            return fastClone(current);
         }
         
         function setStateByPath(pathArray, value) {
+            if (!pathArray || pathArray.length === 0) {
+                return;
+            }
+            
             var current = state;
             
             // 确保路径存在
@@ -274,19 +468,28 @@
             
             // 设置最终值
             var finalKey = pathArray[pathArray.length - 1];
-            current[finalKey] = deepClone(value);
+            if (value === undefined) {
+                delete current[finalKey];
+            } else {
+                current[finalKey] = fastClone(value);
+            }
         }
         
         function notifySubscribers(pathArray, newValue, oldValue) {
+            if (isDestroyed) return;
+            
             var pathString = pathArray.join('.');
             var subs = subscribers[pathString];
             
             if (subs && subs.length > 0) {
-                for (var i = 0; i < subs.length; i++) {
+                // 创建副本，防止在回调中修改订阅者列表
+                var subsToNotify = subs.slice();
+                
+                for (var i = 0; i < subsToNotify.length; i++) {
                     try {
-                        subs[i].callback(newValue, oldValue, pathString);
+                        subsToNotify[i].callback(newValue, oldValue, pathString);
                     } catch (error) {
-                        console.error('[StateManager] 订阅者回调执行失败:', error);
+                        DEBUG_ERROR('[StateManager] 订阅者回调执行失败:', error);
                     }
                 }
             }
@@ -296,18 +499,22 @@
         }
         
         function notifyParentSubscribers(pathArray, newValue, oldValue) {
+            if (isDestroyed) return;
+            
             for (var i = pathArray.length - 1; i > 0; i--) {
                 var parentPath = pathArray.slice(0, i).join('.');
                 var parentSubs = subscribers[parentPath];
                 
                 if (parentSubs) {
-                    for (var j = 0; j < parentSubs.length; j++) {
-                        if (parentSubs[j].deep) {
+                    var subsToNotify = parentSubs.slice();
+                    
+                    for (var j = 0; j < subsToNotify.length; j++) {
+                        if (subsToNotify[j].deep) {
                             try {
                                 var parentValue = getStateByPath(pathArray.slice(0, i));
-                                parentSubs[j].callback(parentValue, undefined, parentPath);
+                                subsToNotify[j].callback(parentValue, undefined, parentPath);
                             } catch (error) {
-                                console.error('[StateManager] 父级订阅者通知失败:', error);
+                                DEBUG_ERROR('[StateManager] 父级订阅者通知失败:', error);
                             }
                         }
                     }
@@ -316,16 +523,19 @@
         }
         
         function notifyAllSubscribers() {
+            if (isDestroyed) return;
+            
             for (var path in subscribers) {
                 if (subscribers.hasOwnProperty(path)) {
                     var currentValue = self.getState(path);
                     var subs = subscribers[path];
+                    var subsToNotify = subs.slice();
                     
-                    for (var i = 0; i < subs.length; i++) {
+                    for (var i = 0; i < subsToNotify.length; i++) {
                         try {
-                            subs[i].callback(currentValue, undefined, path);
+                            subsToNotify[i].callback(currentValue, undefined, path);
                         } catch (error) {
-                            console.error('[StateManager] 全局通知失败:', error);
+                            DEBUG_ERROR('[StateManager] 全局通知失败:', error);
                         }
                     }
                 }
@@ -333,10 +543,12 @@
         }
         
         function processBatchUpdates() {
-            if (updateQueue.length === 0) return;
+            if (updateQueue.length === 0 || isDestroyed) return;
             
             // 使用异步处理避免阻塞
             setTimeout(function() {
+                if (isDestroyed) return;
+                
                 var updates = updateQueue.slice();
                 updateQueue = [];
                 
@@ -348,14 +560,17 @@
         }
         
         function saveToHistory(pathArray, oldValue, newValue) {
+            if (isDestroyed) return;
+            
+            // 限制历史记录大小
             if (history.length >= maxHistorySize) {
                 history.shift(); // 移除最旧的记录
             }
             
             history.push({
                 path: pathArray,
-                oldValue: deepClone(oldValue),
-                newValue: deepClone(newValue),
+                oldValue: fastClone(oldValue),
+                newValue: fastClone(newValue),
                 timestamp: Date.now()
             });
         }
@@ -367,29 +582,39 @@
             try {
                 var stored = storage.getItem('learner_state');
                 if (stored) {
-                    var data = JSON.parse(stored);
+                    var data = safeJSONParse(stored, null);
                     
                     // 版本检查
-                    if (data.version === '2.0' && data.state) {
+                    if (data && data.version === '2.0' && data.state && typeof data.state === 'object') {
                         state = data.state;
+                        DEBUG_LOG('[StateManager] 状态恢复成功');
+                    } else {
+                        DEBUG_WARN('[StateManager] 状态版本不匹配或格式错误');
                     }
                 }
             } catch (error) {
-                console.warn('[StateManager] 恢复存储状态失败:', error);
+                DEBUG_WARN('[StateManager] 恢复存储状态失败:', error);
             }
         }
         
         function setupAutoSave() {
+            if (isDestroyed) return;
+            
             // 每30秒自动保存
-            setInterval(function() {
-                self.persist();
+            autoSaveTimer = setInterval(function() {
+                if (!isDestroyed) {
+                    self.persist();
+                }
             }, 30000);
             
             // 页面卸载时保存
             if (typeof window !== 'undefined') {
-                window.addEventListener('beforeunload', function() {
-                    self.persist();
-                });
+                beforeUnloadHandler = function() {
+                    if (!isDestroyed) {
+                        self.persist();
+                    }
+                };
+                window.addEventListener('beforeunload', beforeUnloadHandler);
             }
         }
         
@@ -398,14 +623,16 @@
             
             try {
                 // 测试localStorage是否可用
-                window.localStorage.setItem('test', 'test');
-                window.localStorage.removeItem('test');
+                var testKey = '__state_test__';
+                window.localStorage.setItem(testKey, 'test');
+                window.localStorage.removeItem(testKey);
                 return window.localStorage;
             } catch (error) {
                 // 降级到sessionStorage
                 try {
-                    window.sessionStorage.setItem('test', 'test');
-                    window.sessionStorage.removeItem('test');
+                    var testKey = '__state_test__';
+                    window.sessionStorage.setItem(testKey, 'test');
+                    window.sessionStorage.removeItem(testKey);
                     return window.sessionStorage;
                 } catch (sessionError) {
                     // 最终降级到内存存储
@@ -419,16 +646,23 @@
             
             return {
                 setItem: function(key, value) {
-                    memoryData[key] = String(value);
+                    if (key && value !== undefined) {
+                        memoryData[key] = String(value);
+                    }
                 },
                 getItem: function(key) {
                     return memoryData[key] || null;
                 },
                 removeItem: function(key) {
-                    delete memoryData[key];
+                    if (key) {
+                        delete memoryData[key];
+                    }
                 },
                 clear: function() {
                     memoryData = {};
+                },
+                get length() {
+                    return Object.keys(memoryData).length;
                 }
             };
         }
@@ -466,7 +700,7 @@
         
         function getObjectSize(obj) {
             try {
-                return JSON.stringify(obj).length;
+                return safeJSONStringify(obj, '{}').length;
             } catch (error) {
                 return 0;
             }
@@ -492,9 +726,16 @@
     } else if (typeof global !== 'undefined') {
         global.StateManager = StateManager;
         
-        // 添加到EnglishSite命名空间
-        if (global.EnglishSite) {
+        // 🔧 安全的命名空间添加
+        if (typeof global.EnglishSite === 'undefined') {
+            global.EnglishSite = {};
+        }
+        
+        // 检查是否已存在，避免覆盖
+        if (!global.EnglishSite.StateManager) {
             global.EnglishSite.StateManager = StateManager;
+        } else {
+            DEBUG_WARN('[StateManager] EnglishSite.StateManager 已存在，跳过覆盖');
         }
     }
     
