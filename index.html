@@ -58,8 +58,7 @@
     <!-- Preload Critical Resources -->
     <link rel="preload" href="css/base.css" as="style">
     <link rel="preload" href="css/components.css" as="style">
-    <link rel="preload" href="js/core/module-patches.js" as="script">
-    <link rel="preload" href="js/core/safe-initializer.js" as="script">
+    <link rel="preload" href="js/polyfills/promise.js" as="script">
     <link rel="preload" href="js/main.js" as="script">
     
     <!-- Critical CSS Inline -->
@@ -132,23 +131,6 @@
             font-weight: 500;
         }
         
-        .loading-progress {
-            width: 200px;
-            height: 4px;
-            background: #f3f3f3;
-            border-radius: 2px;
-            margin-top: 16px;
-            overflow: hidden;
-        }
-        
-        .loading-progress-bar {
-            height: 100%;
-            background: var(--primary-color);
-            width: 0%;
-            transition: width 0.3s ease;
-            border-radius: 2px;
-        }
-        
         .no-js .loading-screen {
             display: none;
         }
@@ -188,36 +170,12 @@
         window.addEventListener('resize', setVH);
         window.addEventListener('orientationchange', setVH);
         
-        // Initialize loading progress
-        window.LearnerLoadingProgress = {
-            total: 0,
-            loaded: 0,
-            updateProgress: function(increment = 1) {
-                this.loaded += increment;
-                const percentage = Math.min((this.loaded / this.total) * 100, 100);
-                const progressBar = document.getElementById('loading-progress-bar');
-                if (progressBar) {
-                    progressBar.style.width = percentage + '%';
-                }
-                console.log(`Loading progress: ${this.loaded}/${this.total} (${percentage.toFixed(1)}%)`);
-            },
-            setTotal: function(total) {
-                this.total = total;
-            }
-        };
-        
-        // Set expected script count
-        window.LearnerLoadingProgress.setTotal(15); // 预计加载的脚本数量
-        
         // Critical polyfills check
         (function() {
             const needsPolyfills = !window.Promise || !window.Map || !window.Set;
             if (needsPolyfills) {
-                document.write('<script src="js/polyfills/promise.js" onload="window.LearnerLoadingProgress.updateProgress()"><\/script>');
-                document.write('<script src="js/polyfills/map-set.js" onload="window.LearnerLoadingProgress.updateProgress()"><\/script>');
-            } else {
-                // 如果不需要polyfills，直接更新进度
-                window.LearnerLoadingProgress.updateProgress(2);
+                document.write('<script src="js/polyfills/promise.js"><\/script>');
+                document.write('<script src="js/polyfills/map-set.js"><\/script>');
             }
         })();
     </script>
@@ -230,12 +188,6 @@
         <div class="loading-text">正在加载 LearnerEn...</div>
         <div style="margin-top: 16px; font-size: 14px; color: #666;">
             专业英语学习平台
-        </div>
-        <div class="loading-progress">
-            <div id="loading-progress-bar" class="loading-progress-bar"></div>
-        </div>
-        <div id="loading-status" style="margin-top: 12px; font-size: 12px; color: #999;">
-            正在初始化...
         </div>
     </div>
     
@@ -297,6 +249,21 @@
                             🎯 个性化学习
                         </div>
                     </div>
+                    
+                    <!-- 如果JavaScript未加载，显示调试信息 -->
+                    <div id="debug-info" style="margin-top: 32px; padding: 16px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; font-size: 14px;">
+                        <h4 style="margin: 0 0 8px 0; color: #856404;">调试信息：</h4>
+                        <p style="margin: 4px 0;">如果您看到此信息，说明JavaScript模块可能未正确加载。</p>
+                        <p style="margin: 4px 0;"><strong>解决方案：</strong></p>
+                        <ol style="margin: 8px 0 0 20px;">
+                            <li>确保所有JavaScript文件路径正确</li>
+                            <li>检查浏览器开发者工具的控制台是否有错误</li>
+                            <li>确保服务器正确提供JavaScript文件</li>
+                        </ol>
+                        <button onclick="window.location.reload()" style="margin-top: 12px; padding: 8px 16px; background: #007AFF; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            重新加载页面
+                        </button>
+                    </div>
                 </div>
             </div>
         </main>
@@ -311,443 +278,6 @@
             您当前处于离线状态，某些功能可能无法使用
         </div>
     </div>
-    
-    <!-- 
-    ==========================================
-    🚀 优化后的脚本加载顺序
-    ==========================================
-    按照正确的依赖顺序加载，解决初始化循环问题
-    -->
-    
-    <!-- 1. 首先加载修复补丁（最重要！） -->
-    <script src="js/patches/module-patches.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '补丁已加载';"></script>
-    
-    <!-- 2. 安全初始化器 -->
-    <script src="js/patches/safe-initializer.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '初始化器已加载';"></script>
-    
-    <!-- 3. RequestAnimationFrame Polyfill（兼容性） -->
-    <script src="js/polyfills/raf.js" onload="window.LearnerLoadingProgress.updateProgress();"></script>
-    
-    <!-- 4. 基础工具模块（无依赖） -->
-    <script src="js/utils/compatibility.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '兼容性模块已加载';"></script>
-    <script src="js/utils/performance.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '性能监控已加载';"></script>
-    
-    <!-- 5. 依赖compatibility的工具模块 -->
-    <script src="js/utils/dom-utils.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = 'DOM工具已加载';"></script>
-    <script src="js/utils/mobile-utils.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '移动端工具已加载';"></script>
-    
-    <!-- 6. 核心Foundation模块（按依赖顺序） -->
-    <script src="js/foundation/error-boundary.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '错误边界已加载';"></script>
-    <script src="js/foundation/cache-manager.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '缓存管理器已加载';"></script>
-    <script src="js/foundation/event-hub.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '事件中心已加载';"></script>
-    <script src="js/foundation/state-manager.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '状态管理器已加载';"></script>
-    
-    <!-- 7. 依赖容器（如果存在） -->
-    <script src="js/foundation/dependency-container.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '依赖容器已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('dependency-container.js not found, skipping...');"></script>
-    
-    <!-- 8. 调试工具 -->
-    <script src="js/utils/debug-integration.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '调试工具已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('debug-integration.js not found, skipping...');"></script>
-    
-    <!-- 9. 核心业务模块 -->
-    <script src="js/modules/app-controller.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '应用控制器已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('app-controller.js not found, skipping...');"></script>
-    <script src="js/modules/navigation-core.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '导航核心已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('navigation-core.js not found, skipping...');"></script>
-    <script src="js/modules/audio-sync-core.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '音频同步已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('audio-sync-core.js not found, skipping...');"></script>
-    <script src="js/modules/glossary-core.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '词汇表核心已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('glossary-core.js not found, skipping...');"></script>
-    <script src="js/modules/word-frequency-core.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '词频分析已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('word-frequency-core.js not found, skipping...');"></script>
-
-    <!-- 10. 主应用入口（最后加载） -->
-    <script src="js/main.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '主应用已加载';"></script>
-    
-    <!-- 
-    ==========================================
-    🎯 安全的应用启动脚本
-    ==========================================
-    等待所有模块初始化完成后再启动应用
-    -->
-    <script>
-        (function() {
-            'use strict';
-            
-            console.log('🚀 [LearnerEn] 开始安全启动流程...');
-            
-            let initializationTimeout;
-            let fallbackTimeout;
-            
-            // 监听安全初始化完成事件
-            window.addEventListener('EnglishSiteReady', function(event) {
-                console.log('✅ [LearnerEn] 安全初始化完成');
-                
-                clearTimeout(initializationTimeout);
-                clearTimeout(fallbackTimeout);
-                
-                // 更新加载状态
-                document.getElementById('loading-status').textContent = '初始化完成';
-                window.LearnerLoadingProgress.updateProgress(0); // 确保进度条满
-                
-                // 隐藏加载屏幕
-                setTimeout(hideLoadingScreen, 500);
-                
-                // 启动主应用
-                startMainApplication();
-            });
-            
-            // 如果10秒内未完成初始化，显示基本界面
-            initializationTimeout = setTimeout(function() {
-                console.warn('⚠️ [LearnerEn] 初始化超时，启动基本界面');
-                document.getElementById('loading-status').textContent = '启动基本界面...';
-                
-                hideLoadingScreen();
-                initBasicInterface();
-            }, 10000);
-            
-            // 如果20秒内完全没有响应，强制启动
-            fallbackTimeout = setTimeout(function() {
-                console.error('❌ [LearnerEn] 启动失败，显示错误信息');
-                
-                hideLoadingScreen();
-                showErrorInterface();
-            }, 20000);
-            
-            function hideLoadingScreen() {
-                const loadingScreen = document.getElementById('loading-screen');
-                if (loadingScreen) {
-                    loadingScreen.style.opacity = '0';
-                    loadingScreen.style.pointerEvents = 'none';
-                    setTimeout(() => {
-                        loadingScreen.style.display = 'none';
-                    }, 300);
-                }
-            }
-            
-            function startMainApplication() {
-                console.log('🎉 [LearnerEn] 启动主应用');
-                
-                try {
-                    // 如果主应用控制器存在，启动它
-                    if (window.LearnerApp && typeof window.LearnerApp.initialize === 'function') {
-                        window.LearnerApp.initialize();
-                    } else if (window.EnglishSite && window.EnglishSite.AppController) {
-                        const appController = window.EnglishSite.initializer.get('AppController');
-                        if (appController && typeof appController.initialize === 'function') {
-                            appController.initialize();
-                        }
-                    } else {
-                        console.warn('[LearnerEn] 主应用控制器未找到，启动基本界面');
-                        initBasicInterface();
-                    }
-                } catch (error) {
-                    console.error('[LearnerEn] 启动主应用失败:', error);
-                    initBasicInterface();
-                }
-                
-                // 初始化基本功能
-                initBasicFeatures();
-            }
-            
-            function initBasicInterface() {
-                console.log('🔧 [LearnerEn] 初始化基本界面');
-                
-                // 基本导航
-                const navContainer = document.getElementById('nav-container');
-                if (navContainer && !navContainer.innerHTML.trim()) {
-                    navContainer.innerHTML = createBasicNavigation();
-                    setupBasicNavigation();
-                }
-                
-                // 显示面包屑和音频容器
-                const breadcrumbContainer = document.getElementById('breadcrumb-container');
-                if (breadcrumbContainer) {
-                    breadcrumbContainer.style.display = 'block';
-                    breadcrumbContainer.innerHTML = createBasicBreadcrumb();
-                }
-                
-                const audioContainer = document.getElementById('audio-container');
-                if (audioContainer) {
-                    audioContainer.style.display = 'block';
-                    setupBasicAudioControls();
-                }
-                
-                // 更新内容区域
-                updateContentArea('basic');
-            }
-            
-            function showErrorInterface() {
-                console.log('❌ [LearnerEn] 显示错误界面');
-                
-                const contentArea = document.getElementById('content-area');
-                if (contentArea) {
-                    contentArea.innerHTML = `
-                        <div style="padding: 24px; text-align: center; max-width: 600px; margin: 0 auto;">
-                            <h2 style="color: #dc3545; margin-bottom: 16px;">⚠️ 启动失败</h2>
-                            <p style="font-size: 18px; margin-bottom: 24px;">LearnerEn 无法正常启动，请尝试以下解决方案：</p>
-                            
-                            <div style="text-align: left; background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
-                                <h4>🔧 故障排除：</h4>
-                                <ol style="margin: 8px 0 0 20px;">
-                                    <li>检查网络连接是否正常</li>
-                                    <li>清除浏览器缓存并刷新页面</li>
-                                    <li>确保浏览器支持现代JavaScript</li>
-                                    <li>检查是否有广告拦截器阻止了脚本加载</li>
-                                    <li>尝试使用最新版本的Chrome、Safari或Firefox</li>
-                                </ol>
-                            </div>
-                            
-                            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                                <button onclick="window.location.reload()" style="padding: 12px 24px; background: #007AFF; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
-                                    🔄 重新加载
-                                </button>
-                                <button onclick="localStorage.clear(); window.location.reload()" style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
-                                    🗑️ 清除缓存并重载
-                                </button>
-                                <button onclick="initBasicInterface()" style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
-                                    🔧 尝试基本模式
-                                </button>
-                            </div>
-                            
-                            <div style="margin-top: 32px; padding: 16px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #007AFF;">
-                                <h4 style="margin: 0 0 8px 0;">💡 开发者信息</h4>
-                                <p style="margin: 0; font-size: 14px;">请检查浏览器控制台获取详细错误信息</p>
-                            </div>
-                        </div>
-                    `;
-                }
-            }
-            
-            function createBasicNavigation() {
-                return `
-                    <div class="nav-sidebar">
-                        <div class="nav-search-container">
-                            <div class="nav-search-box">
-                                <input type="text" class="nav-search-input" placeholder="搜索课程..." />
-                            </div>
-                        </div>
-                        <div class="nav-menu-container">
-                            <ul class="nav-menu nav-menu-level-0">
-                                <li class="nav-item nav-item-parent">
-                                    <a href="#" class="nav-link">
-                                        <span class="nav-icon">🏠</span>
-                                        <span class="nav-text">首页</span>
-                                    </a>
-                                </li>
-                                <li class="nav-item nav-item-parent">
-                                    <a href="#" class="nav-link">
-                                        <span class="nav-icon">📚</span>
-                                        <span class="nav-text">课程中心</span>
-                                    </a>
-                                    <div class="nav-submenu">
-                                        <ul class="nav-menu nav-menu-level-1">
-                                            <li class="nav-item"><a href="#" class="nav-link"><span class="nav-text">基础英语</span></a></li>
-                                            <li class="nav-item"><a href="#" class="nav-link"><span class="nav-text">商务英语</span></a></li>
-                                            <li class="nav-item"><a href="#" class="nav-link"><span class="nav-text">雅思托福</span></a></li>
-                                        </ul>
-                                    </div>
-                                </li>
-                                <li class="nav-item"><a href="#" class="nav-link"><span class="nav-icon">🎧</span><span class="nav-text">音频练习</span></a></li>
-                                <li class="nav-item"><a href="#" class="nav-link"><span class="nav-icon">📖</span><span class="nav-text">词汇表</span></a></li>
-                                <li class="nav-item"><a href="#" class="nav-link"><span class="nav-icon">📊</span><span class="nav-text">学习统计</span></a></li>
-                                <li class="nav-item"><a href="#" class="nav-link"><span class="nav-icon">⚙️</span><span class="nav-text">设置</span></a></li>
-                            </ul>
-                        </div>
-                    </div>
-                    <button class="nav-toggle" type="button" aria-label="切换导航菜单">
-                        <span class="nav-toggle-icon"></span>
-                    </button>
-                    <div class="nav-overlay"></div>
-                `;
-            }
-            
-            function createBasicBreadcrumb() {
-                return `
-                    <nav class="breadcrumb" aria-label="面包屑导航">
-                        <span class="breadcrumb-item">
-                            <a href="#" class="breadcrumb-link">首页</a>
-                            <span class="breadcrumb-separator">›</span>
-                        </span>
-                        <span class="breadcrumb-item">
-                            <span class="breadcrumb-current">课程中心</span>
-                        </span>
-                    </nav>
-                `;
-            }
-            
-            function setupBasicNavigation() {
-                // 导航切换功能
-                const navToggle = document.querySelector('.nav-toggle');
-                const navSidebar = document.querySelector('.nav-sidebar');
-                const navOverlay = document.querySelector('.nav-overlay');
-                
-                if (navToggle && navSidebar) {
-                    navToggle.addEventListener('click', function() {
-                        const isOpen = navSidebar.classList.contains('open');
-                        if (isOpen) {
-                            navSidebar.classList.remove('open');
-                            navToggle.classList.remove('nav-toggle-active');
-                            if (navOverlay) navOverlay.style.display = 'none';
-                        } else {
-                            navSidebar.classList.add('open');
-                            navToggle.classList.add('nav-toggle-active');
-                            if (navOverlay) navOverlay.style.display = 'block';
-                        }
-                    });
-                }
-                
-                if (navOverlay) {
-                    navOverlay.addEventListener('click', function() {
-                        navSidebar.classList.remove('open');
-                        navToggle.classList.remove('nav-toggle-active');
-                        navOverlay.style.display = 'none';
-                    });
-                }
-                
-                // 子菜单展开
-                const parentItems = document.querySelectorAll('.nav-item-parent');
-                parentItems.forEach(function(item) {
-                    const link = item.querySelector('.nav-link');
-                    if (link) {
-                        link.addEventListener('click', function(e) {
-                            e.preventDefault();
-                            item.classList.toggle('nav-item-expanded');
-                        });
-                    }
-                });
-            }
-            
-            function setupBasicAudioControls() {
-                const audioControls = document.querySelector('.audio-controls');
-                if (audioControls) {
-                    audioControls.style.display = 'flex';
-                }
-                
-                const audioPlayer = document.getElementById('audio-player');
-                const playPauseBtn = document.getElementById('audio-play-pause');
-                const speedBtn = document.getElementById('audio-speed');
-                
-                if (playPauseBtn && audioPlayer) {
-                    playPauseBtn.addEventListener('click', function() {
-                        if (audioPlayer.paused) {
-                            audioPlayer.play();
-                            playPauseBtn.textContent = '⏸';
-                        } else {
-                            audioPlayer.pause();
-                            playPauseBtn.textContent = '▶';
-                        }
-                    });
-                }
-                
-                if (speedBtn && audioPlayer) {
-                    let currentSpeed = 1;
-                    const speeds = [1, 1.25, 1.5, 2, 0.75];
-                    let speedIndex = 0;
-                    
-                    speedBtn.addEventListener('click', function() {
-                        speedIndex = (speedIndex + 1) % speeds.length;
-                        currentSpeed = speeds[speedIndex];
-                        audioPlayer.playbackRate = currentSpeed;
-                        speedBtn.textContent = currentSpeed + 'x';
-                    });
-                }
-            }
-            
-            function updateContentArea(mode) {
-                const contentArea = document.getElementById('content-area');
-                if (!contentArea) return;
-                
-                if (mode === 'basic') {
-                    contentArea.innerHTML = `
-                        <div style="padding: 24px;">
-                            <h1 style="color: #007AFF; margin-bottom: 16px;">✅ LearnerEn 基本模式</h1>
-                            <p style="font-size: 18px; margin-bottom: 24px;">基本界面已加载，核心功能可用！</p>
-                            
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px;">
-                                <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                                    <h3 style="color: #007AFF; margin-bottom: 12px;">🎧 音频同步</h3>
-                                    <p>支持音频与文本同步，实时高亮显示当前播放内容。</p>
-                                </div>
-                                <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                                    <h3 style="color: #007AFF; margin-bottom: 12px;">📚 智能词汇表</h3>
-                                    <p>点击任意单词即可查看释义、发音和例句。</p>
-                                </div>
-                                <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                                    <h3 style="color: #007AFF; margin-bottom: 12px;">📱 移动优化</h3>
-                                    <p>完美适配iOS Safari，支持触摸手势操作。</p>
-                                </div>
-                                <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                                    <h3 style="color: #007AFF; margin-bottom: 12px;">🎯 个性化学习</h3>
-                                    <p>智能分析学习进度，提供个性化推荐。</p>
-                                </div>
-                            </div>
-                            
-                            <div style="padding: 16px; background: #e8f5e8; border-radius: 8px; border-left: 4px solid #28a745;">
-                                <h4 style="margin: 0 0 8px 0;">🎉 启动成功</h4>
-                                <p style="margin: 0;">LearnerEn 已成功启动基本模式。如需完整功能，请确保所有模块正确加载。</p>
-                            </div>
-                        </div>
-                    `;
-                }
-            }
-            
-            function initBasicFeatures() {
-                // Back to top functionality
-                const backToTop = document.getElementById('back-to-top');
-                const contentArea = document.getElementById('content-area');
-                
-                if (backToTop && contentArea) {
-                    function toggleBackToTop() {
-                        if (contentArea.scrollTop > 300) {
-                            backToTop.style.display = 'flex';
-                        } else {
-                            backToTop.style.display = 'none';
-                        }
-                    }
-                    
-                    contentArea.addEventListener('scroll', function() {
-                        if (window.requestAnimationFrame) {
-                            requestAnimationFrame(toggleBackToTop);
-                        } else {
-                            setTimeout(toggleBackToTop, 16);
-                        }
-                    });
-                    
-                    backToTop.addEventListener('click', function() {
-                        if (contentArea.scrollTo) {
-                            contentArea.scrollTo({ top: 0, behavior: 'smooth' });
-                        } else {
-                            contentArea.scrollTop = 0;
-                        }
-                    });
-                }
-                
-                // Network status monitoring
-                function updateOnlineStatus() {
-                    const offlineNotice = document.getElementById('offline-notice');
-                    if (offlineNotice) {
-                        if (navigator.onLine) {
-                            offlineNotice.style.display = 'none';
-                            document.body.classList.remove('offline');
-                        } else {
-                            offlineNotice.style.display = 'block';
-                            document.body.classList.add('offline');
-                        }
-                    }
-                }
-                
-                window.addEventListener('online', updateOnlineStatus);
-                window.addEventListener('offline', updateOnlineStatus);
-                updateOnlineStatus();
-            }
-            
-            // 如果页面已经完全加载但初始化器还未运行，等待一段时间后启动基本界面
-            if (document.readyState === 'complete') {
-                setTimeout(function() {
-                    if (!window.EnglishSite || !window.EnglishSite._PATCHES_APPLIED) {
-                        console.warn('⚠️ [LearnerEn] 补丁未应用，可能存在兼容性问题');
-                        initBasicInterface();
-                    }
-                }, 3000);
-            }
-            
-        })();
-    </script>
     
     <!-- Service Worker Registration -->
     <script>
@@ -770,6 +300,7 @@
             e.preventDefault();
             deferredPrompt = e;
             
+            // Show install button or banner
             const installButton = document.createElement('button');
             installButton.textContent = '安装应用';
             installButton.style.cssText = `
@@ -799,6 +330,8 @@
             });
             
             document.body.appendChild(installButton);
+            
+            // Auto hide after 10 seconds
             setTimeout(() => {
                 if (installButton.parentNode) {
                     installButton.remove();
@@ -806,15 +339,297 @@
             }, 10000);
         });
         
+        // Handle app installed
         window.addEventListener('appinstalled', (evt) => {
             console.log('App was installed');
         });
+    </script>
+    
+    <!-- Polyfills (loaded conditionally) -->
+    <script src="js/polyfills/raf.js"></script>
+    <script src="js/polyfills/map-set.js"></script>
+    <script src="js/polyfills/promise.js"></script>
+    <!-- Foundation Layer -->
+    <script src="js/foundation/dependency-container.js"></script>
+    <script src="js/foundation/error-boundary.js"></script>
+    <script src="js/foundation/event-hub.js"></script>
+    <script src="js/foundation/state-manager.js"></script>
+    <script src="js/foundation/cache-manager.js"></script>
+    
+    <!-- Utils -->
+    <script src="js/utils/compatibility.js"></script>
+    <script src="js/utils/mobile-utils.js"></script>
+    <script src="js/utils/performance.js"></script>
+    <script src="js/utils/dom-utils.js"></script>
+    
+ <!-- Core Modules - 暂时注释掉缺失的文件 -->
+<!--
+<script src="js/modules/navigation-core.js"></script>
+<script src="js/modules/audio-sync-core.js"></script>
+<script src="js/modules/glossary-core.js"></script>
+<script src="js/modules/word-frequency-core.js"></script>
+-->
+
+    
+    <!-- Main Application -->
+    <script src="js/main.js"></script>
+    
+    <!-- 临时演示脚本 - 用于显示基本导航结构 -->
+    <script>
+        // 如果主应用未能加载，显示基本的导航结构
+        setTimeout(function() {
+            // 检查主应用是否已初始化
+            if (!window.LearnerApp || !window.EnglishSite) {
+                console.warn('主应用未加载，显示基本结构');
+                initBasicStructure();
+            }
+        }, 3000);
+        
+        function initBasicStructure() {
+            // 创建基本导航
+            const navContainer = document.getElementById('nav-container');
+            if (navContainer && !navContainer.innerHTML.trim()) {
+                navContainer.innerHTML = `
+                    <div class="nav-sidebar">
+                        <div class="nav-search-container">
+                            <div class="nav-search-box">
+                                <input type="text" class="nav-search-input" placeholder="搜索课程..." />
+                            </div>
+                        </div>
+                        <div class="nav-menu-container">
+                            <ul class="nav-menu nav-menu-level-0">
+                                <li class="nav-item nav-item-parent">
+                                    <a href="#" class="nav-link">
+                                        <span class="nav-icon">🏠</span>
+                                        <span class="nav-text">首页</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item nav-item-parent">
+                                    <a href="#" class="nav-link">
+                                        <span class="nav-icon">📚</span>
+                                        <span class="nav-text">课程中心</span>
+                                    </a>
+                                    <div class="nav-submenu">
+                                        <ul class="nav-menu nav-menu-level-1">
+                                            <li class="nav-item">
+                                                <a href="#" class="nav-link">
+                                                    <span class="nav-text">基础英语</span>
+                                                </a>
+                                            </li>
+                                            <li class="nav-item">
+                                                <a href="#" class="nav-link">
+                                                    <span class="nav-text">商务英语</span>
+                                                </a>
+                                            </li>
+                                            <li class="nav-item">
+                                                <a href="#" class="nav-link">
+                                                    <span class="nav-text">雅思托福</span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="#" class="nav-link">
+                                        <span class="nav-icon">🎧</span>
+                                        <span class="nav-text">音频练习</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="#" class="nav-link">
+                                        <span class="nav-icon">📖</span>
+                                        <span class="nav-text">词汇表</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="#" class="nav-link">
+                                        <span class="nav-icon">📊</span>
+                                        <span class="nav-text">学习统计</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="#" class="nav-link">
+                                        <span class="nav-icon">⚙️</span>
+                                        <span class="nav-text">设置</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- 移动端导航按钮 -->
+                    <button class="nav-toggle" type="button" aria-label="切换导航菜单">
+                        <span class="nav-toggle-icon"></span>
+                    </button>
+                    
+                    <!-- 移动端覆盖层 -->
+                    <div class="nav-overlay"></div>
+                `;
+                
+                // 添加基本交互
+                setupBasicNavigation();
+            }
+            
+            // 显示面包屑
+            const breadcrumbContainer = document.getElementById('breadcrumb-container');
+            if (breadcrumbContainer) {
+                breadcrumbContainer.style.display = 'block';
+                breadcrumbContainer.innerHTML = `
+                    <nav class="breadcrumb" aria-label="面包屑导航">
+                        <span class="breadcrumb-item">
+                            <a href="#" class="breadcrumb-link">首页</a>
+                            <span class="breadcrumb-separator">›</span>
+                        </span>
+                        <span class="breadcrumb-item">
+                            <span class="breadcrumb-current">课程中心</span>
+                        </span>
+                    </nav>
+                `;
+            }
+            
+            // 显示音频容器
+            const audioContainer = document.getElementById('audio-container');
+            if (audioContainer) {
+                audioContainer.style.display = 'block';
+                audioContainer.querySelector('.audio-controls').style.display = 'flex';
+            }
+            
+            // 更新内容区域
+            const contentArea = document.getElementById('content-area');
+            if (contentArea) {
+                contentArea.innerHTML = `
+                    <div style="padding: 24px;">
+                        <h1 style="color: #007AFF; margin-bottom: 16px;">✅ LearnerEn 已加载</h1>
+                        <p style="font-size: 18px; margin-bottom: 24px;">导航和界面组件现在可见！</p>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                            <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                <h3 style="color: #007AFF; margin-bottom: 12px;">🎧 音频同步</h3>
+                                <p>支持音频与文本同步，实时高亮显示当前播放内容。</p>
+                            </div>
+                            <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                <h3 style="color: #007AFF; margin-bottom: 12px;">📚 智能词汇表</h3>
+                                <p>点击任意单词即可查看释义、发音和例句。</p>
+                            </div>
+                            <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                <h3 style="color: #007AFF; margin-bottom: 12px;">📱 移动优化</h3>
+                                <p>完美适配iOS Safari，支持触摸手势操作。</p>
+                            </div>
+                            <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                <h3 style="color: #007AFF; margin-bottom: 12px;">🎯 个性化学习</h3>
+                                <p>智能分析学习进度，提供个性化推荐。</p>
+                            </div>
+                        </div>
+                        
+                        <div style="padding: 16px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #007AFF;">
+                            <h4 style="margin: 0 0 8px 0;">💡 提示</h4>
+                            <p style="margin: 0;">这是基本的界面结构演示。要启用完整功能，请确保：</p>
+                            <ul style="margin: 8px 0 0 20px;">
+                                <li>所有JavaScript文件已正确加载</li>
+                                <li>服务器配置正确</li>
+                                <li>浏览器支持ES6+语法</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // 隐藏调试信息
+            const debugInfo = document.getElementById('debug-info');
+            if (debugInfo) {
+                debugInfo.style.display = 'none';
+            }
+        }
+        
+        function setupBasicNavigation() {
+            // 导航切换功能
+            const navToggle = document.querySelector('.nav-toggle');
+            const navSidebar = document.querySelector('.nav-sidebar');
+            const navOverlay = document.querySelector('.nav-overlay');
+            
+            if (navToggle && navSidebar) {
+                navToggle.addEventListener('click', function() {
+                    const isOpen = navSidebar.classList.contains('open');
+                    if (isOpen) {
+                        navSidebar.classList.remove('open');
+                        navToggle.classList.remove('nav-toggle-active');
+                        if (navOverlay) navOverlay.style.display = 'none';
+                    } else {
+                        navSidebar.classList.add('open');
+                        navToggle.classList.add('nav-toggle-active');
+                        if (navOverlay) navOverlay.style.display = 'block';
+                    }
+                });
+            }
+            
+            // 覆盖层点击关闭
+            if (navOverlay) {
+                navOverlay.addEventListener('click', function() {
+                    navSidebar.classList.remove('open');
+                    navToggle.classList.remove('nav-toggle-active');
+                    navOverlay.style.display = 'none';
+                });
+            }
+            
+            // 子菜单展开
+            const parentItems = document.querySelectorAll('.nav-item-parent');
+            parentItems.forEach(function(item) {
+                const link = item.querySelector('.nav-link');
+                if (link) {
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        item.classList.toggle('nav-item-expanded');
+                    });
+                }
+            });
+            
+            // 音频控制按钮
+            const audioPlayer = document.getElementById('audio-player');
+            const playPauseBtn = document.getElementById('audio-play-pause');
+            const speedBtn = document.getElementById('audio-speed');
+            
+            if (playPauseBtn && audioPlayer) {
+                playPauseBtn.addEventListener('click', function() {
+                    if (audioPlayer.paused) {
+                        audioPlayer.play();
+                        playPauseBtn.textContent = '⏸';
+                    } else {
+                        audioPlayer.pause();
+                        playPauseBtn.textContent = '▶';
+                    }
+                });
+            }
+            
+            if (speedBtn && audioPlayer) {
+                let currentSpeed = 1;
+                const speeds = [1, 1.25, 1.5, 2, 0.75];
+                let speedIndex = 0;
+                
+                speedBtn.addEventListener('click', function() {
+                    speedIndex = (speedIndex + 1) % speeds.length;
+                    currentSpeed = speeds[speedIndex];
+                    audioPlayer.playbackRate = currentSpeed;
+                    speedBtn.textContent = currentSpeed + 'x';
+                });
+            }
+        }
     </script>
     
     <!-- Performance Monitoring -->
     <script>
         // Basic performance monitoring
         window.addEventListener('load', function() {
+            // Hide loading screen
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) {
+                setTimeout(() => {
+                    loadingScreen.style.opacity = '0';
+                    setTimeout(() => {
+                        loadingScreen.style.display = 'none';
+                    }, 300);
+                }, 500);
+            }
+            
             // Performance timing
             if (window.performance && window.performance.timing) {
                 const perfData = window.performance.timing;
@@ -823,6 +638,7 @@
                 if (loadTime > 0) {
                     console.log('Page load time:', loadTime + 'ms');
                     
+                    // Send to analytics if available
                     if (window.gtag) {
                         gtag('event', 'timing_complete', {
                             name: 'load',
@@ -837,11 +653,13 @@
         window.addEventListener('error', function(e) {
             console.error('Global error:', e.error);
             
+            // Send to error tracking service if available
             if (window.Sentry) {
                 Sentry.captureException(e.error);
             }
         });
         
+        // Unhandled promise rejection monitoring
         window.addEventListener('unhandledrejection', function(e) {
             console.error('Unhandled promise rejection:', e.reason);
             
@@ -849,7 +667,63 @@
                 Sentry.captureException(e.reason);
             }
         });
+        
+        // Network status monitoring
+        function updateOnlineStatus() {
+            const offlineNotice = document.getElementById('offline-notice');
+            if (offlineNotice) {
+                if (navigator.onLine) {
+                    offlineNotice.style.display = 'none';
+                    document.body.classList.remove('offline');
+                } else {
+                    offlineNotice.style.display = 'block';
+                    document.body.classList.add('offline');
+                }
+            }
+        }
+        
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus();
+        
+        // Back to top functionality
+        (function() {
+            const backToTop = document.getElementById('back-to-top');
+            const contentArea = document.getElementById('content-area');
+            
+            if (backToTop && contentArea) {
+                function toggleBackToTop() {
+                    if (contentArea.scrollTop > 300) {
+                        backToTop.style.display = 'flex';
+                    } else {
+                        backToTop.style.display = 'none';
+                    }
+                }
+                
+                contentArea.addEventListener('scroll', function() {
+                    requestAnimationFrame(toggleBackToTop);
+                });
+                
+                backToTop.addEventListener('click', function() {
+                    contentArea.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                });
+            }
+        })();
     </script>
+    
+    <!-- Analytics (Optional) -->
+    <!--
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'GA_MEASUREMENT_ID');
+    </script>
+    -->
     
     <!-- Structured Data -->
     <script type="application/ld+json">
@@ -887,239 +761,5 @@
         ]
     }
     </script>
-    <!-- 🚨 强制隐藏加载屏幕 - 直接添加这段代码 -->
-<script>
-console.log('🚨 强制隐藏加载屏幕...');
-
-function hideLoading() {
-    var loadingScreen = document.getElementById('loading-screen');
-    if (loadingScreen) {
-        loadingScreen.style.display = 'none';
-        loadingScreen.style.visibility = 'hidden';
-        loadingScreen.style.opacity = '0';
-        console.log('✅ 加载屏幕已隐藏');
-    }
-}
-
-// 立即执行
-hideLoading();
-
-// 1秒后再执行一次（保险）
-setTimeout(hideLoading, 1000);
-
-// 添加紧急关闭按钮
-setTimeout(function() {
-    var btn = document.createElement('div');
-    btn.innerHTML = '❌ 关闭加载屏幕';
-    btn.style.cssText = 'position:fixed;top:20px;right:20px;background:#dc3545;color:white;padding:10px 20px;border-radius:5px;cursor:pointer;z-index:10000;font-size:14px;';
-    btn.onclick = function() { hideLoading(); btn.remove(); };
-    document.body.appendChild(btn);
-}, 2000);
-</script>
-
-<style>
-#loading-screen { display: none !important; }
-</style>
-<!-- 🔥 超强力解决方案 - 直接添加到 </body> 标签前 -->
-
-<script>
-(function() {
-    'use strict';
-    
-    console.log('🔥 [超强力] 开始彻底移除加载屏幕...');
-    
-    function nukeLoa dingScreen() {
-        console.log('💥 [核心删除] 执行彻底删除...');
-        
-        // 方法1: 通过ID删除
-        var loadingById = document.getElementById('loading-screen');
-        if (loadingById) {
-            console.log('🎯 [核心删除] 找到loading-screen，删除中...');
-            if (loadingById.parentNode) {
-                loadingById.parentNode.removeChild(loadingById);
-                console.log('✅ [核心删除] 通过ID删除成功');
-            }
-        }
-        
-        // 方法2: 通过类名删除所有加载屏幕
-        var loadingByClass = document.querySelectorAll('.loading-screen');
-        for (var i = 0; i < loadingByClass.length; i++) {
-            if (loadingByClass[i].parentNode) {
-                loadingByClass[i].parentNode.removeChild(loadingByClass[i]);
-                console.log('✅ [核心删除] 通过类名删除 #' + i);
-            }
-        }
-        
-        // 方法3: 删除所有包含"loading"的元素
-        var allElements = document.querySelectorAll('*');
-        for (var j = 0; j < allElements.length; j++) {
-            var element = allElements[j];
-            if (element.id && element.id.toLowerCase().includes('loading')) {
-                console.log('🔍 [核心删除] 发现可疑loading元素:', element.id);
-                if (element.parentNode) {
-                    element.parentNode.removeChild(element);
-                    console.log('💣 [核心删除] 删除可疑元素:', element.id);
-                }
-            }
-            if (element.className && element.className.toLowerCase().includes('loading')) {
-                console.log('🔍 [核心删除] 发现可疑loading类:', element.className);
-                if (element.parentNode) {
-                    element.parentNode.removeChild(element);
-                    console.log('💣 [核心删除] 删除可疑类元素');
-                }
-            }
-        }
-        
-        // 方法4: 强制隐藏任何遮罩
-        var potentialOverlays = document.querySelectorAll('[style*="z-index"], [style*="position: fixed"], [style*="position:fixed"]');
-        for (var k = 0; k < potentialOverlays.length; k++) {
-            var overlay = potentialOverlays[k];
-            var zIndex = parseInt(window.getComputedStyle(overlay).zIndex);
-            if (zIndex > 1000) {
-                console.log('🔍 [核心删除] 发现高z-index元素:', zIndex, overlay);
-                overlay.style.display = 'none';
-                overlay.style.visibility = 'hidden';
-                overlay.style.opacity = '0';
-                overlay.style.zIndex = '-9999';
-            }
-        }
-        
-        console.log('💥 [核心删除] 删除操作完成');
-    }
-    
-    // 立即执行
-    nukeLoa dingScreen();
-    
-    // 持续执行，防止重新出现
-    var nukeInterval = setInterval(nukeLoa dingScreen, 100);
-    
-    // 10秒后停止持续删除
-    setTimeout(function() {
-        clearInterval(nukeInterval);
-        console.log('⏹️ [核心删除] 停止持续删除');
-    }, 10000);
-    
-    // 监听DOM变化，防止加载屏幕重新出现
-    if (typeof MutationObserver !== 'undefined') {
-        var observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.type === 'childList') {
-                    mutation.addedNodes.forEach(function(node) {
-                        if (node.nodeType === 1) { // Element node
-                            if (node.id === 'loading-screen' || 
-                                (node.className && node.className.includes('loading-screen'))) {
-                                console.log('🚨 [监视器] 检测到新的加载屏幕，立即删除');
-                                if (node.parentNode) {
-                                    node.parentNode.removeChild(node);
-                                }
-                            }
-                        }
-                    });
-                }
-            });
-        });
-        
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-        
-        // 5分钟后停止监视
-        setTimeout(function() {
-            observer.disconnect();
-            console.log('👁️ [监视器] 停止DOM监视');
-        }, 300000);
-    }
-    
-    console.log('🔥 [超强力] 删除脚本已激活');
-})();
-</script>
-
-<!-- 🔥 超高优先级CSS强制隐藏 -->
-<style>
-/* 超高优先级隐藏 */
-#loading-screen,
-.loading-screen,
-[id*="loading"],
-[class*="loading"],
-[id*="Loading"],
-[class*="Loading"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    z-index: -99999 !important;
-    position: absolute !important;
-    top: -9999px !important;
-    left: -9999px !important;
-    width: 0 !important;
-    height: 0 !important;
-    overflow: hidden !important;
-    pointer-events: none !important;
-}
-
-/* 确保页面可见 */
-body {
-    overflow: auto !important;
-}
-
-html {
-    overflow: auto !important;
-}
-
-.app-container {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    z-index: auto !important;
-}
-
-/* 移除任何可能的遮罩 */
-*[style*="z-index: 9999"],
-*[style*="z-index:9999"] {
-    display: none !important;
-}
-</style>
-
-<!-- 🚨 紧急用户控制按钮 -->
-<div id="emergency-controls" style="position: fixed; top: 10px; left: 10px; z-index: 99999; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 5px;">
-    <button onclick="document.querySelectorAll('*').forEach(el => { if(el.id && el.id.includes('loading')) el.remove(); })" 
-            style="background: #dc3545; color: white; border: none; padding: 8px 16px; margin: 2px; border-radius: 3px; cursor: pointer; font-size: 12px;">
-        🗑️ 删除所有loading
-    </button>
-    <button onclick="document.querySelectorAll('.loading-screen').forEach(el => el.remove())" 
-            style="background: #fd7e14; color: white; border: none; padding: 8px 16px; margin: 2px; border-radius: 3px; cursor: pointer; font-size: 12px;">
-        🗑️ 删除loading-screen类
-    </button>
-    <button onclick="var sheets = document.styleSheets; for(var i = 0; i < sheets.length; i++) { try { sheets[i].insertRule('#loading-screen { display: none !important; }', 0); } catch(e) {} }" 
-            style="background: #28a745; color: white; border: none; padding: 8px 16px; margin: 2px; border-radius: 3px; cursor: pointer; font-size: 12px;">
-        🎨 CSS强制隐藏
-    </button>
-    <button onclick="document.getElementById('emergency-controls').remove()" 
-            style="background: #6c757d; color: white; border: none; padding: 8px 16px; margin: 2px; border-radius: 3px; cursor: pointer; font-size: 12px;">
-        ❌ 关闭控制台
-    </button>
-</div>
-
-<!-- 🔧 立即执行的简单脚本 -->
-<script>
-// 最简单粗暴的方法
-setTimeout(function() {
-    var loading = document.getElementById('loading-screen');
-    if (loading && loading.parentNode) {
-        loading.parentNode.removeChild(loading);
-        console.log('🗑️ [简单删除] 加载屏幕已删除');
-    }
-}, 100);
-
-setTimeout(function() {
-    document.querySelectorAll('.loading-screen').forEach(function(el) {
-        if (el.parentNode) {
-            el.parentNode.removeChild(el);
-        }
-    });
-    console.log('🗑️ [批量删除] 所有loading-screen类已删除');
-}, 500);
-</script>
-
 </body>
 </html>
