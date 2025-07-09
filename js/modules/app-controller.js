@@ -1729,9 +1729,18 @@
             }
         }
         
-        // 立即初始化
+// ❌ 删除这行
+// initialize();
+
+// ✅ 改为延迟初始化
+var self = this;
+
+// 延迟到下一个事件循环初始化
+setTimeout(function() {
+    if (!isDestroyed) {
         initialize();
     }
+}, 0);
     
     // 🔗 导出
     if (typeof module !== 'undefined' && module.exports) {
