@@ -464,16 +464,27 @@
             }
         }
         
-        // 初始化应用控制器
+        
+// 初始化应用控制器
 function initializeAppController() {
     return new Promise(function(resolve, reject) {
         // 等待依赖就绪
-        var maxRetries = 50;
+        var maxRetries = 100; // 增加重试次数
         var retries = 0;
+        var retryInterval = 50; // 减少等待间隔
         
         function waitForDependencies() {
             try {
-                if (global.EnglishSite && global.EnglishSite.AppController) {
+                // 检查Foundation层是否就绪
+                var foundationReady = global.EnglishSite && 
+                    global.EnglishSite.StateManager && 
+                    global.EnglishSite.EventHub && 
+                    global.EnglishSite.CacheManager && 
+                    global.EnglishSite.ErrorBoundary;
+                
+                if (foundationReady && global.EnglishSite.AppController) {
+                    DEBUG_LOG('[Main] Foundation层和AppController都已就绪');
+                    
                     appController = new global.EnglishSite.AppController({
                         name: APP_CONFIG.name,
                         version: APP_CONFIG.version,
@@ -483,9 +494,27 @@ function initializeAppController() {
                     resolve(appController);
                 } else if (retries < maxRetries) {
                     retries++;
-                    setTimeout(waitForDependencies, 100);
+                    if (retries % 20 === 0) { // 每1秒输出一次等待状态
+                        DEBUG_LOG('[Main] 等待依赖就绪... (' + retries + '/' + maxRetries + ')');
+                        DEBUG_LOG('[Main] Foundation状态:', {
+                            StateManager: !!global.EnglishSite?.StateManager,
+                            EventHub: !!global.EnglishSite?.EventHub,
+                            CacheManager: !!global.EnglishSite?.CacheManager,
+                            ErrorBoundary: !!global.EnglishSite?.ErrorBoundary,
+                            AppController: !!global.EnglishSite?.AppController
+                        });
+                    }
+                    setTimeout(waitForDependencies, retryInterval);
                 } else {
-                    reject(new Error('AppController not available after timeout'));
+                    var missingDeps = [];
+                    if (!global.EnglishSite) missingDeps.push('EnglishSite namespace');
+                    if (!global.EnglishSite?.StateManager) missingDeps.push('StateManager');
+                    if (!global.EnglishSite?.EventHub) missingDeps.push('EventHub');
+                    if (!global.EnglishSite?.CacheManager) missingDeps.push('CacheManager');
+                    if (!global.EnglishSite?.ErrorBoundary) missingDeps.push('ErrorBoundary');
+                    if (!global.EnglishSite?.AppController) missingDeps.push('AppController');
+                    
+                    reject(new Error('依赖不可用: ' + missingDeps.join(', ')));
                 }
             } catch (error) {
                 DEBUG_ERROR('[Main] AppController initialization failed:', error);
@@ -493,6 +522,7 @@ function initializeAppController() {
             }
         }
         
+        // 立即开始等待
         waitForDependencies();
     });
 }
