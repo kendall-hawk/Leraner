@@ -915,9 +915,7 @@
                 return 0;
             }
         }
-  // ✅ 修复初始化逻辑
-// 添加初始化状态变量
-var isInitialized = false;
+
 
 
     
