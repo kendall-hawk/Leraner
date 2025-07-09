@@ -1,4 +1,4 @@
-// js/main.js - iOS兼容版应用入口
+// js/main.js - iOS兼容版应用入口（修复版）
 // 🚀 统一初始化和启动，确保iOS Safari 12+兼容性
 
 (function(global) {
@@ -455,6 +455,7 @@
         
         function cacheResource(url, data) {
             try {
+                // ✅ 修复：兼容性检查，不使用可选链
                 if (global.EnglishSite && global.EnglishSite.CacheManager) {
                     var cache = new global.EnglishSite.CacheManager();
                     cache.set('preload:' + url, data, { ttl: 24 * 60 * 60 * 1000 });
@@ -464,18 +465,17 @@
             }
         }
         
-        
-// 初始化应用控制器
+// ✅ 修复：初始化AppController的兼容性问题
 function initializeAppController() {
     return new Promise(function(resolve, reject) {
         // 等待依赖就绪
-        var maxRetries = 100; // 增加重试次数
+        var maxRetries = 200; // 增加重试次数
         var retries = 0;
-        var retryInterval = 50; // 减少等待间隔
+        var retryInterval = 100; // 增加等待间隔，给foundation更多时间
         
         function waitForDependencies() {
             try {
-                // 检查Foundation层是否就绪
+                // ✅ 修复：不使用可选链操作符，兼容iOS Safari 12
                 var foundationReady = global.EnglishSite && 
                     global.EnglishSite.StateManager && 
                     global.EnglishSite.EventHub && 
@@ -494,25 +494,26 @@ function initializeAppController() {
                     resolve(appController);
                 } else if (retries < maxRetries) {
                     retries++;
-                    if (retries % 20 === 0) { // 每1秒输出一次等待状态
+                    if (retries % 20 === 0) { // 每2秒输出一次等待状态
                         DEBUG_LOG('[Main] 等待依赖就绪... (' + retries + '/' + maxRetries + ')');
                         DEBUG_LOG('[Main] Foundation状态:', {
-                            StateManager: !!global.EnglishSite?.StateManager,
-                            EventHub: !!global.EnglishSite?.EventHub,
-                            CacheManager: !!global.EnglishSite?.CacheManager,
-                            ErrorBoundary: !!global.EnglishSite?.ErrorBoundary,
-                            AppController: !!global.EnglishSite?.AppController
+                            EnglishSite: !!global.EnglishSite,
+                            StateManager: !!(global.EnglishSite && global.EnglishSite.StateManager),
+                            EventHub: !!(global.EnglishSite && global.EnglishSite.EventHub),
+                            CacheManager: !!(global.EnglishSite && global.EnglishSite.CacheManager),
+                            ErrorBoundary: !!(global.EnglishSite && global.EnglishSite.ErrorBoundary),
+                            AppController: !!(global.EnglishSite && global.EnglishSite.AppController)
                         });
                     }
                     setTimeout(waitForDependencies, retryInterval);
                 } else {
                     var missingDeps = [];
                     if (!global.EnglishSite) missingDeps.push('EnglishSite namespace');
-                    if (!global.EnglishSite?.StateManager) missingDeps.push('StateManager');
-                    if (!global.EnglishSite?.EventHub) missingDeps.push('EventHub');
-                    if (!global.EnglishSite?.CacheManager) missingDeps.push('CacheManager');
-                    if (!global.EnglishSite?.ErrorBoundary) missingDeps.push('ErrorBoundary');
-                    if (!global.EnglishSite?.AppController) missingDeps.push('AppController');
+                    if (!global.EnglishSite || !global.EnglishSite.StateManager) missingDeps.push('StateManager');
+                    if (!global.EnglishSite || !global.EnglishSite.EventHub) missingDeps.push('EventHub');
+                    if (!global.EnglishSite || !global.EnglishSite.CacheManager) missingDeps.push('CacheManager');
+                    if (!global.EnglishSite || !global.EnglishSite.ErrorBoundary) missingDeps.push('ErrorBoundary');
+                    if (!global.EnglishSite || !global.EnglishSite.AppController) missingDeps.push('AppController');
                     
                     reject(new Error('依赖不可用: ' + missingDeps.join(', ')));
                 }
@@ -522,8 +523,8 @@ function initializeAppController() {
             }
         }
         
-        // 立即开始等待
-        waitForDependencies();
+        // ✅ 延迟开始等待，给foundation层更多初始化时间
+        setTimeout(waitForDependencies, 200);
     });
 }
         
