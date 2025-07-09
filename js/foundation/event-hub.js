@@ -679,9 +679,19 @@
             }
         }
         
-        // 立即初始化
-        initialize();
-    }
+// ❌ 删除立即初始化
+// initialize();
+
+// ✅ 改为条件初始化
+// 只有在被直接使用时才初始化，否则等待容器调用
+if (typeof module === 'undefined' && typeof global !== 'undefined') {
+    // 浏览器环境且非模块系统，延迟初始化
+    setTimeout(function() {
+        if (!isInitialized) {
+            initialize();
+        }
+    }, 0);
+}
     
     // 🔗 导出
     if (typeof module !== 'undefined' && module.exports) {
