@@ -337,14 +337,14 @@
     <script src="js/utils/mobile-utils.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '移动端工具已加载';"></script>
     
     <!-- 6. 核心Foundation模块（按依赖顺序） -->
+    <script src="js/foundation/dependency-container.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '依赖容器已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('dependency-container.js not found, skipping...');"></script>
     <script src="js/foundation/error-boundary.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '错误边界已加载';"></script>
     <script src="js/foundation/cache-manager.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '缓存管理器已加载';"></script>
     <script src="js/foundation/event-hub.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '事件中心已加载';"></script>
     <script src="js/foundation/state-manager.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '状态管理器已加载';"></script>
     
     <!-- 7. 依赖容器（如果存在） -->
-    <script src="js/foundation/dependency-container.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '依赖容器已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('dependency-container.js not found, skipping...');"></script>
-    
+        
     <!-- 8. 调试工具 -->
     <script src="js/utils/debug-integration.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '调试工具已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('debug-integration.js not found, skipping...');"></script>
     
