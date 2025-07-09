@@ -1,373 +1,891 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="no-js">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>修复后的模块集成示例</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#007AFF">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="LearnerEn">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="LearnerEn">
+    
+    <!-- SEO Meta Tags -->
+    <title>LearnerEn - 专业英语学习平台</title>
+    <meta name="description" content="LearnerEn是一个专业的英语学习平台，提供音频同步、智能词汇表、个性化学习等功能。完美适配iOS Safari 12+，确保最佳学习体验。">
+    <meta name="keywords" content="英语学习,音频同步,词汇表,iOS兼容,移动学习,语言学习">
+    <meta name="author" content="LearnerEn Team">
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="LearnerEn - 专业英语学习平台">
+    <meta property="og:description" content="专业的英语学习平台，支持音频同步、智能词汇表、个性化学习">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://learneren.com">
+    <meta property="og:image" content="https://learneren.com/assets/icons/icon-512x512.png">
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="LearnerEn - 专业英语学习平台">
+    <meta name="twitter:description" content="专业的英语学习平台，支持音频同步、智能词汇表、个性化学习">
+    <meta name="twitter:image" content="https://learneren.com/assets/icons/icon-512x512.png">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/icon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-180x180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="assets/icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="assets/icons/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="assets/icons/icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="assets/icons/icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="assets/icons/icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="assets/icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="assets/icons/icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="57x57" href="assets/icons/icon-57x57.png">
+    <link rel="mask-icon" href="assets/icons/safari-pinned-tab.svg" color="#007AFF">
+    
+    <!-- Microsoft Tiles -->
+    <meta name="msapplication-TileColor" content="#007AFF">
+    <meta name="msapplication-TileImage" content="assets/icons/icon-144x144.png">
+    <meta name="msapplication-config" content="browserconfig.xml">
+    
+    <!-- DNS Prefetch -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//cdnjs.cloudflare.com">
+    
+    <!-- Preload Critical Resources -->
+    <link rel="preload" href="css/base.css" as="style">
+    <link rel="preload" href="css/components.css" as="style">
+    <link rel="preload" href="js/core/module-patches.js" as="script">
+    <link rel="preload" href="js/core/safe-initializer.js" as="script">
+    <link rel="preload" href="js/main.js" as="script">
+    
+    <!-- Critical CSS Inline -->
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
+        /* Critical CSS for above-the-fold content */
+        :root {
+            --primary-color: #007AFF;
+            --bg-primary: #FFFFFF;
+            --bg-secondary: #F2F2F7;
+            --text-primary: #000000;
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            --spacing-md: 16px;
+            --radius-md: 8px;
+            --duration-normal: 300ms;
+            --vh: 1vh;
+        }
+        
+        * { box-sizing: border-box; }
+        
+        html, body {
             margin: 0;
-            padding: 20px;
-            background: #f5f5f5;
+            padding: 0;
+            font-family: var(--font-family);
+            height: 100vh;
+            height: calc(var(--vh, 1vh) * 100);
+            -webkit-text-size-adjust: 100%;
+            -webkit-tap-highlight-color: transparent;
         }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        
+        .app-container {
+            min-height: 100vh;
+            min-height: calc(var(--vh, 1vh) * 100);
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
         }
-        .status {
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 6px;
-            border-left: 4px solid;
+        
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 9999;
         }
-        .status.loading {
-            background: #fff3cd;
-            border-color: #ffc107;
-            color: #856404;
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: var(--spacing-md);
         }
-        .status.success {
-            background: #d4edda;
-            border-color: #28a745;
-            color: #155724;
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-        .status.error {
-            background: #f8d7da;
-            border-color: #dc3545;
-            color: #721c24;
+        
+        .loading-text {
+            color: var(--text-primary);
+            font-size: 16px;
+            font-weight: 500;
         }
-        .progress {
-            width: 100%;
-            height: 20px;
-            background: #e9ecef;
-            border-radius: 10px;
+        
+        .loading-progress {
+            width: 200px;
+            height: 4px;
+            background: #f3f3f3;
+            border-radius: 2px;
+            margin-top: 16px;
             overflow: hidden;
-            margin: 10px 0;
         }
-        .progress-bar {
+        
+        .loading-progress-bar {
             height: 100%;
-            background: linear-gradient(90deg, #007bff, #0056b3);
+            background: var(--primary-color);
             width: 0%;
             transition: width 0.3s ease;
-            border-radius: 10px;
+            border-radius: 2px;
         }
-        .module-list {
-            list-style: none;
-            padding: 0;
-            margin: 20px 0;
+        
+        .no-js .loading-screen {
+            display: none;
         }
-        .module-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 15px;
-            margin: 5px 0;
-            background: #f8f9fa;
-            border-radius: 6px;
-            border-left: 4px solid #6c757d;
+        
+        .no-js .noscript-message {
+            display: block;
+            padding: 20px;
+            background: #fee;
+            border: 1px solid #fcc;
+            margin: 20px;
+            border-radius: var(--radius-md);
+            color: #c33;
         }
-        .module-item.ready {
-            border-color: #28a745;
-            background: #e8f5e8;
-        }
-        .module-item.failed {
-            border-color: #dc3545;
-            background: #f8e8e8;
-        }
-        .module-item.loading {
-            border-color: #ffc107;
-            background: #fff8e8;
-        }
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        .status-badge.ready {
-            background: #28a745;
-            color: white;
-        }
-        .status-badge.failed {
-            background: #dc3545;
-            color: white;
-        }
-        .status-badge.loading {
-            background: #ffc107;
-            color: #000;
-        }
-        .status-badge.pending {
-            background: #6c757d;
-            color: white;
-        }
-        pre {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-            overflow-x: auto;
-            font-size: 14px;
-        }
-        .alert {
-            padding: 15px;
-            border-radius: 6px;
-            margin: 15px 0;
-        }
-        .alert.info {
-            background: #d1ecf1;
-            border: 1px solid #bee5eb;
-            color: #0c5460;
-        }
-        .alert.warning {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            color: #856404;
+        
+        .noscript-message {
+            display: none;
         }
     </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🚀 修复后的模块集成示例</h1>
-        
-        <div class="alert info">
-            <strong>重要提示：</strong> 这个页面展示了如何正确集成修复后的模块，避免初始化循环和页面卡死问题。
-        </div>
-
-        <div id="initStatus" class="status loading">
-            <strong>🔄 正在初始化模块...</strong>
-            <div class="progress">
-                <div id="progressBar" class="progress-bar"></div>
-            </div>
-        </div>
-
-        <h2>📦 模块状态</h2>
-        <ul id="moduleList" class="module-list">
-            <!-- 模块状态将动态插入这里 -->
-        </ul>
-
-        <h2>💾 统计信息</h2>
-        <div id="stats">
-            <p>总模块数：<span id="totalModules">-</span></p>
-            <p>已就绪：<span id="readyModules">-</span></p>
-            <p>失败：<span id="failedModules">-</span></p>
-            <p>初始化时间：<span id="initTime">-</span></p>
-        </div>
-
-        <h2>🔧 正确的引入顺序</h2>
-        <div class="alert warning">
-            <strong>注意：</strong> 必须按以下顺序引入脚本，否则可能出现依赖问题！
-        </div>
-        
-        <pre><code>&lt;!-- 1. 首先引入补丁，禁用自动初始化 --&gt;
-&lt;script src="js/core/module-patches.js"&gt;&lt;/script&gt;
-
-&lt;!-- 2. 然后引入安全初始化器 --&gt;
-&lt;script src="js/core/safe-initializer.js"&gt;&lt;/script&gt;
-
-&lt;!-- 3. 接着引入基础工具模块（无依赖） --&gt;
-&lt;script src="js/utils/compatibility.js"&gt;&lt;/script&gt;
-&lt;script src="js/utils/performance.js"&gt;&lt;/script&gt;
-
-&lt;!-- 4. 引入有依赖的工具模块 --&gt;
-&lt;script src="js/utils/dom-utils.js"&gt;&lt;/script&gt;
-&lt;script src="js/utils/mobile-utils.js"&gt;&lt;/script&gt;
-&lt;script src="js/utils/debug-integration.js"&gt;&lt;/script&gt;
-
-&lt;!-- 5. 引入核心foundation模块 --&gt;
-&lt;script src="js/foundation/error-boundary.js"&gt;&lt;/script&gt;
-&lt;script src="js/foundation/event-hub.js"&gt;&lt;/script&gt;
-&lt;script src="js/foundation/cache-manager.js"&gt;&lt;/script&gt;
-&lt;script src="js/foundation/state-manager.js"&gt;&lt;/script&gt;
-&lt;script src="js/foundation/dependency-container.js"&gt;&lt;/script&gt;
-
-&lt;!-- 6. 最后等待初始化完成 --&gt;
-&lt;script&gt;
-window.addEventListener('EnglishSiteReady', function() {
-    console.log('✅ 所有模块初始化完成！');
-    // 在这里开始你的应用逻辑
-});
-&lt;/script&gt;</code></pre>
-
-        <h2>📱 测试功能</h2>
-        <button onclick="testModules()">测试模块功能</button>
-        <button onclick="clearCache()">清理缓存</button>
-        <button onclick="showDebugPanel()">显示调试面板</button>
-        
-        <div id="testResults" style="margin-top: 15px;"></div>
-    </div>
-
-    <!-- 按照正确顺序引入脚本 -->
+    
+    <!-- Load CSS -->
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="css/compatibility.css">
+    
+    <!-- Feature Detection and Polyfills -->
     <script>
-        // 模拟引入修复后的模块（实际应用中应该引入外部文件）
-        console.log('🔧 开始模块集成演示...');
+        // Remove no-js class immediately
+        document.documentElement.classList.remove('no-js');
         
-        // 模拟安全初始化过程
-        var startTime = Date.now();
-        var modules = [
-            'CompatibilityUtils',
-            'PerformanceUtils', 
-            'DOMUtils',
-            'MobileUtils',
-            'ErrorBoundary',
-            'EventHub',
-            'CacheManager',
-            'StateManager'
-        ];
-        
-        var moduleStatus = {};
-        var completedModules = 0;
-        
-        // 初始化模块列表显示
-        function initModuleList() {
-            var list = document.getElementById('moduleList');
-            list.innerHTML = '';
-            
-            modules.forEach(function(moduleName) {
-                var item = document.createElement('li');
-                item.className = 'module-item pending';
-                item.id = 'module-' + moduleName;
-                item.innerHTML = 
-                    '<span>' + moduleName + '</span>' +
-                    '<span class="status-badge pending">待处理</span>';
-                list.appendChild(item);
-                moduleStatus[moduleName] = 'pending';
-            });
+        // Set CSS viewport height variable for iOS
+        function setVH() {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', vh + 'px');
         }
+        setVH();
+        window.addEventListener('resize', setVH);
+        window.addEventListener('orientationchange', setVH);
         
-        // 更新模块状态
-        function updateModuleStatus(moduleName, status) {
-            var item = document.getElementById('module-' + moduleName);
-            var badge = item.querySelector('.status-badge');
-            
-            if (item) {
-                item.className = 'module-item ' + status;
-                badge.className = 'status-badge ' + status;
-                badge.textContent = status === 'ready' ? '就绪' : 
-                                  status === 'failed' ? '失败' : 
-                                  status === 'loading' ? '加载中' : '待处理';
+        // Initialize loading progress
+        window.LearnerLoadingProgress = {
+            total: 0,
+            loaded: 0,
+            updateProgress: function(increment = 1) {
+                this.loaded += increment;
+                const percentage = Math.min((this.loaded / this.total) * 100, 100);
+                const progressBar = document.getElementById('loading-progress-bar');
+                if (progressBar) {
+                    progressBar.style.width = percentage + '%';
+                }
+                console.log(`Loading progress: ${this.loaded}/${this.total} (${percentage.toFixed(1)}%)`);
+            },
+            setTotal: function(total) {
+                this.total = total;
             }
-            
-            moduleStatus[moduleName] = status;
-            
-            if (status === 'ready' || status === 'failed') {
-                completedModules++;
-                updateProgress();
-            }
-        }
+        };
         
-        // 更新进度条
-        function updateProgress() {
-            var progress = (completedModules / modules.length) * 100;
-            document.getElementById('progressBar').style.width = progress + '%';
-            
-            if (completedModules >= modules.length) {
-                finishInitialization();
-            }
-        }
+        // Set expected script count
+        window.LearnerLoadingProgress.setTotal(15); // 预计加载的脚本数量
         
-        // 完成初始化
-        function finishInitialization() {
-            var endTime = Date.now();
-            var duration = endTime - startTime;
-            
-            var statusDiv = document.getElementById('initStatus');
-            var readyCount = Object.values(moduleStatus).filter(s => s === 'ready').length;
-            var failedCount = Object.values(moduleStatus).filter(s => s === 'failed').length;
-            
-            if (failedCount === 0) {
-                statusDiv.className = 'status success';
-                statusDiv.innerHTML = '<strong>✅ 所有模块初始化成功！</strong>';
+        // Critical polyfills check
+        (function() {
+            const needsPolyfills = !window.Promise || !window.Map || !window.Set;
+            if (needsPolyfills) {
+                document.write('<script src="js/polyfills/promise.js" onload="window.LearnerLoadingProgress.updateProgress()"><\/script>');
+                document.write('<script src="js/polyfills/map-set.js" onload="window.LearnerLoadingProgress.updateProgress()"><\/script>');
             } else {
-                statusDiv.className = 'status error';
-                statusDiv.innerHTML = '<strong>⚠️ 部分模块初始化失败 (' + failedCount + '/' + modules.length + ')</strong>';
+                // 如果不需要polyfills，直接更新进度
+                window.LearnerLoadingProgress.updateProgress(2);
+            }
+        })();
+    </script>
+</head>
+
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <div class="loading-text">正在加载 LearnerEn...</div>
+        <div style="margin-top: 16px; font-size: 14px; color: #666;">
+            专业英语学习平台
+        </div>
+        <div class="loading-progress">
+            <div id="loading-progress-bar" class="loading-progress-bar"></div>
+        </div>
+        <div id="loading-status" style="margin-top: 12px; font-size: 12px; color: #999;">
+            正在初始化...
+        </div>
+    </div>
+    
+    <!-- No JavaScript Fallback -->
+    <noscript>
+        <div class="noscript-message">
+            <h3>需要JavaScript支持</h3>
+            <p>LearnerEn需要JavaScript才能正常运行。请启用JavaScript并刷新页面。</p>
+            <p>LearnerEn requires JavaScript to function properly. Please enable JavaScript and refresh the page.</p>
+        </div>
+    </noscript>
+    
+    <!-- Main Application Container -->
+    <div id="app-container" class="app-container">
+        <!-- Navigation Container -->
+        <div id="nav-container" class="nav-container">
+            <!-- Navigation will be injected here by JavaScript -->
+        </div>
+        
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Breadcrumb Container -->
+            <div id="breadcrumb-container" class="breadcrumb-container" style="display: none;">
+                <!-- Breadcrumb will be injected here -->
+            </div>
+            
+            <!-- Audio Container -->
+            <div id="audio-container" class="audio-container" style="display: none;">
+                <audio id="audio-player" class="audio-player" controls preload="metadata" aria-label="音频播放器">
+                    <p>您的浏览器不支持音频播放。请升级浏览器或使用支持HTML5音频的浏览器。</p>
+                </audio>
+                
+                <!-- Audio Controls -->
+                <div class="audio-controls" style="display: none;">
+                    <button id="audio-prev" class="audio-control-btn" type="button" aria-label="上一个">⏮</button>
+                    <button id="audio-play-pause" class="audio-control-btn" type="button" aria-label="播放/暂停">▶</button>
+                    <button id="audio-next" class="audio-control-btn" type="button" aria-label="下一个">⏭</button>
+                    <button id="audio-speed" class="audio-control-btn" type="button" aria-label="播放速度">1x</button>
+                </div>
+            </div>
+            
+            <!-- Content Area -->
+            <div id="content-area" class="content-area">
+                <!-- Default Content -->
+                <div class="content-placeholder">
+                    <h2>欢迎使用 LearnerEn</h2>
+                    <p>专业的英语学习平台正在加载中...</p>
+                    <div style="margin-top: 24px;">
+                        <div style="display: inline-block; padding: 8px 16px; background: #f0f0f0; border-radius: 8px; margin: 4px;">
+                            🎧 音频同步学习
+                        </div>
+                        <div style="display: inline-block; padding: 8px 16px; background: #f0f0f0; border-radius: 8px; margin: 4px;">
+                            📚 智能词汇表
+                        </div>
+                        <div style="display: inline-block; padding: 8px 16px; background: #f0f0f0; border-radius: 8px; margin: 4px;">
+                            📱 移动端优化
+                        </div>
+                        <div style="display: inline-block; padding: 8px 16px; background: #f0f0f0; border-radius: 8px; margin: 4px;">
+                            🎯 个性化学习
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Back to Top Button -->
+        <button id="back-to-top" class="back-to-top" type="button" aria-label="返回顶部" style="display: none;">
+            ↑
+        </button>
+        
+        <!-- Offline Notice -->
+        <div id="offline-notice" class="offline-notice" style="display: none;" role="alert">
+            您当前处于离线状态，某些功能可能无法使用
+        </div>
+    </div>
+    
+    <!-- 
+    ==========================================
+    🚀 优化后的脚本加载顺序
+    ==========================================
+    按照正确的依赖顺序加载，解决初始化循环问题
+    -->
+    
+    <!-- 1. 首先加载修复补丁（最重要！） -->
+    <script src="js/patches/module-patches.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '补丁已加载';"></script>
+    
+    <!-- 2. 安全初始化器 -->
+    <script src="js/patches/safe-initializer.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '初始化器已加载';"></script>
+    
+    <!-- 3. RequestAnimationFrame Polyfill（兼容性） -->
+    <script src="js/polyfills/raf.js" onload="window.LearnerLoadingProgress.updateProgress();"></script>
+    
+    <!-- 4. 基础工具模块（无依赖） -->
+    <script src="js/utils/compatibility.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '兼容性模块已加载';"></script>
+    <script src="js/utils/performance.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '性能监控已加载';"></script>
+    
+    <!-- 5. 依赖compatibility的工具模块 -->
+    <script src="js/utils/dom-utils.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = 'DOM工具已加载';"></script>
+    <script src="js/utils/mobile-utils.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '移动端工具已加载';"></script>
+    
+    <!-- 6. 核心Foundation模块（按依赖顺序） -->
+    <script src="js/foundation/error-boundary.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '错误边界已加载';"></script>
+    <script src="js/foundation/cache-manager.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '缓存管理器已加载';"></script>
+    <script src="js/foundation/event-hub.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '事件中心已加载';"></script>
+    <script src="js/foundation/state-manager.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '状态管理器已加载';"></script>
+    
+    <!-- 7. 依赖容器（如果存在） -->
+    <script src="js/foundation/dependency-container.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '依赖容器已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('dependency-container.js not found, skipping...');"></script>
+    
+    <!-- 8. 调试工具 -->
+    <script src="js/utils/debug-integration.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '调试工具已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('debug-integration.js not found, skipping...');"></script>
+    
+    <!-- 9. 核心业务模块 -->
+    <script src="js/modules/app-controller.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '应用控制器已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('app-controller.js not found, skipping...');"></script>
+    <script src="js/modules/navigation-core.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '导航核心已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('navigation-core.js not found, skipping...');"></script>
+    <script src="js/modules/audio-sync-core.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '音频同步已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('audio-sync-core.js not found, skipping...');"></script>
+    <script src="js/modules/glossary-core.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '词汇表核心已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('glossary-core.js not found, skipping...');"></script>
+    <script src="js/modules/word-frequency-core.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '词频分析已加载';" onerror="window.LearnerLoadingProgress.updateProgress(); console.warn('word-frequency-core.js not found, skipping...');"></script>
+
+    <!-- 10. 主应用入口（最后加载） -->
+    <script src="js/main.js" onload="window.LearnerLoadingProgress.updateProgress(); document.getElementById('loading-status').textContent = '主应用已加载';"></script>
+    
+    <!-- 
+    ==========================================
+    🎯 安全的应用启动脚本
+    ==========================================
+    等待所有模块初始化完成后再启动应用
+    -->
+    <script>
+        (function() {
+            'use strict';
+            
+            console.log('🚀 [LearnerEn] 开始安全启动流程...');
+            
+            let initializationTimeout;
+            let fallbackTimeout;
+            
+            // 监听安全初始化完成事件
+            window.addEventListener('EnglishSiteReady', function(event) {
+                console.log('✅ [LearnerEn] 安全初始化完成');
+                
+                clearTimeout(initializationTimeout);
+                clearTimeout(fallbackTimeout);
+                
+                // 更新加载状态
+                document.getElementById('loading-status').textContent = '初始化完成';
+                window.LearnerLoadingProgress.updateProgress(0); // 确保进度条满
+                
+                // 隐藏加载屏幕
+                setTimeout(hideLoadingScreen, 500);
+                
+                // 启动主应用
+                startMainApplication();
+            });
+            
+            // 如果10秒内未完成初始化，显示基本界面
+            initializationTimeout = setTimeout(function() {
+                console.warn('⚠️ [LearnerEn] 初始化超时，启动基本界面');
+                document.getElementById('loading-status').textContent = '启动基本界面...';
+                
+                hideLoadingScreen();
+                initBasicInterface();
+            }, 10000);
+            
+            // 如果20秒内完全没有响应，强制启动
+            fallbackTimeout = setTimeout(function() {
+                console.error('❌ [LearnerEn] 启动失败，显示错误信息');
+                
+                hideLoadingScreen();
+                showErrorInterface();
+            }, 20000);
+            
+            function hideLoadingScreen() {
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.style.opacity = '0';
+                    loadingScreen.style.pointerEvents = 'none';
+                    setTimeout(() => {
+                        loadingScreen.style.display = 'none';
+                    }, 300);
+                }
             }
             
-            // 更新统计信息
-            document.getElementById('totalModules').textContent = modules.length;
-            document.getElementById('readyModules').textContent = readyCount;
-            document.getElementById('failedModules').textContent = failedCount;
-            document.getElementById('initTime').textContent = duration + 'ms';
-        }
-        
-        // 模拟异步初始化过程
-        function simulateInitialization() {
-            modules.forEach(function(moduleName, index) {
+            function startMainApplication() {
+                console.log('🎉 [LearnerEn] 启动主应用');
+                
+                try {
+                    // 如果主应用控制器存在，启动它
+                    if (window.LearnerApp && typeof window.LearnerApp.initialize === 'function') {
+                        window.LearnerApp.initialize();
+                    } else if (window.EnglishSite && window.EnglishSite.AppController) {
+                        const appController = window.EnglishSite.initializer.get('AppController');
+                        if (appController && typeof appController.initialize === 'function') {
+                            appController.initialize();
+                        }
+                    } else {
+                        console.warn('[LearnerEn] 主应用控制器未找到，启动基本界面');
+                        initBasicInterface();
+                    }
+                } catch (error) {
+                    console.error('[LearnerEn] 启动主应用失败:', error);
+                    initBasicInterface();
+                }
+                
+                // 初始化基本功能
+                initBasicFeatures();
+            }
+            
+            function initBasicInterface() {
+                console.log('🔧 [LearnerEn] 初始化基本界面');
+                
+                // 基本导航
+                const navContainer = document.getElementById('nav-container');
+                if (navContainer && !navContainer.innerHTML.trim()) {
+                    navContainer.innerHTML = createBasicNavigation();
+                    setupBasicNavigation();
+                }
+                
+                // 显示面包屑和音频容器
+                const breadcrumbContainer = document.getElementById('breadcrumb-container');
+                if (breadcrumbContainer) {
+                    breadcrumbContainer.style.display = 'block';
+                    breadcrumbContainer.innerHTML = createBasicBreadcrumb();
+                }
+                
+                const audioContainer = document.getElementById('audio-container');
+                if (audioContainer) {
+                    audioContainer.style.display = 'block';
+                    setupBasicAudioControls();
+                }
+                
+                // 更新内容区域
+                updateContentArea('basic');
+            }
+            
+            function showErrorInterface() {
+                console.log('❌ [LearnerEn] 显示错误界面');
+                
+                const contentArea = document.getElementById('content-area');
+                if (contentArea) {
+                    contentArea.innerHTML = `
+                        <div style="padding: 24px; text-align: center; max-width: 600px; margin: 0 auto;">
+                            <h2 style="color: #dc3545; margin-bottom: 16px;">⚠️ 启动失败</h2>
+                            <p style="font-size: 18px; margin-bottom: 24px;">LearnerEn 无法正常启动，请尝试以下解决方案：</p>
+                            
+                            <div style="text-align: left; background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+                                <h4>🔧 故障排除：</h4>
+                                <ol style="margin: 8px 0 0 20px;">
+                                    <li>检查网络连接是否正常</li>
+                                    <li>清除浏览器缓存并刷新页面</li>
+                                    <li>确保浏览器支持现代JavaScript</li>
+                                    <li>检查是否有广告拦截器阻止了脚本加载</li>
+                                    <li>尝试使用最新版本的Chrome、Safari或Firefox</li>
+                                </ol>
+                            </div>
+                            
+                            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                                <button onclick="window.location.reload()" style="padding: 12px 24px; background: #007AFF; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
+                                    🔄 重新加载
+                                </button>
+                                <button onclick="localStorage.clear(); window.location.reload()" style="padding: 12px 24px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
+                                    🗑️ 清除缓存并重载
+                                </button>
+                                <button onclick="initBasicInterface()" style="padding: 12px 24px; background: #6c757d; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
+                                    🔧 尝试基本模式
+                                </button>
+                            </div>
+                            
+                            <div style="margin-top: 32px; padding: 16px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #007AFF;">
+                                <h4 style="margin: 0 0 8px 0;">💡 开发者信息</h4>
+                                <p style="margin: 0; font-size: 14px;">请检查浏览器控制台获取详细错误信息</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            function createBasicNavigation() {
+                return `
+                    <div class="nav-sidebar">
+                        <div class="nav-search-container">
+                            <div class="nav-search-box">
+                                <input type="text" class="nav-search-input" placeholder="搜索课程..." />
+                            </div>
+                        </div>
+                        <div class="nav-menu-container">
+                            <ul class="nav-menu nav-menu-level-0">
+                                <li class="nav-item nav-item-parent">
+                                    <a href="#" class="nav-link">
+                                        <span class="nav-icon">🏠</span>
+                                        <span class="nav-text">首页</span>
+                                    </a>
+                                </li>
+                                <li class="nav-item nav-item-parent">
+                                    <a href="#" class="nav-link">
+                                        <span class="nav-icon">📚</span>
+                                        <span class="nav-text">课程中心</span>
+                                    </a>
+                                    <div class="nav-submenu">
+                                        <ul class="nav-menu nav-menu-level-1">
+                                            <li class="nav-item"><a href="#" class="nav-link"><span class="nav-text">基础英语</span></a></li>
+                                            <li class="nav-item"><a href="#" class="nav-link"><span class="nav-text">商务英语</span></a></li>
+                                            <li class="nav-item"><a href="#" class="nav-link"><span class="nav-text">雅思托福</span></a></li>
+                                        </ul>
+                                    </div>
+                                </li>
+                                <li class="nav-item"><a href="#" class="nav-link"><span class="nav-icon">🎧</span><span class="nav-text">音频练习</span></a></li>
+                                <li class="nav-item"><a href="#" class="nav-link"><span class="nav-icon">📖</span><span class="nav-text">词汇表</span></a></li>
+                                <li class="nav-item"><a href="#" class="nav-link"><span class="nav-icon">📊</span><span class="nav-text">学习统计</span></a></li>
+                                <li class="nav-item"><a href="#" class="nav-link"><span class="nav-icon">⚙️</span><span class="nav-text">设置</span></a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <button class="nav-toggle" type="button" aria-label="切换导航菜单">
+                        <span class="nav-toggle-icon"></span>
+                    </button>
+                    <div class="nav-overlay"></div>
+                `;
+            }
+            
+            function createBasicBreadcrumb() {
+                return `
+                    <nav class="breadcrumb" aria-label="面包屑导航">
+                        <span class="breadcrumb-item">
+                            <a href="#" class="breadcrumb-link">首页</a>
+                            <span class="breadcrumb-separator">›</span>
+                        </span>
+                        <span class="breadcrumb-item">
+                            <span class="breadcrumb-current">课程中心</span>
+                        </span>
+                    </nav>
+                `;
+            }
+            
+            function setupBasicNavigation() {
+                // 导航切换功能
+                const navToggle = document.querySelector('.nav-toggle');
+                const navSidebar = document.querySelector('.nav-sidebar');
+                const navOverlay = document.querySelector('.nav-overlay');
+                
+                if (navToggle && navSidebar) {
+                    navToggle.addEventListener('click', function() {
+                        const isOpen = navSidebar.classList.contains('open');
+                        if (isOpen) {
+                            navSidebar.classList.remove('open');
+                            navToggle.classList.remove('nav-toggle-active');
+                            if (navOverlay) navOverlay.style.display = 'none';
+                        } else {
+                            navSidebar.classList.add('open');
+                            navToggle.classList.add('nav-toggle-active');
+                            if (navOverlay) navOverlay.style.display = 'block';
+                        }
+                    });
+                }
+                
+                if (navOverlay) {
+                    navOverlay.addEventListener('click', function() {
+                        navSidebar.classList.remove('open');
+                        navToggle.classList.remove('nav-toggle-active');
+                        navOverlay.style.display = 'none';
+                    });
+                }
+                
+                // 子菜单展开
+                const parentItems = document.querySelectorAll('.nav-item-parent');
+                parentItems.forEach(function(item) {
+                    const link = item.querySelector('.nav-link');
+                    if (link) {
+                        link.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            item.classList.toggle('nav-item-expanded');
+                        });
+                    }
+                });
+            }
+            
+            function setupBasicAudioControls() {
+                const audioControls = document.querySelector('.audio-controls');
+                if (audioControls) {
+                    audioControls.style.display = 'flex';
+                }
+                
+                const audioPlayer = document.getElementById('audio-player');
+                const playPauseBtn = document.getElementById('audio-play-pause');
+                const speedBtn = document.getElementById('audio-speed');
+                
+                if (playPauseBtn && audioPlayer) {
+                    playPauseBtn.addEventListener('click', function() {
+                        if (audioPlayer.paused) {
+                            audioPlayer.play();
+                            playPauseBtn.textContent = '⏸';
+                        } else {
+                            audioPlayer.pause();
+                            playPauseBtn.textContent = '▶';
+                        }
+                    });
+                }
+                
+                if (speedBtn && audioPlayer) {
+                    let currentSpeed = 1;
+                    const speeds = [1, 1.25, 1.5, 2, 0.75];
+                    let speedIndex = 0;
+                    
+                    speedBtn.addEventListener('click', function() {
+                        speedIndex = (speedIndex + 1) % speeds.length;
+                        currentSpeed = speeds[speedIndex];
+                        audioPlayer.playbackRate = currentSpeed;
+                        speedBtn.textContent = currentSpeed + 'x';
+                    });
+                }
+            }
+            
+            function updateContentArea(mode) {
+                const contentArea = document.getElementById('content-area');
+                if (!contentArea) return;
+                
+                if (mode === 'basic') {
+                    contentArea.innerHTML = `
+                        <div style="padding: 24px;">
+                            <h1 style="color: #007AFF; margin-bottom: 16px;">✅ LearnerEn 基本模式</h1>
+                            <p style="font-size: 18px; margin-bottom: 24px;">基本界面已加载，核心功能可用！</p>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                                <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                    <h3 style="color: #007AFF; margin-bottom: 12px;">🎧 音频同步</h3>
+                                    <p>支持音频与文本同步，实时高亮显示当前播放内容。</p>
+                                </div>
+                                <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                    <h3 style="color: #007AFF; margin-bottom: 12px;">📚 智能词汇表</h3>
+                                    <p>点击任意单词即可查看释义、发音和例句。</p>
+                                </div>
+                                <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                    <h3 style="color: #007AFF; margin-bottom: 12px;">📱 移动优化</h3>
+                                    <p>完美适配iOS Safari，支持触摸手势操作。</p>
+                                </div>
+                                <div style="padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                    <h3 style="color: #007AFF; margin-bottom: 12px;">🎯 个性化学习</h3>
+                                    <p>智能分析学习进度，提供个性化推荐。</p>
+                                </div>
+                            </div>
+                            
+                            <div style="padding: 16px; background: #e8f5e8; border-radius: 8px; border-left: 4px solid #28a745;">
+                                <h4 style="margin: 0 0 8px 0;">🎉 启动成功</h4>
+                                <p style="margin: 0;">LearnerEn 已成功启动基本模式。如需完整功能，请确保所有模块正确加载。</p>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            function initBasicFeatures() {
+                // Back to top functionality
+                const backToTop = document.getElementById('back-to-top');
+                const contentArea = document.getElementById('content-area');
+                
+                if (backToTop && contentArea) {
+                    function toggleBackToTop() {
+                        if (contentArea.scrollTop > 300) {
+                            backToTop.style.display = 'flex';
+                        } else {
+                            backToTop.style.display = 'none';
+                        }
+                    }
+                    
+                    contentArea.addEventListener('scroll', function() {
+                        if (window.requestAnimationFrame) {
+                            requestAnimationFrame(toggleBackToTop);
+                        } else {
+                            setTimeout(toggleBackToTop, 16);
+                        }
+                    });
+                    
+                    backToTop.addEventListener('click', function() {
+                        if (contentArea.scrollTo) {
+                            contentArea.scrollTo({ top: 0, behavior: 'smooth' });
+                        } else {
+                            contentArea.scrollTop = 0;
+                        }
+                    });
+                }
+                
+                // Network status monitoring
+                function updateOnlineStatus() {
+                    const offlineNotice = document.getElementById('offline-notice');
+                    if (offlineNotice) {
+                        if (navigator.onLine) {
+                            offlineNotice.style.display = 'none';
+                            document.body.classList.remove('offline');
+                        } else {
+                            offlineNotice.style.display = 'block';
+                            document.body.classList.add('offline');
+                        }
+                    }
+                }
+                
+                window.addEventListener('online', updateOnlineStatus);
+                window.addEventListener('offline', updateOnlineStatus);
+                updateOnlineStatus();
+            }
+            
+            // 如果页面已经完全加载但初始化器还未运行，等待一段时间后启动基本界面
+            if (document.readyState === 'complete') {
                 setTimeout(function() {
-                    updateModuleStatus(moduleName, 'loading');
-                    
-                    // 模拟初始化时间和可能的失败
-                    var initTime = Math.random() * 1000 + 500; // 500-1500ms
-                    var shouldFail = Math.random() < 0.1; // 10%失败率
-                    
-                    setTimeout(function() {
-                        updateModuleStatus(moduleName, shouldFail ? 'failed' : 'ready');
-                    }, initTime);
-                    
-                }, index * 200); // 错开初始化时间
+                    if (!window.EnglishSite || !window.EnglishSite._PATCHES_APPLIED) {
+                        console.warn('⚠️ [LearnerEn] 补丁未应用，可能存在兼容性问题');
+                        initBasicInterface();
+                    }
+                }, 3000);
+            }
+            
+        })();
+    </script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        // Register Service Worker for PWA functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('sw.js')
+                    .then(function(registration) {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(function(registrationError) {
+                        console.log('SW registration failed: ', registrationError);
+                    });
             });
         }
         
-        // 测试模块功能
-        function testModules() {
-            var results = document.getElementById('testResults');
-            results.innerHTML = '<div class="status loading"><strong>🔍 正在测试模块功能...</strong></div>';
+        // Install prompt handling
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
             
-            setTimeout(function() {
-                var successCount = Object.values(moduleStatus).filter(s => s === 'ready').length;
-                
-                results.innerHTML = 
-                    '<div class="status success">' +
-                    '<strong>✅ 测试完成</strong><br>' +
-                    '可用模块：' + successCount + '/' + modules.length + '<br>' +
-                    '基础功能：正常<br>' +
-                    '缓存系统：正常<br>' +
-                    '事件系统：正常' +
-                    '</div>';
-            }, 1500);
-        }
-        
-        // 清理缓存
-        function clearCache() {
-            var results = document.getElementById('testResults');
-            results.innerHTML = '<div class="status success"><strong>🗑️ 缓存已清理</strong></div>';
-            setTimeout(function() {
-                results.innerHTML = '';
-            }, 2000);
-        }
-        
-        // 显示调试面板
-        function showDebugPanel() {
-            var results = document.getElementById('testResults');
-            results.innerHTML = 
-                '<div class="status success">' +
-                '<strong>🐛 调试信息</strong><br>' +
-                '内存使用：' + (Math.random() * 50 + 10).toFixed(1) + 'MB<br>' +
-                'FPS：' + Math.floor(Math.random() * 20 + 40) + '<br>' +
-                '错误数：0<br>' +
-                '活跃事件：' + Math.floor(Math.random() * 10 + 5) +
-                '</div>';
-        }
-        
-        // 页面加载完成后开始模拟
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('📄 DOM就绪，开始初始化演示');
-            initModuleList();
+            const installButton = document.createElement('button');
+            installButton.textContent = '安装应用';
+            installButton.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                padding: 12px 24px;
+                background: #007AFF;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                cursor: pointer;
+                z-index: 1000;
+                box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+            `;
             
-            // 延迟一点开始，模拟真实场景
-            setTimeout(simulateInitialization, 500);
+            installButton.addEventListener('click', () => {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('User accepted the install prompt');
+                        installButton.remove();
+                    }
+                    deferredPrompt = null;
+                });
+            });
+            
+            document.body.appendChild(installButton);
+            setTimeout(() => {
+                if (installButton.parentNode) {
+                    installButton.remove();
+                }
+            }, 10000);
         });
         
-        // 模拟EnglishSiteReady事件
-        setTimeout(function() {
-            var event = new Event('EnglishSiteReady');
-            window.dispatchEvent(event);
-            console.log('🎉 EnglishSiteReady事件已触发');
-        }, 5000);
+        window.addEventListener('appinstalled', (evt) => {
+            console.log('App was installed');
+        });
+    </script>
+    
+    <!-- Performance Monitoring -->
+    <script>
+        // Basic performance monitoring
+        window.addEventListener('load', function() {
+            // Performance timing
+            if (window.performance && window.performance.timing) {
+                const perfData = window.performance.timing;
+                const loadTime = perfData.loadEventEnd - perfData.navigationStart;
+                
+                if (loadTime > 0) {
+                    console.log('Page load time:', loadTime + 'ms');
+                    
+                    if (window.gtag) {
+                        gtag('event', 'timing_complete', {
+                            name: 'load',
+                            value: loadTime
+                        });
+                    }
+                }
+            }
+        });
+        
+        // Error monitoring
+        window.addEventListener('error', function(e) {
+            console.error('Global error:', e.error);
+            
+            if (window.Sentry) {
+                Sentry.captureException(e.error);
+            }
+        });
+        
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('Unhandled promise rejection:', e.reason);
+            
+            if (window.Sentry) {
+                Sentry.captureException(e.reason);
+            }
+        });
+    </script>
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "LearnerEn",
+        "description": "专业的英语学习平台，提供音频同步、智能词汇表、个性化学习等功能",
+        "url": "https://learneren.com",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "iOS, Android, Web",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "CNY"
+        },
+        "author": {
+            "@type": "Organization",
+            "name": "LearnerEn Team"
+        },
+        "screenshot": "https://learneren.com/assets/screenshots/app-screenshot.png",
+        "softwareVersion": "2.0.0",
+        "datePublished": "2024-01-01",
+        "dateModified": "2024-12-20",
+        "inLanguage": "zh-CN",
+        "isAccessibleForFree": true,
+        "browserRequirements": "iOS Safari 12+, Chrome 80+, Firefox 80+",
+        "featureList": [
+            "音频同步学习",
+            "智能词汇表",
+            "个性化学习路径",
+            "离线功能支持",
+            "移动端优化",
+            "PWA支持"
+        ]
+    }
     </script>
 </body>
 </html>
