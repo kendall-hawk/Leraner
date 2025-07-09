@@ -920,8 +920,206 @@ setTimeout(function() {
 <style>
 #loading-screen { display: none !important; }
 </style>
+<!-- 🔥 超强力解决方案 - 直接添加到 </body> 标签前 -->
 
-</body>
-</html>
+<script>
+(function() {
+    'use strict';
+    
+    console.log('🔥 [超强力] 开始彻底移除加载屏幕...');
+    
+    function nukeLoa dingScreen() {
+        console.log('💥 [核心删除] 执行彻底删除...');
+        
+        // 方法1: 通过ID删除
+        var loadingById = document.getElementById('loading-screen');
+        if (loadingById) {
+            console.log('🎯 [核心删除] 找到loading-screen，删除中...');
+            if (loadingById.parentNode) {
+                loadingById.parentNode.removeChild(loadingById);
+                console.log('✅ [核心删除] 通过ID删除成功');
+            }
+        }
+        
+        // 方法2: 通过类名删除所有加载屏幕
+        var loadingByClass = document.querySelectorAll('.loading-screen');
+        for (var i = 0; i < loadingByClass.length; i++) {
+            if (loadingByClass[i].parentNode) {
+                loadingByClass[i].parentNode.removeChild(loadingByClass[i]);
+                console.log('✅ [核心删除] 通过类名删除 #' + i);
+            }
+        }
+        
+        // 方法3: 删除所有包含"loading"的元素
+        var allElements = document.querySelectorAll('*');
+        for (var j = 0; j < allElements.length; j++) {
+            var element = allElements[j];
+            if (element.id && element.id.toLowerCase().includes('loading')) {
+                console.log('🔍 [核心删除] 发现可疑loading元素:', element.id);
+                if (element.parentNode) {
+                    element.parentNode.removeChild(element);
+                    console.log('💣 [核心删除] 删除可疑元素:', element.id);
+                }
+            }
+            if (element.className && element.className.toLowerCase().includes('loading')) {
+                console.log('🔍 [核心删除] 发现可疑loading类:', element.className);
+                if (element.parentNode) {
+                    element.parentNode.removeChild(element);
+                    console.log('💣 [核心删除] 删除可疑类元素');
+                }
+            }
+        }
+        
+        // 方法4: 强制隐藏任何遮罩
+        var potentialOverlays = document.querySelectorAll('[style*="z-index"], [style*="position: fixed"], [style*="position:fixed"]');
+        for (var k = 0; k < potentialOverlays.length; k++) {
+            var overlay = potentialOverlays[k];
+            var zIndex = parseInt(window.getComputedStyle(overlay).zIndex);
+            if (zIndex > 1000) {
+                console.log('🔍 [核心删除] 发现高z-index元素:', zIndex, overlay);
+                overlay.style.display = 'none';
+                overlay.style.visibility = 'hidden';
+                overlay.style.opacity = '0';
+                overlay.style.zIndex = '-9999';
+            }
+        }
+        
+        console.log('💥 [核心删除] 删除操作完成');
+    }
+    
+    // 立即执行
+    nukeLoa dingScreen();
+    
+    // 持续执行，防止重新出现
+    var nukeInterval = setInterval(nukeLoa dingScreen, 100);
+    
+    // 10秒后停止持续删除
+    setTimeout(function() {
+        clearInterval(nukeInterval);
+        console.log('⏹️ [核心删除] 停止持续删除');
+    }, 10000);
+    
+    // 监听DOM变化，防止加载屏幕重新出现
+    if (typeof MutationObserver !== 'undefined') {
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList') {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.nodeType === 1) { // Element node
+                            if (node.id === 'loading-screen' || 
+                                (node.className && node.className.includes('loading-screen'))) {
+                                console.log('🚨 [监视器] 检测到新的加载屏幕，立即删除');
+                                if (node.parentNode) {
+                                    node.parentNode.removeChild(node);
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // 5分钟后停止监视
+        setTimeout(function() {
+            observer.disconnect();
+            console.log('👁️ [监视器] 停止DOM监视');
+        }, 300000);
+    }
+    
+    console.log('🔥 [超强力] 删除脚本已激活');
+})();
+</script>
+
+<!-- 🔥 超高优先级CSS强制隐藏 -->
+<style>
+/* 超高优先级隐藏 */
+#loading-screen,
+.loading-screen,
+[id*="loading"],
+[class*="loading"],
+[id*="Loading"],
+[class*="Loading"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    z-index: -99999 !important;
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+}
+
+/* 确保页面可见 */
+body {
+    overflow: auto !important;
+}
+
+html {
+    overflow: auto !important;
+}
+
+.app-container {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: auto !important;
+}
+
+/* 移除任何可能的遮罩 */
+*[style*="z-index: 9999"],
+*[style*="z-index:9999"] {
+    display: none !important;
+}
+</style>
+
+<!-- 🚨 紧急用户控制按钮 -->
+<div id="emergency-controls" style="position: fixed; top: 10px; left: 10px; z-index: 99999; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 5px;">
+    <button onclick="document.querySelectorAll('*').forEach(el => { if(el.id && el.id.includes('loading')) el.remove(); })" 
+            style="background: #dc3545; color: white; border: none; padding: 8px 16px; margin: 2px; border-radius: 3px; cursor: pointer; font-size: 12px;">
+        🗑️ 删除所有loading
+    </button>
+    <button onclick="document.querySelectorAll('.loading-screen').forEach(el => el.remove())" 
+            style="background: #fd7e14; color: white; border: none; padding: 8px 16px; margin: 2px; border-radius: 3px; cursor: pointer; font-size: 12px;">
+        🗑️ 删除loading-screen类
+    </button>
+    <button onclick="var sheets = document.styleSheets; for(var i = 0; i < sheets.length; i++) { try { sheets[i].insertRule('#loading-screen { display: none !important; }', 0); } catch(e) {} }" 
+            style="background: #28a745; color: white; border: none; padding: 8px 16px; margin: 2px; border-radius: 3px; cursor: pointer; font-size: 12px;">
+        🎨 CSS强制隐藏
+    </button>
+    <button onclick="document.getElementById('emergency-controls').remove()" 
+            style="background: #6c757d; color: white; border: none; padding: 8px 16px; margin: 2px; border-radius: 3px; cursor: pointer; font-size: 12px;">
+        ❌ 关闭控制台
+    </button>
+</div>
+
+<!-- 🔧 立即执行的简单脚本 -->
+<script>
+// 最简单粗暴的方法
+setTimeout(function() {
+    var loading = document.getElementById('loading-screen');
+    if (loading && loading.parentNode) {
+        loading.parentNode.removeChild(loading);
+        console.log('🗑️ [简单删除] 加载屏幕已删除');
+    }
+}, 100);
+
+setTimeout(function() {
+    document.querySelectorAll('.loading-screen').forEach(function(el) {
+        if (el.parentNode) {
+            el.parentNode.removeChild(el);
+        }
+    });
+    console.log('🗑️ [批量删除] 所有loading-screen类已删除');
+}, 500);
+</script>
+
 </body>
 </html>
