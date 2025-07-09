@@ -1729,15 +1729,11 @@
             }
         }
         
-// ❌ 删除这行
-// initialize();
-
-// ✅ 改为延迟初始化
 var self = this;
 
 // 延迟到下一个事件循环初始化
 setTimeout(function() {
-    if (!isDestroyed) {
+    if (!appState.isDestroyed) {  // 使用appState.isDestroyed替代isDestroyed
         initialize();
     }
 }, 0);
