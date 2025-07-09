@@ -1566,7 +1566,7 @@
                 if (global.EnglishSite.ErrorBoundary) {
                     this.registerModule('ErrorBoundary', global.EnglishSite.ErrorBoundary, []);
                 }
-                
+                /*
                 // 注册Core Modules
                 if (global.EnglishSite.NavigationCore) {
                     this.registerModule('NavigationCore', global.EnglishSite.NavigationCore, 
@@ -1580,6 +1580,7 @@
                     this.registerModule('GlossaryCore', global.EnglishSite.GlossaryCore, 
                         ['StateManager', 'EventHub', 'CacheManager', 'ErrorBoundary']);
                 }
+                */
             }
         }
         
