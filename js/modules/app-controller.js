@@ -1729,14 +1729,9 @@
             }
         }
         
-var self = this;
-
-// 延迟到下一个事件循环初始化
-setTimeout(function() {
-    if (!appState.isDestroyed) {  // 使用appState.isDestroyed替代isDestroyed
+        // 立即初始化
         initialize();
     }
-}, 0);
     
     // 🔗 导出
     if (typeof module !== 'undefined' && module.exports) {
