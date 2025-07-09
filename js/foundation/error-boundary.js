@@ -805,47 +805,9 @@
             }, 'default');
         }
         
-// 在私有变量部分添加
-var isInitialized = false;
-
-// 🎯 初始化函数的完整修复
-function initialize() {
-    if (isDestroyed) {
-        DEBUG_ERROR('[ErrorBoundary] 尝试初始化已销毁的实例');
-        return;
+        // 立即初始化
+        initialize();
     }
-    
-    if (isInitialized) {
-        return;
-    }
-    
-    try {
-        // 现有的初始化逻辑
-        setupGlobalErrorHandlers();
-        setupUnhandledRejectionHandler();
-        setupConsoleErrorCapture();
-        setupDefaultRecoveryStrategies();
-        setupDefaultFallbacks();
-        setupUnloadHandler();
-        setupOnlineHandler();
-        
-        isInitialized = true;
-        DEBUG_LOG('[ErrorBoundary] 初始化成功');
-    } catch (error) {
-        // 避免初始化错误导致递归
-        console.error('[ErrorBoundary] 初始化失败:', error);
-    }
-}
-
-// 文件末尾的条件初始化修复
-if (typeof module === 'undefined' && typeof global !== 'undefined') {
-    // 浏览器环境且非模块系统，立即初始化
-    setTimeout(function() {
-        if (!isDestroyed && !isInitialized) {
-            initialize();
-        }
-    }, 0);
-}
     
     // 🔗 导出
     if (typeof module !== 'undefined' && module.exports) {
