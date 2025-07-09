@@ -887,5 +887,41 @@
         ]
     }
     </script>
+    <!-- 🚨 强制隐藏加载屏幕 - 直接添加这段代码 -->
+<script>
+console.log('🚨 强制隐藏加载屏幕...');
+
+function hideLoading() {
+    var loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+        loadingScreen.style.visibility = 'hidden';
+        loadingScreen.style.opacity = '0';
+        console.log('✅ 加载屏幕已隐藏');
+    }
+}
+
+// 立即执行
+hideLoading();
+
+// 1秒后再执行一次（保险）
+setTimeout(hideLoading, 1000);
+
+// 添加紧急关闭按钮
+setTimeout(function() {
+    var btn = document.createElement('div');
+    btn.innerHTML = '❌ 关闭加载屏幕';
+    btn.style.cssText = 'position:fixed;top:20px;right:20px;background:#dc3545;color:white;padding:10px 20px;border-radius:5px;cursor:pointer;z-index:10000;font-size:14px;';
+    btn.onclick = function() { hideLoading(); btn.remove(); };
+    document.body.appendChild(btn);
+}, 2000);
+</script>
+
+<style>
+#loading-screen { display: none !important; }
+</style>
+
+</body>
+</html>
 </body>
 </html>
