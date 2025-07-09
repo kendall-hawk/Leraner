@@ -678,16 +678,36 @@
                 originalErrorHandler = null;
             }
         }
-        
-// ❌ 删除立即初始化
-// initialize();
+// 在私有变量部分添加
+var isInitialized = false;
 
-// ✅ 改为条件初始化
-// 只有在被直接使用时才初始化，否则等待容器调用
+// 🎯 初始化函数的完整修复
+function initialize() {
+    if (isDestroyed) {
+        DEBUG_ERROR('[EventHub] 尝试初始化已销毁的实例');
+        return;
+    }
+    
+    if (isInitialized) {
+        return;
+    }
+    
+    try {
+        // 现有的初始化逻辑
+        setupGlobalErrorHandling();
+        
+        isInitialized = true;
+        DEBUG_LOG('[EventHub] 初始化成功');
+    } catch (error) {
+        DEBUG_ERROR('[EventHub] 初始化失败:', error);
+    }
+}
+
+// 文件末尾的条件初始化修复
 if (typeof module === 'undefined' && typeof global !== 'undefined') {
-    // 浏览器环境且非模块系统，延迟初始化
+    // 浏览器环境且非模块系统，立即初始化
     setTimeout(function() {
-        if (!isInitialized) {
+        if (!isDestroyed && !isInitialized) {
             initialize();
         }
     }, 0);
