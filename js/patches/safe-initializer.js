@@ -1,4 +1,4 @@
-// js/core/safe-initializer.js - 安全的模块初始化器
+// js/patches/safe-initializer.js - 安全的模块初始化器
 // 🚀 解决循环依赖和初始化卡死问题
 
 (function(global) {
