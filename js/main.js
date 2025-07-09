@@ -465,27 +465,37 @@
         }
         
         // 初始化应用控制器
-        function initializeAppController() {
-            return new Promise(function(resolve, reject) {
-                try {
-                    if (!global.EnglishSite || !global.EnglishSite.AppController) {
-                        throw new Error('AppController not available');
-                    }
-                    
+function initializeAppController() {
+    return new Promise(function(resolve, reject) {
+        // 等待依赖就绪
+        var maxRetries = 50;
+        var retries = 0;
+        
+        function waitForDependencies() {
+            try {
+                if (global.EnglishSite && global.EnglishSite.AppController) {
                     appController = new global.EnglishSite.AppController({
                         name: APP_CONFIG.name,
                         version: APP_CONFIG.version,
                         debug: APP_CONFIG.debug,
-                        autoStart: false // 手动控制启动
+                        autoStart: false
                     });
-                    
                     resolve(appController);
-                } catch (error) {
-                    DEBUG_ERROR('[Main] AppController initialization failed:', error);
-                    reject(error);
+                } else if (retries < maxRetries) {
+                    retries++;
+                    setTimeout(waitForDependencies, 100);
+                } else {
+                    reject(new Error('AppController not available after timeout'));
                 }
-            });
+            } catch (error) {
+                DEBUG_ERROR('[Main] AppController initialization failed:', error);
+                reject(error);
+            }
         }
+        
+        waitForDependencies();
+    });
+}
         
         // 配置模块选项
         function getModuleConfigs() {
