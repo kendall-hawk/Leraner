@@ -1,4 +1,4 @@
-// js/core/module-patches.js - 现有模块修复补丁
+// js/patches/module-patches.js - 现有模块修复补丁
 // 🚀 修复现有模块的初始化问题，防止循环依赖和卡死
 
 (function(global) {
