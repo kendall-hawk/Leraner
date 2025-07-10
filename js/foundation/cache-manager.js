@@ -1,5 +1,5 @@
 // 🚀 重构后的缓存管理器 - 使用统一基础设施
-// js/foundation/cache-manager-v2.js
+// js/foundation/cache-manager.js
 
 (function(global) {
     'use strict';
